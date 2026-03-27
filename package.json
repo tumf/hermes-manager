@@ -59,5 +59,3 @@
     "*.{json,md,yaml,yml,css}": ["prettier --write"]
   }
 }
-}
-}
