@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start -p 18470",
+    "start:prod": "bash scripts/start-prod.sh",
     "lint": "next lint --max-warnings 0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -36,6 +37,7 @@
     "zod": "^3.24.3"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.2",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
     "@types/better-sqlite3": "^7.6.13",
@@ -48,6 +50,8 @@
     "eslint": "^9.25.0",
     "eslint-config-next": "^15.3.0",
     "eslint-config-prettier": "^10.1.2",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-unused-imports": "^4.4.1",
     "husky": "^9.1.7",
     "jsdom": "^26.1.0",
     "lint-staged": "^15.5.1",
