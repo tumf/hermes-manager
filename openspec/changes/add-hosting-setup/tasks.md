@@ -2,21 +2,21 @@
 
 ## Implementation Tasks
 
-- [ ] Create scripts/migrate.ts that runs drizzle-kit push or executes inline
+- [x] Create scripts/migrate.ts that runs drizzle-kit push or executes inline
   CREATE TABLE IF NOT EXISTS statements for all schema tables so the SQLite DB is
   ready before the server starts
-- [ ] Create scripts/start-prod.sh that runs the migration then executes
+- [x] Create scripts/start-prod.sh that runs the migration then executes
   node server.js (or next start) with PORT=18470 and NODE_ENV=production
-- [ ] Add "start:prod": "bash scripts/start-prod.sh" to the scripts section of
+- [x] Add "start:prod": "bash scripts/start-prod.sh" to the scripts section of
   package.json
-- [ ] Create hosting/ai.hermes.agents-webapp.plist with the launchd service
+- [x] Create hosting/ai.hermes.agents-webapp.plist with the launchd service
   definition: Label, ProgramArguments, WorkingDirectory, EnvironmentVariables
   (PORT, NODE_ENV), StandardOutPath, StandardErrorPath, RunAtLoad, KeepAlive
-- [ ] Create hosting/caddy-snippet.conf with the Caddy reverse_proxy block for
+- [x] Create hosting/caddy-snippet.conf with the Caddy reverse_proxy block for
   hermes-agents.mini.tumf.dev pointing to localhost:18470 including TLS via
   existing ACME config
-- [ ] Add instructions in hosting/README.md for installing the plist with
+- [x] Add instructions in hosting/README.md for installing the plist with
   launchctl bootstrap and adding the Caddy snippet to the existing Caddyfile
-- [ ] Create logs/ directory with a .gitkeep and ensure it is excluded from
+- [x] Create logs/ directory with a .gitkeep and ensure it is excluded from
   commits except the placeholder
-- [ ] Validate proposal with cflx validate add-hosting-setup --strict
+- [x] Validate proposal with cflx validate add-hosting-setup --strict
