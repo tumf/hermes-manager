@@ -43,6 +43,27 @@ function createFetchMock() {
         return { ok: true, json: async () => ({}) };
       }
 
+      if (url.startsWith('/api/env/resolved?') && method === 'GET') {
+        return {
+          ok: true,
+          json: async () => [{ key: 'BASE_URL', value: 'https://example.com', source: 'global' }],
+        };
+      }
+
+      if (url.startsWith('/api/skills/links?') && method === 'GET') {
+        return {
+          ok: true,
+          json: async () => [
+            {
+              id: 1,
+              sourcePath: '/Users/tumf/.hermes/skills/coding',
+              targetPath: '/runtime/agents/alpha/skills/coding',
+              exists: true,
+            },
+          ],
+        };
+      }
+
       return { ok: true, json: async () => ({}) };
     });
 }
@@ -58,6 +79,21 @@ afterEach(() => {
 });
 
 describe('Agent detail memory tab', () => {
+  it('renders required tabs including Env and Skills', async () => {
+    global.fetch = createFetchMock();
+
+    render(<AgentDetailPage params={{ name: 'alpha' }} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Memory' })).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole('tab', { name: 'Config' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Env' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Skills' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Logs' })).toBeInTheDocument();
+  });
+
   it('shows only one memory editor at a time', async () => {
     global.fetch = createFetchMock();
 
@@ -152,5 +188,58 @@ describe('Agent detail memory tab', () => {
       expect(lastPutBody.path).toBe('SOUL.md');
       expect(lastPutBody.agent).toBe('alpha');
     });
+  });
+
+  it('loads resolved env when Env tab is opened', async () => {
+    const fetchMock = createFetchMock();
+    global.fetch = fetchMock;
+
+    render(<AgentDetailPage params={{ name: 'alpha' }} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Env' })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Env' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('BASE_URL')).toBeInTheDocument();
+      expect(screen.getByText('https://example.com')).toBeInTheDocument();
+    });
+
+    const envCall = (fetchMock.mock.calls as [string, { method?: string }?][]).find(
+      ([url, init]) =>
+        url.startsWith('/api/env/resolved?') &&
+        (init?.method ?? 'GET') === 'GET' &&
+        url.includes('agent=alpha'),
+    );
+    expect(envCall).toBeDefined();
+  });
+
+  it('loads skill links when Skills tab is opened', async () => {
+    const fetchMock = createFetchMock();
+    global.fetch = fetchMock;
+
+    render(<AgentDetailPage params={{ name: 'alpha' }} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Skills' })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Skills' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('/Users/tumf/.hermes/skills/coding')).toBeInTheDocument();
+      expect(screen.getByText('/runtime/agents/alpha/skills/coding')).toBeInTheDocument();
+      expect(screen.getByText('Linked')).toBeInTheDocument();
+    });
+
+    const linksCall = (fetchMock.mock.calls as [string, { method?: string }?][]).find(
+      ([url, init]) =>
+        url.startsWith('/api/skills/links?') &&
+        (init?.method ?? 'GET') === 'GET' &&
+        url.includes('agent=alpha'),
+    );
+    expect(linksCall).toBeDefined();
   });
 });

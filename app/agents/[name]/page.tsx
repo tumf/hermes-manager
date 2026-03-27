@@ -158,6 +158,12 @@ export default function AgentPage({ params }: AgentPageProps) {
             <Settings className="size-3.5" />
             <span className="hidden sm:inline">Config</span>
           </TabsTrigger>
+          <TabsTrigger value="env" className="gap-1.5">
+            <span>Env</span>
+          </TabsTrigger>
+          <TabsTrigger value="skills" className="gap-1.5">
+            <span>Skills</span>
+          </TabsTrigger>
           <TabsTrigger value="logs" className="gap-1.5">
             <ScrollText className="size-3.5" />
             <span className="hidden sm:inline">Logs</span>
@@ -170,6 +176,14 @@ export default function AgentPage({ params }: AgentPageProps) {
 
         <TabsContent value="config">
           <FileEditor name={name} filePath="config.yaml" label="config.yaml" />
+        </TabsContent>
+
+        <TabsContent value="env" forceMount>
+          <EnvResolvedViewer name={name} />
+        </TabsContent>
+
+        <TabsContent value="skills" forceMount>
+          <SkillsLinksViewer name={name} />
         </TabsContent>
 
         <TabsContent value="logs">
@@ -350,6 +364,133 @@ function FileEditor({
     <Card>
       <CardHeader className="flex-row items-center justify-between">{header}</CardHeader>
       <CardContent>{editorArea}</CardContent>
+    </Card>
+  );
+}
+
+function EnvResolvedViewer({ name }: { name: string }) {
+  const [rows, setRows] = useState<Array<{ key: string; value: string; source: string }>>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/env/resolved?agent=${encodeURIComponent(name)}`);
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          const message = typeof data.error === 'string' ? data.error : 'Failed to load env';
+          toast.error(message);
+          return;
+        }
+
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setRows(data);
+        } else {
+          setRows([]);
+        }
+      } catch {
+        toast.error('Failed to load env');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    void load();
+  }, [name]);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm">Resolved Env</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <Skeleton className="h-40 w-full" />
+        ) : rows.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No environment variables.</p>
+        ) : (
+          <div className="space-y-2">
+            {rows.map((row) => (
+              <div
+                key={`${row.key}:${row.source}`}
+                className="flex flex-col gap-1 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0">
+                  <p className="font-mono text-sm font-medium">{row.key}</p>
+                  <p className="truncate font-mono text-xs text-muted-foreground">{row.value}</p>
+                </div>
+                <Badge variant="muted" className="w-fit">
+                  {row.source}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function SkillsLinksViewer({ name }: { name: string }) {
+  const [rows, setRows] = useState<Array<{ id: number; sourcePath: string; targetPath: string; exists: boolean }>>(
+    [],
+  );
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/skills/links?agent=${encodeURIComponent(name)}`);
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          const message = typeof data.error === 'string' ? data.error : 'Failed to load skills links';
+          toast.error(message);
+          return;
+        }
+
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setRows(data);
+        } else {
+          setRows([]);
+        }
+      } catch {
+        toast.error('Failed to load skills links');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    void load();
+  }, [name]);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm">Skill Links</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <Skeleton className="h-40 w-full" />
+        ) : rows.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No skill links.</p>
+        ) : (
+          <div className="space-y-2">
+            {rows.map((row) => (
+              <div key={row.id} className="rounded-md border p-3">
+                <p className="truncate font-mono text-xs text-muted-foreground">{row.sourcePath}</p>
+                <p className="truncate font-mono text-xs">{row.targetPath}</p>
+                <Badge variant={row.exists ? 'success' : 'muted'} className="mt-2">
+                  {row.exists ? 'Linked' : 'Missing'}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
     </Card>
   );
 }

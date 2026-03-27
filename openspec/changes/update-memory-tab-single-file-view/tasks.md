@@ -12,3 +12,9 @@
 ## Future Work
 
 - なし
+
+## Acceptance #1 Failure Follow-up
+
+- [x] Agent 詳細ページのタブ構成を仕様通り Memory / Config / Env / Skills / Logs に復元し、Env/Skills タブを再表示する
+- [x] Env / Skills タブが既存どおり動作することを UI テストで回帰防止する
+- [x] 変更後に `npm run test && npm run typecheck && npm run lint` を再実行して成功を確認する
