@@ -8,7 +8,7 @@ import { pollFileFromOffset } from '@/src/lib/logs-stream';
 
 const StreamQuerySchema = z.object({
   agent: z.string().min(1),
-  file: z.enum(ALLOWED_LOG_FILES),
+  file: ALLOWED_LOG_FILES,
 });
 
 const POLL_INTERVAL_MS = 2000;
@@ -56,11 +56,11 @@ export async function GET(request: NextRequest) {
 
       // Send last 50 lines on connect
       const { lines: initialLines, totalBytes: initialOffset } = await readLastNLines(logPath, 50);
+      let offset = initialOffset;
       for (const line of initialLines) {
         send(line);
       }
 
-      let offset = initialOffset;
       let lastKeepalive = Date.now();
 
       // Poll for new content

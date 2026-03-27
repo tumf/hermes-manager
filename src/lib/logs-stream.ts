@@ -1,33 +1,20 @@
-import fs from 'node:fs/promises';
+import fs from 'node:fs';
 
-/**
- * Reads new bytes from a file starting at the given byte offset.
- * Returns the new lines found and the updated offset.
- * If the file does not exist yet, returns empty chunk and offset 0.
- */
 export async function pollFileFromOffset(
   filePath: string,
-  offset: number,
-): Promise<{ chunk: string; newOffset: number }> {
-  let stat: { size: number };
+  startPos: number,
+): Promise<{ chunk: string; newOffset: number } | { chunk: ''; newOffset: number }> {
   try {
-    stat = await fs.stat(filePath);
+    const stat = fs.statSync(filePath);
+    if (stat.size > startPos) {
+      const fd = fs.openSync(filePath, 'r');
+      const buf = Buffer.alloc(stat.size - startPos);
+      fs.readSync(fd, buf, 0, buf.length, startPos);
+      fs.closeSync(fd);
+      return { chunk: buf.toString('utf8'), newOffset: stat.size };
+    }
+    return { chunk: '', newOffset: startPos };
   } catch {
-    return { chunk: '', newOffset: offset };
-  }
-
-  const fileSize = stat.size;
-  if (fileSize <= offset) {
-    return { chunk: '', newOffset: offset };
-  }
-
-  const fileHandle = await fs.open(filePath, 'r');
-  try {
-    const readSize = fileSize - offset;
-    const buf = Buffer.alloc(readSize);
-    await fileHandle.read(buf, 0, readSize, offset);
-    return { chunk: buf.toString('utf8'), newOffset: fileSize };
-  } finally {
-    await fileHandle.close();
+    return { chunk: '', newOffset: startPos };
   }
 }

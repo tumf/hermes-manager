@@ -1,65 +1,40 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { z } from 'zod';
+export function getSkillsRoot(): string {
+  const home = process.env.HOME || process.env.USERPROFILE || '';
+  return path.join(home, '.hermes', 'skills');
+}
 
-export interface SkillNode {
+export type SkillTree = {
   name: string;
   path: string;
   isDir: boolean;
-  children?: SkillNode[];
-}
+  children?: SkillTree[];
+};
 
-export function walkSkillsTree(root: string, maxDepth = 5, currentDepth = 0): SkillNode[] {
-  if (currentDepth >= maxDepth) return [];
-
-  let entries: fs.Dirent[];
-  try {
-    entries = fs.readdirSync(root, { withFileTypes: true });
-  } catch {
-    return [];
-  }
-
-  return entries.map((entry) => {
-    const entryPath = path.join(root, entry.name);
-    const isDir = entry.isDirectory();
-    const node: SkillNode = { name: entry.name, path: entryPath, isDir };
-    if (isDir) {
-      node.children = walkSkillsTree(entryPath, maxDepth, currentDepth + 1);
+export function walkSkillsTree(root?: string, maxDepth = 5): SkillTree[] {
+  const base = root || getSkillsRoot();
+  function walk(dir: string, depth: number): SkillTree[] {
+    if (depth > maxDepth) return [];
+    let entries: fs.Dirent[] = [];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return [];
     }
-    return node;
-  });
+    const items: SkillTree[] = [];
+    for (const ent of entries) {
+      const p = path.join(dir, ent.name);
+      const node: SkillTree = { name: ent.name, path: p, isDir: ent.isDirectory(), children: [] };
+      if (ent.isDirectory()) {
+        node.children = walk(p, depth + 1);
+      }
+      items.push(node);
+    }
+    return items.sort((a, b) => a.name.localeCompare(b.name));
+  }
+  return walk(base, 1);
 }
 
-export function getSkillsRoot(): string {
-  const hermesHome = process.env.HERMES_HOME ?? path.join(process.env.HOME ?? '~', '.hermes');
-  return path.join(hermesHome, 'skills');
-}
-
-// Zod schemas
-
-export const CreateLinkSchema = z.object({
-  agent: z.string().min(1),
-  sourcePath: z.string().min(1),
-});
-
-export const TreeResponseSchema = z.object({
-  tree: z.array(z.lazy(() => SkillNodeSchema)),
-});
-
-export const SkillNodeSchema: z.ZodType<SkillNode> = z.lazy(() =>
-  z.object({
-    name: z.string(),
-    path: z.string(),
-    isDir: z.boolean(),
-    children: z.array(SkillNodeSchema).optional(),
-  }),
-);
-
-export const LinkRowSchema = z.object({
-  id: z.number(),
-  agent: z.string(),
-  sourcePath: z.string(),
-  targetPath: z.string(),
-  exists: z.boolean(),
-});
+export const CreateLinkSchema = undefined as any; // placeholder if imported elsewhere

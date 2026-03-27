@@ -12,9 +12,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from './lib/ui/alert-dialog';
-import { Badge } from './lib/ui/badge';
-import { Button } from './lib/ui/button';
+} from '@/src/components/ui/alert-dialog';
+import { Badge } from '@/src/components/ui/badge';
+import { Button } from '@/src/components/ui/button';
 import {
   Dialog,
   DialogClose,
@@ -24,9 +24,16 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from './lib/ui/dialog';
-import { Input } from './lib/ui/input';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './lib/ui/table';
+} from '@/src/components/ui/dialog';
+import { Input } from '@/src/components/ui/input';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/src/components/ui/table';
 
 interface Agent {
   id: number;
@@ -165,12 +172,18 @@ export default function Home() {
     }
   }
 
+  // busy state reserved for future optimistic UI
+  // const isBusy = addLoading || copyLoading;
+
   return (
-    <main className="mx-auto max-w-4xl p-4 sm:p-6">
+    <main className="mx-auto max-w-4xl p-4 pt-14 sm:p-6 sm:pt-6">
       <h1 className="mb-2 text-2xl font-semibold">Hermes Agents</h1>
 
       {/* Add Agent Form */}
-      <form onSubmit={handleAdd} className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center">
+      <form
+        onSubmit={handleAdd}
+        className="mb-6 grid grid-cols-1 gap-2 sm:flex sm:flex-row sm:items-center"
+      >
         <Input
           placeholder="New agent name"
           value={addName}
@@ -178,7 +191,7 @@ export default function Home() {
           className="w-full sm:w-64"
           aria-label="New agent name"
         />
-        <Button type="submit" disabled={addLoading}>
+        <Button type="submit" disabled={addLoading} className="min-h-11">
           {addLoading ? 'Adding…' : 'Add Agent'}
         </Button>
         {addError && <span className="text-sm text-red-600">{addError}</span>}
@@ -188,134 +201,260 @@ export default function Home() {
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       {!loading && !error && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Enabled</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+        <>
+          {/* Mobile: card grid */}
+          <div className="grid gap-3 sm:gap-4 md:hidden">
             {agents.length === 0 && (
-              <TableRow>
-                <TableCell className="text-gray-500" colSpan={4}>
-                  No agents yet.
-                </TableCell>
-              </TableRow>
+              <div className="rounded-lg border p-6 text-center text-sm text-muted-foreground">
+                No agents yet.
+              </div>
             )}
             {agents.map((agent) => (
-              <TableRow key={agent.id}>
-                <TableCell className="font-medium">{agent.name}</TableCell>
-                <TableCell>
+              <div key={agent.id} className="rounded-lg border p-4">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-base font-semibold">{agent.name}</div>
+                    <div className="truncate text-xs text-muted-foreground">{agent.label}</div>
+                  </div>
                   <Badge variant={agent.enabled ? 'success' : 'muted'}>
                     {agent.enabled ? 'Enabled' : 'Disabled'}
                   </Badge>
-                </TableCell>
-                <TableCell>
-                  <span
-                    className={`inline-flex items-center gap-1 text-xs ${agent.running ? 'text-green-700' : 'text-gray-500'}`}
-                  >
+                </div>
+                <div className="mb-3 text-xs text-muted-foreground">
+                  <span className="inline-flex items-center gap-1">
                     <span
                       className={`inline-block h-2 w-2 rounded-full ${agent.running ? 'bg-green-500' : 'bg-gray-400'}`}
                     />
                     {agent.running ? 'Running' : 'Stopped'}
                   </span>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {agent.running ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleStartStop(agent, 'stop')}
-                      >
-                        Stop
-                      </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="default"
-                        onClick={() => handleStartStop(agent, 'start')}
-                      >
-                        Start
-                      </Button>
-                    )}
-
-                    {/* Copy Dialog */}
-                    <Dialog
-                      open={copyOpen === agent.name}
-                      onOpenChange={(open) => {
-                        if (!open) {
-                          setCopyOpen(null);
-                          setCopyName('');
-                          setCopyError(null);
-                        }
-                      }}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {agent.running ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleStartStop(agent, 'stop')}
                     >
-                      <DialogTrigger asChild>
-                        <Button size="sm" variant="outline" onClick={() => setCopyOpen(agent.name)}>
-                          Copy
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Copy Agent</DialogTitle>
-                          <DialogDescription>
-                            Enter a name for the new agent copied from &ldquo;{agent.name}&rdquo;.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <Input
-                          placeholder="New agent name"
-                          value={copyName}
-                          onChange={(e) => setCopyName(e.target.value)}
-                          aria-label="Copy agent name"
-                        />
-                        {copyError && <p className="mt-1 text-sm text-red-600">{copyError}</p>}
-                        <DialogFooter>
-                          <DialogClose asChild>
-                            <Button variant="outline">Cancel</Button>
-                          </DialogClose>
-                          <Button onClick={() => handleCopy(agent.name)} disabled={copyLoading}>
-                            {copyLoading ? 'Copying…' : 'Copy'}
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
+                      Stop
+                    </Button>
+                  ) : (
+                    <Button size="sm" onClick={() => handleStartStop(agent, 'start')}>
+                      Start
+                    </Button>
+                  )}
 
-                    {/* Delete AlertDialog */}
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button size="sm" variant="destructive">
-                          Delete
+                  <Dialog
+                    open={copyOpen === agent.name}
+                    onOpenChange={(open) => {
+                      if (!open) {
+                        setCopyOpen(null);
+                        setCopyName('');
+                        setCopyError(null);
+                      }
+                    }}
+                  >
+                    <DialogTrigger asChild>
+                      <Button size="sm" variant="outline" onClick={() => setCopyOpen(agent.name)}>
+                        Copy
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Copy Agent</DialogTitle>
+                        <DialogDescription>
+                          Enter a name for the new agent copied from &ldquo;{agent.name}&rdquo;.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <Input
+                        placeholder="New agent name"
+                        value={copyName}
+                        onChange={(e) => setCopyName(e.target.value)}
+                        aria-label="Copy agent name"
+                      />
+                      {copyError && <p className="mt-1 text-sm text-red-600">{copyError}</p>}
+                      <DialogFooter>
+                        <DialogClose asChild>
+                          <Button variant="outline">Cancel</Button>
+                        </DialogClose>
+                        <Button onClick={() => handleCopy(agent.name)} disabled={copyLoading}>
+                          {copyLoading ? 'Copying…' : 'Copy'}
                         </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete &ldquo;{agent.name}&rdquo;?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This action cannot be undone. The agent will be permanently removed.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel asChild>
-                            <Button variant="outline">Cancel</Button>
-                          </AlertDialogCancel>
-                          <AlertDialogAction asChild>
-                            <Button variant="destructive" onClick={() => handleDelete(agent.name)}>
-                              Confirm
-                            </Button>
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </TableCell>
-              </TableRow>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button size="sm" variant="destructive">
+                        Delete
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete &ldquo;{agent.name}&rdquo;?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone. The agent will be permanently removed.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel asChild>
+                          <Button variant="outline">Cancel</Button>
+                        </AlertDialogCancel>
+                        <AlertDialogAction asChild>
+                          <Button variant="destructive" onClick={() => handleDelete(agent.name)}>
+                            Confirm
+                          </Button>
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </div>
             ))}
-          </TableBody>
-        </Table>
+          </div>
+
+          {/* Desktop: table */}
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Enabled</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {agents.length === 0 && (
+                  <TableRow>
+                    <TableCell className="text-gray-500" colSpan={4}>
+                      No agents yet.
+                    </TableCell>
+                  </TableRow>
+                )}
+                {agents.map((agent) => (
+                  <TableRow key={agent.id}>
+                    <TableCell className="font-medium">{agent.name}</TableCell>
+                    <TableCell>
+                      <Badge variant={agent.enabled ? 'success' : 'muted'}>
+                        {agent.enabled ? 'Enabled' : 'Disabled'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        className={`inline-flex items-center gap-1 text-xs ${agent.running ? 'text-green-700' : 'text-gray-500'}`}
+                      >
+                        <span
+                          className={`inline-block h-2 w-2 rounded-full ${agent.running ? 'bg-green-500' : 'bg-gray-400'}`}
+                        />
+                        {agent.running ? 'Running' : 'Stopped'}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {agent.running ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleStartStop(agent, 'stop')}
+                          >
+                            Stop
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() => handleStartStop(agent, 'start')}
+                          >
+                            Start
+                          </Button>
+                        )}
+
+                        {/* Copy Dialog */}
+                        <Dialog
+                          open={copyOpen === agent.name}
+                          onOpenChange={(open) => {
+                            if (!open) {
+                              setCopyOpen(null);
+                              setCopyName('');
+                              setCopyError(null);
+                            }
+                          }}
+                        >
+                          <DialogTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setCopyOpen(agent.name)}
+                            >
+                              Copy
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Copy Agent</DialogTitle>
+                              <DialogDescription>
+                                Enter a name for the new agent copied from &ldquo;{agent.name}
+                                &rdquo;.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <Input
+                              placeholder="New agent name"
+                              value={copyName}
+                              onChange={(e) => setCopyName(e.target.value)}
+                              aria-label="Copy agent name"
+                            />
+                            {copyError && <p className="mt-1 text-sm text-red-600">{copyError}</p>}
+                            <DialogFooter>
+                              <DialogClose asChild>
+                                <Button variant="outline">Cancel</Button>
+                              </DialogClose>
+                              <Button onClick={() => handleCopy(agent.name)} disabled={copyLoading}>
+                                {copyLoading ? 'Copying…' : 'Copy'}
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+
+                        {/* Delete AlertDialog */}
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="sm" variant="destructive">
+                              Delete
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                Delete &ldquo;{agent.name}&rdquo;?
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone. The agent will be permanently removed.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel asChild>
+                                <Button variant="outline">Cancel</Button>
+                              </AlertDialogCancel>
+                              <AlertDialogAction asChild>
+                                <Button
+                                  variant="destructive"
+                                  onClick={() => handleDelete(agent.name)}
+                                >
+                                  Confirm
+                                </Button>
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       )}
     </main>
   );

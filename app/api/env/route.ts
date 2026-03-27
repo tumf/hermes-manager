@@ -75,8 +75,8 @@ export async function POST(request: NextRequest) {
 
   const envPath = path.join(agent.home, '.env');
   const content = await readEnvFile(envPath);
-  const entries = upsert(parse(content), key, value);
-  await fs.writeFile(envPath, serialize(entries), 'utf-8');
+  const entries = await upsert(parse(content), key, value);
+  await fs.writeFile(envPath, await serialize(entries), 'utf-8');
 
   return NextResponse.json({ ok: true });
 }
@@ -100,8 +100,8 @@ export async function DELETE(request: NextRequest) {
 
   const envPath = path.join(agent.home, '.env');
   const content = await readEnvFile(envPath);
-  const entries = deleteKey(parse(content), key);
-  await fs.writeFile(envPath, serialize(entries), 'utf-8');
+  const entries = await deleteKey(parse(content), key);
+  await fs.writeFile(envPath, await serialize(entries), 'utf-8');
 
   return NextResponse.json({ ok: true });
 }

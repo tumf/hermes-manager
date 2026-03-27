@@ -51,7 +51,7 @@ export function Sidebar() {
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="bg-sidebar hidden w-56 shrink-0 border-r md:flex md:flex-col">
+      <aside className="hidden w-56 shrink-0 border-r bg-sidebar md:flex md:flex-col">
         <div className="flex h-14 items-center border-b px-4">
           <span className="text-sm font-semibold">Hermes Agents</span>
         </div>
@@ -66,18 +66,22 @@ export function Sidebar() {
           <Button
             variant="ghost"
             size="icon"
-            className="fixed top-3 left-4 z-40 md:hidden"
+            className="fixed left-4 top-3 z-40 md:hidden"
             aria-label="Open navigation"
           >
             <Menu className="h-5 w-5" />
           </Button>
         </SheetTrigger>
-        <SheetContent side="left" className="w-56 p-0">
+        <SheetContent side="left" className="w-4/5 max-w-64 p-0">
           <SheetHeader className="border-b px-4 py-3">
             <SheetTitle className="text-sm">Hermes Agents</SheetTitle>
           </SheetHeader>
           <div className="p-3">
-            <NavLinks />
+            <NavLinks
+              onNavigate={() => {
+                /* Close sheet via data-state attr */
+              }}
+            />
           </div>
         </SheetContent>
       </Sheet>

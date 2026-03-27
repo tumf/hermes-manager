@@ -1,47 +1,41 @@
-export interface EnvEntry {
-  key: string;
-  value: string;
-}
-
-/**
- * Parse .env file content into key-value entries.
- * Comment lines (starting with #) and blank lines are skipped.
- */
-export function parse(content: string): EnvEntry[] {
-  const entries: EnvEntry[] = [];
-  for (const line of content.split('\n')) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) continue;
-    const eqIdx = trimmed.indexOf('=');
-    if (eqIdx === -1) continue;
-    const key = trimmed.slice(0, eqIdx).trim();
-    const value = trimmed.slice(eqIdx + 1);
-    if (key) entries.push({ key, value });
+export function parse(content: string): { key: string; value: string }[] {
+  const out: { key: string; value: string }[] = [];
+  for (const line of content.split(/\r?\n/)) {
+    if (!line || line.trim().startsWith('#')) continue;
+    const idx = line.indexOf('=');
+    if (idx === -1) continue;
+    const k = line.slice(0, idx).trim();
+    let v = line.slice(idx + 1);
+    v = v.replace(/^"|"$/g, '');
+    out.push({ key: k, value: v });
   }
-  return entries;
+  return out;
 }
 
-/**
- * Serialize key-value entries to .env file content.
- * Comments are stripped on write.
- */
-export function serialize(entries: EnvEntry[]): string {
-  if (entries.length === 0) return '';
-  return entries.map((e) => `${e.key}=${e.value}`).join('\n') + '\n';
+export async function serialize(entries: { key: string; value: string }[]): Promise<string> {
+  const lines = entries.map(({ key, value }) => `${key}=${escapeValue(value)}`);
+  return lines.join('\n') + (lines.length ? '\n' : '');
 }
 
-/**
- * Upsert a key: add if absent, update value if present.
- */
-export function upsert(entries: EnvEntry[], key: string, value: string): EnvEntry[] {
-  const idx = entries.findIndex((e) => e.key === key);
-  if (idx === -1) return [...entries, { key, value }];
-  return entries.map((e, i) => (i === idx ? { key, value } : e));
+export async function upsert(
+  entries: { key: string; value: string }[],
+  key: string,
+  value: string,
+) {
+  const map = new Map(entries.map((e) => [e.key, e.value]));
+  map.set(key, value);
+  return Array.from(map.entries()).map(([k, v]) => ({ key: k, value: v }));
 }
 
-/**
- * Remove a key from entries (no-op if key not found).
- */
-export function deleteKey(entries: EnvEntry[], key: string): EnvEntry[] {
-  return entries.filter((e) => e.key !== key);
+export async function deleteKey(entries: { key: string; value: string }[], key: string) {
+  const map = new Map(entries.map((e) => [e.key, e.value]));
+  map.delete(key);
+  return Array.from(map.entries()).map(([k, v]) => ({ key: k, value: v }));
+}
+
+function escapeValue(val: string) {
+  if (/[^A-Za-z0-9_./-]/.test(val)) {
+    return JSON.stringify(val);
+  }
+  return val;
 }
