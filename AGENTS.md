@@ -120,10 +120,4 @@ PORT=18470 npm run start   # ポート 18470 固定（mini 上の既存サービ
 
 ---
 
-## NG パターン（禁止事項）
 
-- `child_process.exec` に文字列を連結して渡す（execFile のみ可）
-- `HERMES_HOME` 外へのファイル書き込み
-- `data/` や `agents/` ディレクトリの内容を git に含める
-- 認証なしで外部公開する（Cloudflare Tunnel 等）
-- n8n の言及・例示
