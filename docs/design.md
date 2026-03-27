@@ -64,7 +64,7 @@
   - Stdout/Err: {home}/logs/gateway.log / gateway.error.log
 - WebApp 自体
   - ProgramArguments: node ./.next/standalone/server.js（もしくは next start）
-  - Env: NODE_ENV=production, PORT=18470
+  - Env: NODE_ENV=production, PORT=18470  ← 確定ポート
   - Stdout/Err: logs/webapp.log / webapp.error.log
 
 ## 7. UI 設計
@@ -92,7 +92,7 @@
 ## 11. 運用とデプロイ
 - ビルド: npm run build → next start（または standalone）
 - 常駐: launchd plist（webapp）
-- ルーティング: Caddy で hermes-agents.mini.tumf.dev → localhost:18470
+- Caddy: hermes-agents.mini.tumf.dev → localhost:18470  ← 確定ポート
 - 監視: logs/webapp.log, /api/health（簡易）
 
 ## 12. 将来拡張

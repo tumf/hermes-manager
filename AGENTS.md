@@ -102,7 +102,7 @@ hermes-agents/
 ```bash
 npm install
 npm run build
-npm run start          # PORT=18470 で起動
+PORT=18470 npm run start   # ポート 18470 固定（mini 上の既存サービスとの競合なし確認済み）
 ```
 
 - Caddy: hermes-agents.mini.tumf.dev → localhost:18470
