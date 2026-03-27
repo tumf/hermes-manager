@@ -33,6 +33,7 @@
     "zod": "^3.24.3"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.2",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
     "@types/better-sqlite3": "^7.6.13",
