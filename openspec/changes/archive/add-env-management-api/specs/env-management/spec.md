@@ -5,11 +5,11 @@
 Provide server-side endpoints to read, write, and delete environment variable entries in an agent's .env file, with masking support and a resolved merged view.
 
 - Endpoints:
-  - GET /api/env?agent=...             — masked variable list
+  - GET /api/env?agent=... — masked variable list
   - GET /api/env?agent=...&reveal=true — unmasked variable list
-  - POST /api/env                      — upsert a variable
-  - DELETE /api/env?agent=...&key=...  — delete a variable
-  - GET /api/env/resolved?agent=...    — merged global+agent view
+  - POST /api/env — upsert a variable
+  - DELETE /api/env?agent=...&key=... — delete a variable
+  - GET /api/env/resolved?agent=... — merged global+agent view
 - .env format: KEY=VALUE lines; comments stripped on write
 - Source annotation: 'global' | 'agent' | 'agent-override'
 
@@ -43,5 +43,6 @@ And responds with { ok: true }
 Given a global .env with BASE_URL=https://example.com and an agent "alpha" .env with API_KEY=secret and BASE_URL=https://override.example.com
 When GET /api/env/resolved?agent=alpha is called
 Then the server responds with:
-  - { key: "BASE_URL", value: "https://override.example.com", source: "agent-override" }
-  - { key: "API_KEY", value: "secret", source: "agent" }
+
+- { key: "BASE_URL", value: "https://override.example.com", source: "agent-override" }
+- { key: "API_KEY", value: "secret", source: "agent" }
