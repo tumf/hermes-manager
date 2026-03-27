@@ -13,3 +13,7 @@
 
 - Consider inline editing for existing rows if operators need a faster bulk editing workflow.
 - Consider a diff-focused presentation for resolved values when many global keys exist.
+
+## Acceptance #1 Failure Follow-up
+
+- [x] Update `docs/requirements.md` so the agent detail tab list matches the implemented UI (`Memory` / `Config` / `Env` / `Logs`) and no longer claims an unsupported `Skills` tab.

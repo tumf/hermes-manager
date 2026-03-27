@@ -86,4 +86,4 @@
 
 - / Agents 一覧
 - /globals グローバル変数
-- /agents/[n] Memory / Config / Env / Skills / Logs タブ
+- /agents/[n] Memory / Config / Env / Logs タブ
