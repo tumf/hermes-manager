@@ -1,5 +1,5 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
+import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 
 export const agents = sqliteTable('agents', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -20,6 +20,7 @@ export const envVars = sqliteTable('env_vars', {
   scope: text('scope').notNull(), // "global" | agent name
   key: text('key').notNull(),
   value: text('value').notNull(),
+  visibility: text('visibility').notNull().default('plain'), // "plain" | "secure"
 });
 
 export const skillLinks = sqliteTable('skill_links', {

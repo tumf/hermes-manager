@@ -2,11 +2,10 @@
 
 import {
   ChevronLeft,
-  Eye,
-  EyeOff,
   FileText,
   Loader2,
   Play,
+  Plus,
   Save,
   ScrollText,
   Settings,
@@ -17,37 +16,40 @@ import Link from 'next/link';
 import { use, useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/src/components/ui/alert-dialog';
 import { Badge } from '@/src/components/ui/badge';
 import { Button } from '@/src/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/src/components/ui/dialog';
 import { Input } from '@/src/components/ui/input';
 import { Skeleton } from '@/src/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/src/components/ui/tabs';
 
 interface AgentPageProps {
-  params: Promise<{ name: string }> | { name: string };
+  params: Promise<{ name: string }>;
 }
-
-interface AgentEnvEntry {
-  key: string;
-  value: string;
-  masked: boolean;
-}
-
-type EnvSource = 'global' | 'agent' | 'agent-override';
-
-interface ResolvedEnvEntry {
-  key: string;
-  value: string;
-  source: EnvSource;
-}
-
-const MEMORY_FILES = ['AGENTS.md', 'SOUL.md'] as const;
-type MemoryFilePath = (typeof MEMORY_FILES)[number];
 
 export default function AgentPage({ params }: AgentPageProps) {
-  const resolvedParams = params instanceof Promise ? use(params) : params;
-  const { name } = resolvedParams;
+  const { name } = use(params);
 
   const [status, setStatus] = useState<{
     running: boolean;
@@ -178,8 +180,12 @@ export default function AgentPage({ params }: AgentPageProps) {
             <span className="hidden sm:inline">Config</span>
           </TabsTrigger>
           <TabsTrigger value="env" className="gap-1.5">
-            <span className="text-xs font-semibold">ENV</span>
+            <Settings className="size-3.5" />
             <span className="hidden sm:inline">Env</span>
+          </TabsTrigger>
+          <TabsTrigger value="skills" className="gap-1.5">
+            <Settings className="size-3.5" />
+            <span className="hidden sm:inline">Skills</span>
           </TabsTrigger>
           <TabsTrigger value="logs" className="gap-1.5">
             <ScrollText className="size-3.5" />
@@ -188,15 +194,22 @@ export default function AgentPage({ params }: AgentPageProps) {
         </TabsList>
 
         <TabsContent value="memory">
-          <MemoryEditor name={name} />
+          <div className="grid gap-4 lg:grid-cols-2">
+            <FileEditor name={name} filePath="AGENTS.md" label="AGENTS.md" />
+            <FileEditor name={name} filePath="SOUL.md" label="SOUL.md" />
+          </div>
         </TabsContent>
 
         <TabsContent value="config">
           <FileEditor name={name} filePath="config.yaml" label="config.yaml" />
         </TabsContent>
 
-        <TabsContent value="env" forceMount>
+        <TabsContent value="env">
           <AgentEnvTab name={name} />
+        </TabsContent>
+
+        <TabsContent value="skills">
+          <SkillsTab name={name} />
         </TabsContent>
 
         <TabsContent value="logs">
@@ -207,76 +220,7 @@ export default function AgentPage({ params }: AgentPageProps) {
   );
 }
 
-function MemoryEditor({ name }: { name: string }) {
-  const [selectedFile, setSelectedFile] = useState<MemoryFilePath>('AGENTS.md');
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-
-  const handleSelectFile = useCallback(
-    (nextFile: MemoryFilePath) => {
-      if (nextFile === selectedFile) {
-        return;
-      }
-
-      if (hasUnsavedChanges) {
-        const confirmed = window.confirm('未保存の変更があります。破棄してファイルを切り替えますか？');
-        if (!confirmed) {
-          return;
-        }
-      }
-
-      setSelectedFile(nextFile);
-      setHasUnsavedChanges(false);
-    },
-    [hasUnsavedChanges, selectedFile],
-  );
-
-  return (
-    <Card>
-      <CardHeader className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <CardTitle className="text-sm">Memory</CardTitle>
-          <div className="flex gap-1">
-            {MEMORY_FILES.map((file) => (
-              <Button
-                key={file}
-                type="button"
-                variant={selectedFile === file ? 'secondary' : 'ghost'}
-                size="sm"
-                className="h-7 px-2 font-mono text-xs"
-                onClick={() => handleSelectFile(file)}
-              >
-                {file}
-              </Button>
-            ))}
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <FileEditor
-          name={name}
-          filePath={selectedFile}
-          label={selectedFile}
-          onDirtyChange={setHasUnsavedChanges}
-          cardless
-        />
-      </CardContent>
-    </Card>
-  );
-}
-
-function FileEditor({
-  name,
-  filePath,
-  label,
-  onDirtyChange,
-  cardless = false,
-}: {
-  name: string;
-  filePath: string;
-  label: string;
-  onDirtyChange?: (isDirty: boolean) => void;
-  cardless?: boolean;
-}) {
+function FileEditor({ name, filePath, label }: { name: string; filePath: string; label: string }) {
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -285,7 +229,6 @@ function FileEditor({
 
   useEffect(() => {
     async function load() {
-      setLoading(true);
       try {
         const res = await fetch(
           `/api/files?agent=${encodeURIComponent(name)}&path=${encodeURIComponent(filePath)}`,
@@ -295,8 +238,6 @@ function FileEditor({
           const text = typeof data === 'string' ? data : (data.content ?? '');
           setContent(text);
           originalRef.current = text;
-          setDirty(false);
-          onDirtyChange?.(false);
         }
       } catch {
         /* ignore */
@@ -305,13 +246,11 @@ function FileEditor({
       }
     }
     void load();
-  }, [name, filePath, onDirtyChange]);
+  }, [name, filePath]);
 
   function handleChange(val: string) {
     setContent(val);
-    const isDirty = val !== originalRef.current;
-    setDirty(isDirty);
-    onDirtyChange?.(isDirty);
+    setDirty(val !== originalRef.current);
   }
 
   async function save() {
@@ -325,7 +264,6 @@ function FileEditor({
       if (res.ok) {
         originalRef.current = content;
         setDirty(false);
-        onDirtyChange?.(false);
         toast.success(`${label} saved`);
       } else {
         toast.error(`Failed to save ${label}`);
@@ -337,226 +275,118 @@ function FileEditor({
     }
   }
 
-  const editorArea = loading ? (
-    <Skeleton className="h-48 w-full" />
-  ) : (
-    <textarea
-      className="min-h-48 w-full resize-y rounded-md border border-input bg-muted/30 p-3 font-mono text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-      value={content}
-      onChange={(e) => handleChange(e.target.value)}
-      aria-label={`Edit ${label}`}
-    />
-  );
-
-  const header = (
-    <div className="flex items-center justify-between">
-      <CardTitle className="font-mono text-xs">{label}</CardTitle>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => void save()}
-        disabled={saving || loading || !dirty}
-        className="gap-1.5"
-      >
-        {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
-        {saving ? 'Saving...' : 'Save'}
-      </Button>
-    </div>
-  );
-
-  if (cardless) {
-    return (
-      <>
-        {header}
-        <div className="mt-3">{editorArea}</div>
-      </>
-    );
-  }
-
   return (
     <Card>
-      <CardHeader className="flex-row items-center justify-between">{header}</CardHeader>
-      <CardContent>{editorArea}</CardContent>
+      <CardHeader className="flex-row items-center justify-between">
+        <CardTitle className="font-mono text-xs">{label}</CardTitle>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => void save()}
+          disabled={saving || loading || !dirty}
+          className="gap-1.5"
+        >
+          {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
+          {saving ? 'Saving...' : 'Save'}
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <Skeleton className="h-48 w-full" />
+        ) : (
+          <textarea
+            className="min-h-48 w-full resize-y rounded-md border border-input bg-muted/30 p-3 font-mono text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            value={content}
+            onChange={(e) => handleChange(e.target.value)}
+            aria-label={`Edit ${label}`}
+          />
+        )}
+      </CardContent>
     </Card>
   );
 }
 
-function AgentEnvTab({ name }: { name: string }) {
-  const [envEntries, setEnvEntries] = useState<AgentEnvEntry[]>([]);
-  const [resolvedEntries, setResolvedEntries] = useState<ResolvedEnvEntry[]>([]);
-  const [loadingEnv, setLoadingEnv] = useState(true);
-  const [loadingResolved, setLoadingResolved] = useState(true);
-  const [reveal, setReveal] = useState(false);
-  const [keyInput, setKeyInput] = useState('');
-  const [valueInput, setValueInput] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [deletingKey, setDeletingKey] = useState<string | null>(null);
+type EnvVisibility = 'plain' | 'secure';
 
-  const loadEnv = useCallback(async () => {
-    setLoadingEnv(true);
+export interface AgentEnvRow {
+  key: string;
+  value: string;
+  masked: boolean;
+  visibility: EnvVisibility;
+}
+
+export function AgentEnvTab({ name }: { name: string }) {
+  const [rows, setRows] = useState<AgentEnvRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchRows = useCallback(async () => {
     try {
-      const url = `/api/env?agent=${encodeURIComponent(name)}${reveal ? '&reveal=true' : ''}`;
-      const res = await fetch(url);
+      const res = await fetch(`/api/env?agent=${encodeURIComponent(name)}`);
       if (!res.ok) {
-        throw new Error('failed to load env');
+        throw new Error('failed to fetch env rows');
       }
-      const data = (await res.json()) as AgentEnvEntry[];
-      setEnvEntries(data);
+      setRows(await res.json());
     } catch {
       toast.error('Failed to load env vars');
     } finally {
-      setLoadingEnv(false);
-    }
-  }, [name, reveal]);
-
-  const loadResolved = useCallback(async () => {
-    setLoadingResolved(true);
-    try {
-      const res = await fetch(`/api/env/resolved?agent=${encodeURIComponent(name)}`);
-      if (!res.ok) {
-        throw new Error('failed to load resolved env');
-      }
-      const data = (await res.json()) as ResolvedEnvEntry[];
-      setResolvedEntries(data);
-    } catch {
-      toast.error('Failed to load resolved env');
-    } finally {
-      setLoadingResolved(false);
+      setLoading(false);
     }
   }, [name]);
 
   useEffect(() => {
-    void loadEnv();
-  }, [loadEnv]);
+    void fetchRows();
+  }, [fetchRows]);
 
-  useEffect(() => {
-    void loadResolved();
-  }, [loadResolved]);
-
-  async function saveEnvVar() {
-    const key = keyInput.trim();
-    if (!key) {
-      toast.error('Key is required');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const res = await fetch('/api/env', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agent: name, key, value: valueInput }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        const message = typeof data.error === 'string' ? data.error : 'Failed to save env var';
-        toast.error(message);
-        return;
-      }
-      toast.success(`Saved ${key}`);
-      setKeyInput('');
-      setValueInput('');
-      await Promise.all([loadEnv(), loadResolved()]);
-    } catch {
-      toast.error('Failed to save env var');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function deleteEnvVar(key: string) {
-    setDeletingKey(key);
+  async function handleDelete(key: string) {
     try {
       const res = await fetch(
         `/api/env?agent=${encodeURIComponent(name)}&key=${encodeURIComponent(key)}`,
         { method: 'DELETE' },
       );
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        const message = typeof data.error === 'string' ? data.error : 'Failed to delete env var';
-        toast.error(message);
-        return;
+        throw new Error('delete failed');
       }
       toast.success(`Deleted ${key}`);
-      await Promise.all([loadEnv(), loadResolved()]);
+      await fetchRows();
     } catch {
-      toast.error('Failed to delete env var');
-    } finally {
-      setDeletingKey(null);
+      toast.error(`Failed to delete ${key}`);
     }
+  }
+
+  if (loading) {
+    return <Skeleton className="h-40 w-full" />;
   }
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader className="gap-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <CardTitle className="text-sm">Agent-local Environment Variables</CardTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
-              onClick={() => setReveal((v) => !v)}
-              disabled={loadingEnv}
-            >
-              {reveal ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-              {reveal ? 'Hide values' : 'Reveal values'}
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            This tab edits only {name}&apos;s .env. Global values are managed from /globals.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-            <Input
-              placeholder="KEY"
-              value={keyInput}
-              onChange={(e) => setKeyInput(e.target.value)}
-              aria-label="Env key"
-            />
-            <Input
-              placeholder="Value"
-              value={valueInput}
-              onChange={(e) => setValueInput(e.target.value)}
-              aria-label="Env value"
-            />
-            <Button onClick={() => void saveEnvVar()} disabled={saving} aria-label="Save env variable">
-              {saving ? <Loader2 className="size-3.5 animate-spin" /> : 'Save'}
-            </Button>
-          </div>
+      <AgentEnvAddForm agentName={name} onSaved={fetchRows} />
 
-          {loadingEnv ? (
-            <Skeleton className="h-40 w-full" />
-          ) : envEntries.length === 0 ? (
-            <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">(empty)</p>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">Environment variables</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {rows.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No env vars yet.</p>
           ) : (
-            <div className="rounded-md border">
-              <div className="grid grid-cols-[1fr_1fr_auto] gap-2 border-b bg-muted/30 p-2 text-xs font-medium">
-                <span>Key</span>
-                <span>Value</span>
-                <span className="text-right">Actions</span>
-              </div>
-              {envEntries.map((entry) => (
-                <div key={entry.key} className="grid grid-cols-[1fr_1fr_auto] gap-2 border-b p-2 text-sm last:border-b-0">
-                  <span className="font-mono">{entry.key}</span>
-                  <span className="font-mono">{entry.value}</span>
-                  <div className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="gap-1.5"
-                      onClick={() => void deleteEnvVar(entry.key)}
-                      disabled={deletingKey === entry.key}
-                      aria-label={`Delete ${entry.key}`}
-                    >
-                      {deletingKey === entry.key ? (
-                        <Loader2 className="size-3.5 animate-spin" />
-                      ) : (
-                        <Trash2 className="size-3.5" />
-                      )}
-                      Delete
-                    </Button>
+            <div className="space-y-2">
+              {rows.map((row) => (
+                <div
+                  key={row.key}
+                  className="flex items-center justify-between gap-3 rounded-md border p-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-mono text-sm font-medium">{row.key}</div>
+                    <div className="truncate font-mono text-xs text-muted-foreground">
+                      {row.masked ? '***' : row.value}
+                    </div>
+                    <Badge variant={row.visibility === 'secure' ? 'secondary' : 'muted'}>
+                      {row.visibility}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <AgentEnvEditDialog agentName={name} row={row} onSaved={fetchRows} />
+                    <AgentEnvDeleteButton keyName={row.key} onDelete={handleDelete} />
                   </div>
                 </div>
               ))}
@@ -564,35 +394,227 @@ function AgentEnvTab({ name }: { name: string }) {
           )}
         </CardContent>
       </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Resolved Environment (Read-only)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loadingResolved ? (
-            <Skeleton className="h-40 w-full" />
-          ) : resolvedEntries.length === 0 ? (
-            <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">(empty)</p>
-          ) : (
-            <div className="rounded-md border">
-              <div className="grid grid-cols-[1fr_1fr_auto] gap-2 border-b bg-muted/30 p-2 text-xs font-medium">
-                <span>Key</span>
-                <span>Value</span>
-                <span className="text-right">Source</span>
-              </div>
-              {resolvedEntries.map((entry) => (
-                <div key={entry.key} className="grid grid-cols-[1fr_1fr_auto] gap-2 border-b p-2 text-sm last:border-b-0">
-                  <span className="font-mono">{entry.key}</span>
-                  <span className="font-mono">{entry.value}</span>
-                  <span className="text-right text-xs text-muted-foreground">{entry.source}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
+  );
+}
+
+function AgentEnvAddForm({
+  agentName,
+  onSaved,
+}: {
+  agentName: string;
+  onSaved: () => Promise<void>;
+}) {
+  const [key, setKey] = useState('');
+  const [value, setValue] = useState('');
+  const [visibility, setVisibility] = useState<EnvVisibility>('plain');
+  const [saving, setSaving] = useState(false);
+
+  return (
+    <form
+      className="flex flex-col gap-2 sm:flex-row sm:items-center"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        const trimmed = key.trim();
+        if (!trimmed) {
+          toast.error('Key is required');
+          return;
+        }
+
+        setSaving(true);
+        try {
+          const res = await fetch('/api/env', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ agent: agentName, key: trimmed, value, visibility }),
+          });
+          if (!res.ok) {
+            throw new Error('save failed');
+          }
+          setKey('');
+          setValue('');
+          setVisibility('plain');
+          toast.success(`Saved ${trimmed}`);
+          await onSaved();
+        } catch {
+          toast.error('Failed to save env var');
+        } finally {
+          setSaving(false);
+        }
+      }}
+    >
+      <Input
+        value={key}
+        onChange={(e) => setKey(e.target.value)}
+        placeholder="KEY_NAME"
+        aria-label="Env key"
+        className="h-10 font-mono sm:max-w-48"
+      />
+      <Input
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="value"
+        aria-label="Env value"
+        className="h-10 font-mono sm:flex-1"
+      />
+      <select
+        value={visibility}
+        onChange={(e) => setVisibility(e.target.value as EnvVisibility)}
+        className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+        aria-label="Visibility"
+      >
+        <option value="plain">plain</option>
+        <option value="secure">secure</option>
+      </select>
+      <Button type="submit" disabled={saving} className="h-10 gap-1.5">
+        <Plus className="size-3.5" />
+        {saving ? 'Saving...' : 'Add'}
+      </Button>
+    </form>
+  );
+}
+
+function AgentEnvEditDialog({
+  agentName,
+  row,
+  onSaved,
+}: {
+  agentName: string;
+  row: AgentEnvRow;
+  onSaved: () => Promise<void>;
+}) {
+  const [value, setValue] = useState('');
+  const [visibility, setVisibility] = useState<EnvVisibility>(row.visibility);
+  const [saving, setSaving] = useState(false);
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon" className="size-8">
+          <Settings className="size-4" />
+          <span className="sr-only">Edit {row.key}</span>
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit {row.key}</DialogTitle>
+          <DialogDescription>Update value and visibility.</DialogDescription>
+        </DialogHeader>
+        <Input
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder={row.masked ? 'Enter new value (optional)' : row.value}
+          aria-label={`${row.key} value`}
+        />
+        <select
+          value={visibility}
+          onChange={(e) => setVisibility(e.target.value as EnvVisibility)}
+          className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+          aria-label="Visibility"
+        >
+          <option value="plain">plain</option>
+          <option value="secure">secure</option>
+        </select>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline">Cancel</Button>
+          </DialogClose>
+          <DialogClose asChild>
+            <Button
+              disabled={saving || (value.length === 0 && visibility === row.visibility)}
+              onClick={async () => {
+                setSaving(true);
+                try {
+                  const payload: {
+                    agent: string;
+                    key: string;
+                    visibility: EnvVisibility;
+                    value?: string;
+                  } = {
+                    agent: agentName,
+                    key: row.key,
+                    visibility,
+                  };
+                  if (value.length > 0) {
+                    payload.value = value;
+                  }
+
+                  const res = await fetch('/api/env', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                  });
+                  if (!res.ok) {
+                    throw new Error('save failed');
+                  }
+                  toast.success(`Updated ${row.key}`);
+                  await onSaved();
+                } catch {
+                  toast.error(`Failed to update ${row.key}`);
+                } finally {
+                  setSaving(false);
+                }
+              }}
+            >
+              Save
+            </Button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AgentEnvDeleteButton({
+  keyName,
+  onDelete,
+}: {
+  keyName: string;
+  onDelete: (key: string) => Promise<void>;
+}) {
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-8 text-destructive hover:text-destructive"
+        >
+          <Trash2 className="size-4" />
+          <span className="sr-only">Delete {keyName}</span>
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete &quot;{keyName}&quot;?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This variable will be removed from the current agent.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={() => void onDelete(keyName)}
+          >
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+function SkillsTab({ name }: { name: string }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm">Skills</CardTitle>
+      </CardHeader>
+      <CardContent className="text-sm text-muted-foreground">
+        Skills management for <span className="font-mono">{name}</span> will be added in this tab.
+      </CardContent>
+    </Card>
   );
 }
 

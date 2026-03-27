@@ -1,119 +1,127 @@
 // @vitest-environment node
-import fs from 'node:fs/promises';
+import fs from 'node:fs';
+import fsp from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 
+import Database from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { NextRequest } from 'next/server';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// --- hoisted mock state ---
-const mockState = vi.hoisted(() => ({
-  agentRows: [] as Record<string, unknown>[],
-  fsContent: '' as string,
-}));
+import * as schema from '../../db/schema';
 
-// --- mock @/src/lib/db ---
-vi.mock('@/src/lib/db', async () => {
-  const { agents, envVars, skillLinks } = await import('../../db/schema');
+let testDb: ReturnType<typeof drizzle<typeof schema>>;
+let tmpDir: string;
 
-  function makeChain(resolveWith: unknown) {
-    const thenable = {
-      then: (res: (v: unknown) => unknown, rej: (e: unknown) => unknown) =>
-        Promise.resolve(resolveWith).then(res, rej),
-      catch: (cb: (e: unknown) => unknown) => Promise.resolve(resolveWith).catch(cb),
-      finally: (cb: () => void) => Promise.resolve(resolveWith).finally(cb),
-    };
-    return {
-      ...thenable,
-      from: () => ({ ...thenable, where: () => thenable }),
-      where: () => thenable,
-    };
-  }
-
-  const db = {
-    select: () => makeChain(mockState.agentRows),
+vi.mock('../../src/lib/db', () => {
+  return {
+    get db() {
+      return testDb;
+    },
+    schema,
   };
-
-  return { db, schema: { agents, envVars, skillLinks } };
 });
-
-// --- mock node:fs/promises ---
-vi.mock('node:fs/promises', () => ({
-  default: {
-    readFile: vi.fn(async () => mockState.fsContent),
-    writeFile: vi.fn(async (_path: string, content: string) => {
-      mockState.fsContent = content;
-    }),
-  },
-}));
-
-import { GET as RESOLVED_GET } from '../../app/api/env/resolved/route';
-import { DELETE, GET, POST } from '../../app/api/env/route';
 
 function makeReq(url: string, init?: ConstructorParameters<typeof NextRequest>[1]) {
   return new NextRequest(url, init);
 }
 
-const ALPHA = {
-  id: 1,
-  name: 'alpha',
-  home: '/runtime/agents/alpha',
-  label: 'ai.hermes.gateway.alpha',
-  enabled: false,
-  createdAt: new Date(),
-};
+beforeEach(async () => {
+  const sqlite = new Database(':memory:');
+  sqlite.exec(`
+    CREATE TABLE agents (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      home TEXT NOT NULL,
+      label TEXT NOT NULL,
+      enabled INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')*1000),
+      updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now')*1000)
+    );
+
+    CREATE TABLE env_vars (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      scope TEXT NOT NULL,
+      key TEXT NOT NULL,
+      value TEXT NOT NULL,
+      visibility TEXT NOT NULL DEFAULT 'plain'
+    );
+  `);
+
+  testDb = drizzle(sqlite, { schema });
+
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'env-api-test-'));
+  vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
+
+  const agentHome = path.join(tmpDir, 'runtime', 'agents', 'alpha');
+  await fsp.mkdir(agentHome, { recursive: true });
+  await testDb.insert(schema.agents).values({
+    name: 'alpha',
+    home: agentHome,
+    label: 'ai.hermes.gateway.alpha',
+    enabled: false,
+  });
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+});
 
 describe('GET /api/env', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockState.agentRows = [];
-    mockState.fsContent = '';
-  });
-
   it('returns 400 if agent param missing', async () => {
+    const { GET } = await import('../../app/api/env/route');
     const res = await GET(makeReq('http://localhost/api/env'));
     expect(res.status).toBe(400);
   });
 
   it('returns 404 if agent not found', async () => {
-    mockState.agentRows = [];
+    const { GET } = await import('../../app/api/env/route');
     const res = await GET(makeReq('http://localhost/api/env?agent=ghost'));
     expect(res.status).toBe(404);
   });
 
-  it('returns masked values by default', async () => {
-    mockState.agentRows = [ALPHA];
-    mockState.fsContent = 'API_KEY=secret\n';
+  it('masks only secure values and keeps plain values visible', async () => {
+    const agentEnvPath = path.join(tmpDir, 'runtime', 'agents', 'alpha', '.env');
+    await fsp.writeFile(agentEnvPath, 'API_KEY=secret\nBASE_URL=https://example.com\n', 'utf-8');
+    await testDb.insert(schema.envVars).values([
+      { scope: 'alpha', key: 'API_KEY', value: 'secret', visibility: 'secure' },
+      { scope: 'alpha', key: 'BASE_URL', value: 'https://example.com', visibility: 'plain' },
+    ]);
+
+    const { GET } = await import('../../app/api/env/route');
     const res = await GET(makeReq('http://localhost/api/env?agent=alpha'));
     expect(res.status).toBe(200);
+
     const body = await res.json();
-    expect(body).toEqual([{ key: 'API_KEY', value: '***', masked: true }]);
+    expect(body).toEqual([
+      { key: 'API_KEY', value: '***', masked: true, visibility: 'secure' },
+      {
+        key: 'BASE_URL',
+        value: 'https://example.com',
+        masked: false,
+        visibility: 'plain',
+      },
+    ]);
   });
 
-  it('returns real values with reveal=true', async () => {
-    mockState.agentRows = [ALPHA];
-    mockState.fsContent = 'API_KEY=secret\n';
-    const res = await GET(makeReq('http://localhost/api/env?agent=alpha&reveal=true'));
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body).toEqual([{ key: 'API_KEY', value: 'secret', masked: false }]);
-  });
+  it('treats variables without metadata as plain', async () => {
+    const agentEnvPath = path.join(tmpDir, 'runtime', 'agents', 'alpha', '.env');
+    await fsp.writeFile(agentEnvPath, 'NEW_VAR=hello\n', 'utf-8');
 
-  it('returns empty array for empty .env', async () => {
-    mockState.agentRows = [ALPHA];
-    mockState.fsContent = '';
+    const { GET } = await import('../../app/api/env/route');
     const res = await GET(makeReq('http://localhost/api/env?agent=alpha'));
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual([]);
+    expect(await res.json()).toEqual([
+      { key: 'NEW_VAR', value: 'hello', masked: false, visibility: 'plain' },
+    ]);
   });
 });
 
 describe('POST /api/env', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockState.agentRows = [];
-    mockState.fsContent = '';
-  });
-
   it('returns 400 for invalid JSON', async () => {
+    const { POST } = await import('../../app/api/env/route');
     const req = makeReq('http://localhost/api/env', {
       method: 'POST',
       body: 'not-json',
@@ -124,6 +132,7 @@ describe('POST /api/env', () => {
   });
 
   it('returns 400 for missing fields', async () => {
+    const { POST } = await import('../../app/api/env/route');
     const req = makeReq('http://localhost/api/env', {
       method: 'POST',
       body: JSON.stringify({ agent: 'alpha' }),
@@ -134,7 +143,7 @@ describe('POST /api/env', () => {
   });
 
   it('returns 404 for unknown agent', async () => {
-    mockState.agentRows = [];
+    const { POST } = await import('../../app/api/env/route');
     const req = makeReq('http://localhost/api/env', {
       method: 'POST',
       body: JSON.stringify({ agent: 'ghost', key: 'FOO', value: 'bar' }),
@@ -144,122 +153,211 @@ describe('POST /api/env', () => {
     expect(res.status).toBe(404);
   });
 
-  it('upserts a new key and writes file', async () => {
-    mockState.agentRows = [ALPHA];
-    mockState.fsContent = 'EXISTING=val\n';
+  it('upserts value and persists secure visibility metadata', async () => {
+    const { POST, GET } = await import('../../app/api/env/route');
     const req = makeReq('http://localhost/api/env', {
       method: 'POST',
-      body: JSON.stringify({ agent: 'alpha', key: 'NEW_VAR', value: 'hello' }),
+      body: JSON.stringify({
+        agent: 'alpha',
+        key: 'API_KEY',
+        value: 'super-secret',
+        visibility: 'secure',
+      }),
       headers: { 'Content-Type': 'application/json' },
     });
+
     const res = await POST(req);
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true });
-    expect(vi.mocked(fs.writeFile)).toHaveBeenCalled();
-    expect(mockState.fsContent).toContain('NEW_VAR=hello');
-    expect(mockState.fsContent).toContain('EXISTING=val');
+    expect(await res.json()).toEqual({ ok: true, visibility: 'secure' });
+
+    const envPath = path.join(tmpDir, 'runtime', 'agents', 'alpha', '.env');
+    const content = await fsp.readFile(envPath, 'utf-8');
+    expect(content).toContain('API_KEY=super-secret');
+
+    const readRes = await GET(makeReq('http://localhost/api/env?agent=alpha'));
+    expect(await readRes.json()).toEqual([
+      { key: 'API_KEY', value: '***', masked: true, visibility: 'secure' },
+    ]);
   });
 
-  it('updates an existing key', async () => {
-    mockState.agentRows = [ALPHA];
-    mockState.fsContent = 'API_KEY=old\n';
+  it('defaults visibility to plain when omitted', async () => {
+    const { POST, GET } = await import('../../app/api/env/route');
     const req = makeReq('http://localhost/api/env', {
       method: 'POST',
-      body: JSON.stringify({ agent: 'alpha', key: 'API_KEY', value: 'new' }),
+      body: JSON.stringify({ agent: 'alpha', key: 'BASE_URL', value: 'https://example.com' }),
       headers: { 'Content-Type': 'application/json' },
     });
-    await POST(req);
-    expect(mockState.fsContent).toContain('API_KEY=new');
-    expect(mockState.fsContent).not.toContain('API_KEY=old');
+
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, visibility: 'plain' });
+
+    const readRes = await GET(makeReq('http://localhost/api/env?agent=alpha'));
+    expect(await readRes.json()).toEqual([
+      {
+        key: 'BASE_URL',
+        value: 'https://example.com',
+        masked: false,
+        visibility: 'plain',
+      },
+    ]);
+  });
+
+  it('keeps secure runtime value when only visibility is updated without value', async () => {
+    const envPath = path.join(tmpDir, 'runtime', 'agents', 'alpha', '.env');
+    await fsp.writeFile(envPath, 'API_KEY=super-secret\n', 'utf-8');
+    await testDb.insert(schema.envVars).values({
+      scope: 'alpha',
+      key: 'API_KEY',
+      value: 'super-secret',
+      visibility: 'secure',
+    });
+
+    const { POST, GET } = await import('../../app/api/env/route');
+    const req = makeReq('http://localhost/api/env', {
+      method: 'POST',
+      body: JSON.stringify({ agent: 'alpha', key: 'API_KEY', visibility: 'plain' }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, visibility: 'plain' });
+
+    const updatedEnv = await fsp.readFile(envPath, 'utf-8');
+    expect(updatedEnv).toContain('API_KEY=super-secret');
+
+    const readRes = await GET(makeReq('http://localhost/api/env?agent=alpha'));
+    expect(await readRes.json()).toEqual([
+      {
+        key: 'API_KEY',
+        value: 'super-secret',
+        masked: false,
+        visibility: 'plain',
+      },
+    ]);
   });
 });
 
 describe('DELETE /api/env', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockState.agentRows = [];
-    mockState.fsContent = '';
-  });
-
   it('returns 400 if agent param missing', async () => {
+    const { DELETE } = await import('../../app/api/env/route');
     const res = await DELETE(makeReq('http://localhost/api/env?key=FOO', { method: 'DELETE' }));
     expect(res.status).toBe(400);
   });
 
   it('returns 400 if key param missing', async () => {
+    const { DELETE } = await import('../../app/api/env/route');
     const res = await DELETE(makeReq('http://localhost/api/env?agent=alpha', { method: 'DELETE' }));
     expect(res.status).toBe(400);
   });
 
   it('returns 404 for unknown agent', async () => {
-    mockState.agentRows = [];
+    const { DELETE } = await import('../../app/api/env/route');
     const res = await DELETE(
       makeReq('http://localhost/api/env?agent=ghost&key=FOO', { method: 'DELETE' }),
     );
     expect(res.status).toBe(404);
   });
 
-  it('removes a key from .env file', async () => {
-    mockState.agentRows = [ALPHA];
-    mockState.fsContent = 'REMOVE_ME=yes\nKEEP=ok\n';
+  it('removes key from agent env and metadata', async () => {
+    const envPath = path.join(tmpDir, 'runtime', 'agents', 'alpha', '.env');
+    await fsp.writeFile(envPath, 'REMOVE_ME=yes\nKEEP=ok\n', 'utf-8');
+    await testDb.insert(schema.envVars).values({
+      scope: 'alpha',
+      key: 'REMOVE_ME',
+      value: 'yes',
+      visibility: 'secure',
+    });
+
+    const { DELETE, GET } = await import('../../app/api/env/route');
     const res = await DELETE(
       makeReq('http://localhost/api/env?agent=alpha&key=REMOVE_ME', { method: 'DELETE' }),
     );
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
-    expect(mockState.fsContent).not.toContain('REMOVE_ME');
-    expect(mockState.fsContent).toContain('KEEP=ok');
+
+    const content = await fsp.readFile(envPath, 'utf-8');
+    expect(content).not.toContain('REMOVE_ME');
+    expect(content).toContain('KEEP=ok');
+
+    const readRes = await GET(makeReq('http://localhost/api/env?agent=alpha'));
+    expect(await readRes.json()).toEqual([
+      { key: 'KEEP', value: 'ok', masked: false, visibility: 'plain' },
+    ]);
   });
 });
 
 describe('GET /api/env/resolved', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockState.agentRows = [];
-    mockState.fsContent = '';
-  });
-
   it('returns 400 if agent param missing', async () => {
-    const res = await RESOLVED_GET(makeReq('http://localhost/api/env/resolved'));
+    const { GET } = await import('../../app/api/env/resolved/route');
+    const res = await GET(makeReq('http://localhost/api/env/resolved'));
     expect(res.status).toBe(400);
   });
 
   it('returns 404 for unknown agent', async () => {
-    mockState.agentRows = [];
-    const res = await RESOLVED_GET(makeReq('http://localhost/api/env/resolved?agent=ghost'));
+    const { GET } = await import('../../app/api/env/resolved/route');
+    const res = await GET(makeReq('http://localhost/api/env/resolved?agent=ghost'));
     expect(res.status).toBe(404);
   });
 
-  it('returns merged view with source annotations', async () => {
-    mockState.agentRows = [ALPHA];
-    // readFile is called twice: global .env and agent .env
-    vi.mocked(fs.readFile)
-      .mockResolvedValueOnce('BASE_URL=https://example.com\n' as never)
-      .mockResolvedValueOnce('API_KEY=secret\nBASE_URL=https://override.example.com\n' as never);
+  it('returns merged runtime values with source and visibility', async () => {
+    const globalsDir = path.join(tmpDir, 'runtime', 'globals');
+    await fsp.mkdir(globalsDir, { recursive: true });
+    await fsp.writeFile(path.join(globalsDir, '.env'), 'BASE_URL=https://example.com\n', 'utf-8');
+    await fsp.writeFile(
+      path.join(tmpDir, 'runtime', 'agents', 'alpha', '.env'),
+      'API_KEY=secret\nBASE_URL=https://override.example.com\n',
+      'utf-8',
+    );
 
-    const res = await RESOLVED_GET(makeReq('http://localhost/api/env/resolved?agent=alpha'));
+    await testDb.insert(schema.envVars).values([
+      { scope: 'global', key: 'BASE_URL', value: 'https://example.com', visibility: 'plain' },
+      { scope: 'alpha', key: 'API_KEY', value: 'secret', visibility: 'secure' },
+      {
+        scope: 'alpha',
+        key: 'BASE_URL',
+        value: 'https://override.example.com',
+        visibility: 'plain',
+      },
+    ]);
+
+    const { GET } = await import('../../app/api/env/resolved/route');
+    const res = await GET(makeReq('http://localhost/api/env/resolved?agent=alpha'));
     expect(res.status).toBe(200);
-    const body = (await res.json()) as Array<{ key: string; value: string; source: string }>;
 
-    const baseUrl = body.find((e) => e.key === 'BASE_URL');
-    expect(baseUrl).toEqual({
+    const body = (await res.json()) as Array<{
+      key: string;
+      value: string;
+      source: string;
+      visibility: string;
+    }>;
+
+    expect(body.find((entry) => entry.key === 'BASE_URL')).toEqual({
       key: 'BASE_URL',
       value: 'https://override.example.com',
       source: 'agent-override',
+      visibility: 'plain',
     });
 
-    const apiKey = body.find((e) => e.key === 'API_KEY');
-    expect(apiKey).toEqual({ key: 'API_KEY', value: 'secret', source: 'agent' });
+    expect(body.find((entry) => entry.key === 'API_KEY')).toEqual({
+      key: 'API_KEY',
+      value: 'secret',
+      source: 'agent',
+      visibility: 'secure',
+    });
   });
 
-  it('marks global-only keys with source=global', async () => {
-    mockState.agentRows = [ALPHA];
-    vi.mocked(fs.readFile)
-      .mockResolvedValueOnce('GLOBAL_VAR=gval\n' as never)
-      .mockResolvedValueOnce('' as never);
+  it('marks global-only keys as source=global with plain fallback visibility', async () => {
+    const globalsDir = path.join(tmpDir, 'runtime', 'globals');
+    await fsp.mkdir(globalsDir, { recursive: true });
+    await fsp.writeFile(path.join(globalsDir, '.env'), 'GLOBAL_VAR=gval\n', 'utf-8');
+    await fsp.writeFile(path.join(tmpDir, 'runtime', 'agents', 'alpha', '.env'), '', 'utf-8');
 
-    const res = await RESOLVED_GET(makeReq('http://localhost/api/env/resolved?agent=alpha'));
-    const body = (await res.json()) as Array<{ key: string; value: string; source: string }>;
-    expect(body).toEqual([{ key: 'GLOBAL_VAR', value: 'gval', source: 'global' }]);
+    const { GET } = await import('../../app/api/env/resolved/route');
+    const res = await GET(makeReq('http://localhost/api/env/resolved?agent=alpha'));
+    expect(await res.json()).toEqual([
+      { key: 'GLOBAL_VAR', value: 'gval', source: 'global', visibility: 'plain' },
+    ]);
   });
 });

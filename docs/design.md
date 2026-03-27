@@ -22,6 +22,7 @@
   - scope: 'global' | agentName
   - key: string
   - value: string
+  - visibility: 'plain' | 'secure'（管理画面でのマスク制御）
 - SkillLink
   - agent: string
   - sourcePath: string（~/.hermes/skills 配下）
@@ -30,7 +31,7 @@
 ## 3. データベース設計
 
 - agents(id PK, name UNIQUE, home, label, enabled BOOL, created_at, updated_at)
-- env_vars(id PK, scope, key, value)
+- env_vars(id PK, scope, key, value, visibility DEFAULT 'plain')
 - skill_links(id PK, agent, source_path, target_path)
 
 インデックス案:
@@ -58,9 +59,9 @@
 - /api/files: GET/PUT（AGENTS.md/SOUL.md/config.yaml）
   - YAML 構文チェック（config.yaml）
   - 原子書き込み（.tmp→rename）
-- /api/env: GET(.env/parse)/POST/DELETE
-- /api/env/resolved: GET（global+agent のマージ）
-- /api/globals: GET/POST/DELETE + regenerate runtime/globals/.env
+- /api/env: GET(.env/parse)/POST/DELETE（visibility を返却/永続化、secure は管理表示でマスク）
+- /api/env/resolved: GET（global+agent のマージ、実行値を返却しマスクしない）
+- /api/globals: GET/POST/DELETE + regenerate runtime/globals/.env（visibility を返却/永続化、secure は管理表示でマスク）
 - /api/skills/tree, /api/skills/links{GET/POST/DELETE}
 - /api/logs: tail 相当
 - /api/logs/stream: SSE keepalive/polling

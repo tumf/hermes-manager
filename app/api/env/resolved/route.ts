@@ -14,6 +14,7 @@ interface ResolvedEntry {
   key: string;
   value: string;
   source: EnvSource;
+  visibility: 'plain' | 'secure';
 }
 
 async function readEnvFile(filePath: string): Promise<string> {
@@ -40,15 +41,25 @@ export async function GET(request: NextRequest) {
   const globalEnvPath = getRuntimeGlobalsRootPath('.env');
   const agentEnvPath = path.join(agent.home, '.env');
 
-  const [globalContent, agentContent] = await Promise.all([
+  const [globalContent, agentContent, globalMetadata, agentMetadata] = await Promise.all([
     readEnvFile(globalEnvPath),
     readEnvFile(agentEnvPath),
+    db.select().from(schema.envVars).where(eq(schema.envVars.scope, 'global')),
+    db.select().from(schema.envVars).where(eq(schema.envVars.scope, agentName)),
   ]);
 
   const globalEntries = parse(globalContent);
   const agentEntries = parse(agentContent);
 
   const globalMap = new Map(globalEntries.map((e) => [e.key, e.value]));
+
+  const visibilityMap = new Map<string, 'plain' | 'secure'>();
+  for (const row of globalMetadata) {
+    visibilityMap.set(row.key, row.visibility === 'secure' ? 'secure' : 'plain');
+  }
+  for (const row of agentMetadata) {
+    visibilityMap.set(row.key, row.visibility === 'secure' ? 'secure' : 'plain');
+  }
 
   const result: ResolvedEntry[] = [];
   const seen = new Set<string>();
@@ -57,13 +68,13 @@ export async function GET(request: NextRequest) {
   for (const { key, value } of agentEntries) {
     seen.add(key);
     const source: EnvSource = globalMap.has(key) ? 'agent-override' : 'agent';
-    result.push({ key, value, source });
+    result.push({ key, value, source, visibility: visibilityMap.get(key) ?? 'plain' });
   }
 
   // Global-only entries
   for (const { key, value } of globalEntries) {
     if (!seen.has(key)) {
-      result.push({ key, value, source: 'global' });
+      result.push({ key, value, source: 'global', visibility: visibilityMap.get(key) ?? 'plain' });
     }
   }
 

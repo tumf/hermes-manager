@@ -31,7 +31,8 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     scope TEXT NOT NULL,
     key TEXT NOT NULL,
-    value TEXT NOT NULL
+    value TEXT NOT NULL,
+    visibility TEXT NOT NULL DEFAULT 'plain'
   );
 
   CREATE TABLE IF NOT EXISTS skill_links (
@@ -41,6 +42,13 @@ db.exec(`
     target_path TEXT NOT NULL
   );
 `);
+
+const envVarsColumns = db.prepare("PRAGMA table_info('env_vars')").all();
+const hasVisibilityColumn = envVarsColumns.some((column) => column.name === 'visibility');
+
+if (!hasVisibilityColumn) {
+  db.exec("ALTER TABLE env_vars ADD COLUMN visibility TEXT NOT NULL DEFAULT 'plain';");
+}
 
 db.close();
 
