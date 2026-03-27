@@ -80,7 +80,7 @@
 
 - Layout: サイドバー（/ と /globals へのナビ）、モバイルはシート/ドロワ
 - Agents 一覧: name, enabled, 状態バッジ、起動/停止、追加/削除/コピー
-- Agent 詳細: タブ（Memory/Config/Env/Skills/Logs）
+- Agent 詳細: タブ（Memory/Config/Env/Skills/Logs）。Memory は `AGENTS.md` / `SOUL.md` を切替ボタンで選択し、常に1ファイルのみ編集表示
 - Globals: テーブルで inline 追加/編集/削除、再生成プレビュー
 - コンポーネント: StatusBadge, ConfirmDialog, EnvTable, LogViewer
 

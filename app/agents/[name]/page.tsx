@@ -11,7 +11,7 @@ import {
   Square,
 } from 'lucide-react';
 import Link from 'next/link';
-import { use, useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Badge } from '@/src/components/ui/badge';
@@ -21,11 +21,14 @@ import { Skeleton } from '@/src/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/src/components/ui/tabs';
 
 interface AgentPageProps {
-  params: Promise<{ name: string }>;
+  params: { name: string };
 }
 
+const MEMORY_FILES = ['AGENTS.md', 'SOUL.md'] as const;
+type MemoryFilePath = (typeof MEMORY_FILES)[number];
+
 export default function AgentPage({ params }: AgentPageProps) {
-  const { name } = use(params);
+  const { name } = params;
 
   const [status, setStatus] = useState<{
     running: boolean;
@@ -162,10 +165,7 @@ export default function AgentPage({ params }: AgentPageProps) {
         </TabsList>
 
         <TabsContent value="memory">
-          <div className="grid gap-4 lg:grid-cols-2">
-            <FileEditor name={name} filePath="AGENTS.md" label="AGENTS.md" />
-            <FileEditor name={name} filePath="SOUL.md" label="SOUL.md" />
-          </div>
+          <MemoryEditor name={name} />
         </TabsContent>
 
         <TabsContent value="config">
@@ -180,7 +180,76 @@ export default function AgentPage({ params }: AgentPageProps) {
   );
 }
 
-function FileEditor({ name, filePath, label }: { name: string; filePath: string; label: string }) {
+function MemoryEditor({ name }: { name: string }) {
+  const [selectedFile, setSelectedFile] = useState<MemoryFilePath>('AGENTS.md');
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  const handleSelectFile = useCallback(
+    (nextFile: MemoryFilePath) => {
+      if (nextFile === selectedFile) {
+        return;
+      }
+
+      if (hasUnsavedChanges) {
+        const confirmed = window.confirm('未保存の変更があります。破棄してファイルを切り替えますか？');
+        if (!confirmed) {
+          return;
+        }
+      }
+
+      setSelectedFile(nextFile);
+      setHasUnsavedChanges(false);
+    },
+    [hasUnsavedChanges, selectedFile],
+  );
+
+  return (
+    <Card>
+      <CardHeader className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle className="text-sm">Memory</CardTitle>
+          <div className="flex gap-1">
+            {MEMORY_FILES.map((file) => (
+              <Button
+                key={file}
+                type="button"
+                variant={selectedFile === file ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-7 px-2 font-mono text-xs"
+                onClick={() => handleSelectFile(file)}
+              >
+                {file}
+              </Button>
+            ))}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <FileEditor
+          name={name}
+          filePath={selectedFile}
+          label={selectedFile}
+          onDirtyChange={setHasUnsavedChanges}
+          cardless
+        />
+      </CardContent>
+    </Card>
+  );
+}
+
+function FileEditor({
+  name,
+  filePath,
+  label,
+  onDirtyChange,
+  cardless = false,
+}: {
+  name: string;
+  filePath: string;
+  label: string;
+  onDirtyChange?: (isDirty: boolean) => void;
+  cardless?: boolean;
+}) {
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -189,6 +258,7 @@ function FileEditor({ name, filePath, label }: { name: string; filePath: string;
 
   useEffect(() => {
     async function load() {
+      setLoading(true);
       try {
         const res = await fetch(
           `/api/files?agent=${encodeURIComponent(name)}&path=${encodeURIComponent(filePath)}`,
@@ -198,6 +268,8 @@ function FileEditor({ name, filePath, label }: { name: string; filePath: string;
           const text = typeof data === 'string' ? data : (data.content ?? '');
           setContent(text);
           originalRef.current = text;
+          setDirty(false);
+          onDirtyChange?.(false);
         }
       } catch {
         /* ignore */
@@ -206,11 +278,13 @@ function FileEditor({ name, filePath, label }: { name: string; filePath: string;
       }
     }
     void load();
-  }, [name, filePath]);
+  }, [name, filePath, onDirtyChange]);
 
   function handleChange(val: string) {
     setContent(val);
-    setDirty(val !== originalRef.current);
+    const isDirty = val !== originalRef.current;
+    setDirty(isDirty);
+    onDirtyChange?.(isDirty);
   }
 
   async function save() {
@@ -224,6 +298,7 @@ function FileEditor({ name, filePath, label }: { name: string; filePath: string;
       if (res.ok) {
         originalRef.current = content;
         setDirty(false);
+        onDirtyChange?.(false);
         toast.success(`${label} saved`);
       } else {
         toast.error(`Failed to save ${label}`);
@@ -235,33 +310,46 @@ function FileEditor({ name, filePath, label }: { name: string; filePath: string;
     }
   }
 
+  const editorArea = loading ? (
+    <Skeleton className="h-48 w-full" />
+  ) : (
+    <textarea
+      className="min-h-48 w-full resize-y rounded-md border border-input bg-muted/30 p-3 font-mono text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      value={content}
+      onChange={(e) => handleChange(e.target.value)}
+      aria-label={`Edit ${label}`}
+    />
+  );
+
+  const header = (
+    <div className="flex items-center justify-between">
+      <CardTitle className="font-mono text-xs">{label}</CardTitle>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => void save()}
+        disabled={saving || loading || !dirty}
+        className="gap-1.5"
+      >
+        {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
+        {saving ? 'Saving...' : 'Save'}
+      </Button>
+    </div>
+  );
+
+  if (cardless) {
+    return (
+      <>
+        {header}
+        <div className="mt-3">{editorArea}</div>
+      </>
+    );
+  }
+
   return (
     <Card>
-      <CardHeader className="flex-row items-center justify-between">
-        <CardTitle className="font-mono text-xs">{label}</CardTitle>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => void save()}
-          disabled={saving || loading || !dirty}
-          className="gap-1.5"
-        >
-          {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
-          {saving ? 'Saving...' : 'Save'}
-        </Button>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <Skeleton className="h-48 w-full" />
-        ) : (
-          <textarea
-            className="min-h-48 w-full resize-y rounded-md border border-input bg-muted/30 p-3 font-mono text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            value={content}
-            onChange={(e) => handleChange(e.target.value)}
-            aria-label={`Edit ${label}`}
-          />
-        )}
-      </CardContent>
+      <CardHeader className="flex-row items-center justify-between">{header}</CardHeader>
+      <CardContent>{editorArea}</CardContent>
     </Card>
   );
 }
