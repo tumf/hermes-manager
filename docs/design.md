@@ -81,7 +81,10 @@
 
 - Layout: サイドバー（/ と /globals へのナビ）、モバイルはシート/ドロワ
 - Agents 一覧: name, enabled, 状態バッジ、起動/停止、追加/削除/コピー
-- Agent 詳細: タブ（Memory/Config/Env/Skills/Logs）
+- Agent 詳細: タブ（Memory/Config/Env/Logs）
+  - Memory は `AGENTS.md` / `SOUL.md` を切替ボタンで選択し、常に1ファイルのみ編集表示
+  - Env タブは `/api/env` で agent-local `.env` の CRUD を行う（値はデフォルト masked、`reveal=true` で表示切替）
+  - Env タブ内に `/api/env/resolved` の read-only 一覧を表示し、`global` / `agent` / `agent-override` を source として明示
 - Globals: テーブルで inline 追加/編集/削除、再生成プレビュー
 - コンポーネント: StatusBadge, ConfirmDialog, EnvTable, LogViewer
 
