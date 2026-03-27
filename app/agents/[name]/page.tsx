@@ -2,6 +2,8 @@
 
 import {
   ChevronLeft,
+  Eye,
+  EyeOff,
   FileText,
   Loader2,
   Play,
@@ -9,26 +11,43 @@ import {
   ScrollText,
   Settings,
   Square,
+  Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { use, useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Badge } from '@/src/components/ui/badge';
 import { Button } from '@/src/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
+import { Input } from '@/src/components/ui/input';
 import { Skeleton } from '@/src/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/src/components/ui/tabs';
 
 interface AgentPageProps {
-  params: { name: string };
+  params: Promise<{ name: string }> | { name: string };
+}
+
+interface AgentEnvEntry {
+  key: string;
+  value: string;
+  masked: boolean;
+}
+
+type EnvSource = 'global' | 'agent' | 'agent-override';
+
+interface ResolvedEnvEntry {
+  key: string;
+  value: string;
+  source: EnvSource;
 }
 
 const MEMORY_FILES = ['AGENTS.md', 'SOUL.md'] as const;
 type MemoryFilePath = (typeof MEMORY_FILES)[number];
 
 export default function AgentPage({ params }: AgentPageProps) {
-  const { name } = params;
+  const resolvedParams = params instanceof Promise ? use(params) : params;
+  const { name } = resolvedParams;
 
   const [status, setStatus] = useState<{
     running: boolean;
@@ -159,10 +178,8 @@ export default function AgentPage({ params }: AgentPageProps) {
             <span className="hidden sm:inline">Config</span>
           </TabsTrigger>
           <TabsTrigger value="env" className="gap-1.5">
-            <span>Env</span>
-          </TabsTrigger>
-          <TabsTrigger value="skills" className="gap-1.5">
-            <span>Skills</span>
+            <span className="text-xs font-semibold">ENV</span>
+            <span className="hidden sm:inline">Env</span>
           </TabsTrigger>
           <TabsTrigger value="logs" className="gap-1.5">
             <ScrollText className="size-3.5" />
@@ -179,11 +196,7 @@ export default function AgentPage({ params }: AgentPageProps) {
         </TabsContent>
 
         <TabsContent value="env" forceMount>
-          <EnvResolvedViewer name={name} />
-        </TabsContent>
-
-        <TabsContent value="skills" forceMount>
-          <SkillsLinksViewer name={name} />
+          <AgentEnvTab name={name} />
         </TabsContent>
 
         <TabsContent value="logs">
@@ -368,130 +381,218 @@ function FileEditor({
   );
 }
 
-function EnvResolvedViewer({ name }: { name: string }) {
-  const [rows, setRows] = useState<Array<{ key: string; value: string; source: string }>>([]);
-  const [loading, setLoading] = useState(true);
+function AgentEnvTab({ name }: { name: string }) {
+  const [envEntries, setEnvEntries] = useState<AgentEnvEntry[]>([]);
+  const [resolvedEntries, setResolvedEntries] = useState<ResolvedEnvEntry[]>([]);
+  const [loadingEnv, setLoadingEnv] = useState(true);
+  const [loadingResolved, setLoadingResolved] = useState(true);
+  const [reveal, setReveal] = useState(false);
+  const [keyInput, setKeyInput] = useState('');
+  const [valueInput, setValueInput] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [deletingKey, setDeletingKey] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      try {
-        const res = await fetch(`/api/env/resolved?agent=${encodeURIComponent(name)}`);
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          const message = typeof data.error === 'string' ? data.error : 'Failed to load env';
-          toast.error(message);
-          return;
-        }
-
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setRows(data);
-        } else {
-          setRows([]);
-        }
-      } catch {
-        toast.error('Failed to load env');
-      } finally {
-        setLoading(false);
+  const loadEnv = useCallback(async () => {
+    setLoadingEnv(true);
+    try {
+      const url = `/api/env?agent=${encodeURIComponent(name)}${reveal ? '&reveal=true' : ''}`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error('failed to load env');
       }
+      const data = (await res.json()) as AgentEnvEntry[];
+      setEnvEntries(data);
+    } catch {
+      toast.error('Failed to load env vars');
+    } finally {
+      setLoadingEnv(false);
     }
+  }, [name, reveal]);
 
-    void load();
+  const loadResolved = useCallback(async () => {
+    setLoadingResolved(true);
+    try {
+      const res = await fetch(`/api/env/resolved?agent=${encodeURIComponent(name)}`);
+      if (!res.ok) {
+        throw new Error('failed to load resolved env');
+      }
+      const data = (await res.json()) as ResolvedEnvEntry[];
+      setResolvedEntries(data);
+    } catch {
+      toast.error('Failed to load resolved env');
+    } finally {
+      setLoadingResolved(false);
+    }
   }, [name]);
 
+  useEffect(() => {
+    void loadEnv();
+  }, [loadEnv]);
+
+  useEffect(() => {
+    void loadResolved();
+  }, [loadResolved]);
+
+  async function saveEnvVar() {
+    const key = keyInput.trim();
+    if (!key) {
+      toast.error('Key is required');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await fetch('/api/env', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agent: name, key, value: valueInput }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const message = typeof data.error === 'string' ? data.error : 'Failed to save env var';
+        toast.error(message);
+        return;
+      }
+      toast.success(`Saved ${key}`);
+      setKeyInput('');
+      setValueInput('');
+      await Promise.all([loadEnv(), loadResolved()]);
+    } catch {
+      toast.error('Failed to save env var');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteEnvVar(key: string) {
+    setDeletingKey(key);
+    try {
+      const res = await fetch(
+        `/api/env?agent=${encodeURIComponent(name)}&key=${encodeURIComponent(key)}`,
+        { method: 'DELETE' },
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const message = typeof data.error === 'string' ? data.error : 'Failed to delete env var';
+        toast.error(message);
+        return;
+      }
+      toast.success(`Deleted ${key}`);
+      await Promise.all([loadEnv(), loadResolved()]);
+    } catch {
+      toast.error('Failed to delete env var');
+    } finally {
+      setDeletingKey(null);
+    }
+  }
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-sm">Resolved Env</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <Skeleton className="h-40 w-full" />
-        ) : rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No environment variables.</p>
-        ) : (
-          <div className="space-y-2">
-            {rows.map((row) => (
-              <div
-                key={`${row.key}:${row.source}`}
-                className="flex flex-col gap-1 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="min-w-0">
-                  <p className="font-mono text-sm font-medium">{row.key}</p>
-                  <p className="truncate font-mono text-xs text-muted-foreground">{row.value}</p>
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-sm">Agent-local Environment Variables</CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setReveal((v) => !v)}
+              disabled={loadingEnv}
+            >
+              {reveal ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+              {reveal ? 'Hide values' : 'Reveal values'}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            This tab edits only {name}&apos;s .env. Global values are managed from /globals.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+            <Input
+              placeholder="KEY"
+              value={keyInput}
+              onChange={(e) => setKeyInput(e.target.value)}
+              aria-label="Env key"
+            />
+            <Input
+              placeholder="Value"
+              value={valueInput}
+              onChange={(e) => setValueInput(e.target.value)}
+              aria-label="Env value"
+            />
+            <Button onClick={() => void saveEnvVar()} disabled={saving} aria-label="Save env variable">
+              {saving ? <Loader2 className="size-3.5 animate-spin" /> : 'Save'}
+            </Button>
+          </div>
+
+          {loadingEnv ? (
+            <Skeleton className="h-40 w-full" />
+          ) : envEntries.length === 0 ? (
+            <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">(empty)</p>
+          ) : (
+            <div className="rounded-md border">
+              <div className="grid grid-cols-[1fr_1fr_auto] gap-2 border-b bg-muted/30 p-2 text-xs font-medium">
+                <span>Key</span>
+                <span>Value</span>
+                <span className="text-right">Actions</span>
+              </div>
+              {envEntries.map((entry) => (
+                <div key={entry.key} className="grid grid-cols-[1fr_1fr_auto] gap-2 border-b p-2 text-sm last:border-b-0">
+                  <span className="font-mono">{entry.key}</span>
+                  <span className="font-mono">{entry.value}</span>
+                  <div className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={() => void deleteEnvVar(entry.key)}
+                      disabled={deletingKey === entry.key}
+                      aria-label={`Delete ${entry.key}`}
+                    >
+                      {deletingKey === entry.key ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="size-3.5" />
+                      )}
+                      Delete
+                    </Button>
+                  </div>
                 </div>
-                <Badge variant="muted" className="w-fit">
-                  {row.source}
-                </Badge>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">Resolved Environment (Read-only)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loadingResolved ? (
+            <Skeleton className="h-40 w-full" />
+          ) : resolvedEntries.length === 0 ? (
+            <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">(empty)</p>
+          ) : (
+            <div className="rounded-md border">
+              <div className="grid grid-cols-[1fr_1fr_auto] gap-2 border-b bg-muted/30 p-2 text-xs font-medium">
+                <span>Key</span>
+                <span>Value</span>
+                <span className="text-right">Source</span>
               </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function SkillsLinksViewer({ name }: { name: string }) {
-  const [rows, setRows] = useState<Array<{ id: number; sourcePath: string; targetPath: string; exists: boolean }>>(
-    [],
-  );
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      try {
-        const res = await fetch(`/api/skills/links?agent=${encodeURIComponent(name)}`);
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          const message = typeof data.error === 'string' ? data.error : 'Failed to load skills links';
-          toast.error(message);
-          return;
-        }
-
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setRows(data);
-        } else {
-          setRows([]);
-        }
-      } catch {
-        toast.error('Failed to load skills links');
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    void load();
-  }, [name]);
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-sm">Skill Links</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <Skeleton className="h-40 w-full" />
-        ) : rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No skill links.</p>
-        ) : (
-          <div className="space-y-2">
-            {rows.map((row) => (
-              <div key={row.id} className="rounded-md border p-3">
-                <p className="truncate font-mono text-xs text-muted-foreground">{row.sourcePath}</p>
-                <p className="truncate font-mono text-xs">{row.targetPath}</p>
-                <Badge variant={row.exists ? 'success' : 'muted'} className="mt-2">
-                  {row.exists ? 'Linked' : 'Missing'}
-                </Badge>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+              {resolvedEntries.map((entry) => (
+                <div key={entry.key} className="grid grid-cols-[1fr_1fr_auto] gap-2 border-b p-2 text-sm last:border-b-0">
+                  <span className="font-mono">{entry.key}</span>
+                  <span className="font-mono">{entry.value}</span>
+                  <span className="text-right text-xs text-muted-foreground">{entry.source}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
