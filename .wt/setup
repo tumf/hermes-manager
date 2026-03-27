@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Worktree bootstrap for hermes-agents
+# Variables provided by wt: ROOT_WORKTREE_PATH (source repo path)
+
+# Tools check
+need() { command -v "$1" >/dev/null 2>&1 || { echo "error: $1 not found" >&2; exit 1; }; }
+for c in node npm git; do need "$c"; done
+
+# Node deps (idempotent)
+if [ ! -f package.json ]; then
+  echo "error: package.json not found in worktree" >&2
+  exit 1
+fi
+
+if [ ! -d node_modules ]; then
+  npm ci || npm install
+fi
+
+# Husky / pre-commit hooks
+if [ -f .pre-commit-config.yaml ]; then
+  if command -v pre-commit >/dev/null 2>&1; then
+    pre-commit install || true
+  fi
+fi
+if [ -d .husky ]; then
+  npx husky install || true
+fi
+
+# Local overrides from source repo
+_local="${ROOT_WORKTREE_PATH:-.}/.wt/setup.local"
+if [ -f "$_local" ]; then
+  # shellcheck source=/dev/null
+  source "$_local"
+fi
+
+echo "✅ .wt/setup completed"

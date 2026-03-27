@@ -1,0 +1,12 @@
+node_modules
+.next
+out
+coverage
+.env
+.env.local
+.env.*.local
+.DS_Store
+/.wt/setup.local
+/.wt/worktrees/
+/data/
+/drizzle/

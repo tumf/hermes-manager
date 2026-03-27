@@ -1,0 +1,13 @@
+{
+  "extends": [
+    "next/core-web-vitals",
+    "eslint:recommended",
+    "plugin:import/recommended",
+    "prettier"
+  ],
+  "plugins": ["unused-imports"],
+  "rules": {
+    "import/order": ["error", { "alphabetize": { "order": "asc", "caseInsensitive": true } }],
+    "unused-imports/no-unused-imports": "error"
+  }
+}
