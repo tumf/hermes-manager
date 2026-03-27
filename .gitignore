@@ -11,3 +11,6 @@ coverage
 /data/
 /drizzle/
 /logs/*.log
+agents/
+runtime/
+globals/
