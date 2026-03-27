@@ -11,3 +11,8 @@
 
 - `runtime/` の外部ストレージ化（NAS など）
 - 環境ごとの runtime ルート切替（設定ファイル化）
+
+## Acceptance #1 Failure Follow-up
+
+- [x] `npm run start:prod` で DB マイグレーション（`scripts/migrate.ts` など）を実行してから Next.js サーバを起動するよう修正する（verification: `scripts/start-prod.sh` で `node scripts/migrate.js` を先行実行、`node scripts/migrate.js` 実行で `runtime/data/app.db` 初期化成功）
+- [x] Hosting 仕様（`openspec/specs/hosting/spec.md`）に沿うことを検証するテストまたは運用検証手順を追加する（verification: `docs/design.md` §11.2 に起動/launchdログ/Caddy の運用検証手順を追加）

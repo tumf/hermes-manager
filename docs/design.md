@@ -118,6 +118,20 @@
   - SQLite `agents.home` の旧パス（`{PROJECT_ROOT}/agents/*`）を `runtime/agents/*` へ更新
   - launchd は WebUI から uninstall → install → start で plist を再生成
 
+### 11.2 Hosting 仕様の運用検証手順
+
+- 起動手順（マイグレーション込み）
+  - `npm run build`
+  - `npm run start:prod`
+  - 期待結果: `scripts/migrate.js` が先に実行され、`runtime/data/app.db` 内の必須テーブル作成後に Next.js が `PORT=18470` で起動する
+- launchd ログ出力検証
+  - `launchctl list | rg ai.hermes.agents-webapp`
+  - `ls runtime/logs`
+  - 期待結果: `runtime/logs/webapp.log` と `runtime/logs/webapp.error.log` が存在する
+- Caddy ルーティング検証
+  - `curl -I https://hermes-agents.mini.tumf.dev`
+  - 期待結果: HTTPS 応答が返り、WebApp に到達する
+
 ## 12. 将来拡張
 
 - 認証（イントラ限定 Basic や IP ACL）
