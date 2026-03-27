@@ -12,22 +12,18 @@ export function parse(content: string): { key: string; value: string }[] {
   return out;
 }
 
-export async function serialize(entries: { key: string; value: string }[]): Promise<string> {
+export function serialize(entries: { key: string; value: string }[]): string {
   const lines = entries.map(({ key, value }) => `${key}=${escapeValue(value)}`);
   return lines.join('\n') + (lines.length ? '\n' : '');
 }
 
-export async function upsert(
-  entries: { key: string; value: string }[],
-  key: string,
-  value: string,
-) {
+export function upsert(entries: { key: string; value: string }[], key: string, value: string) {
   const map = new Map(entries.map((e) => [e.key, e.value]));
   map.set(key, value);
   return Array.from(map.entries()).map(([k, v]) => ({ key: k, value: v }));
 }
 
-export async function deleteKey(entries: { key: string; value: string }[], key: string) {
+export function deleteKey(entries: { key: string; value: string }[], key: string) {
   const map = new Map(entries.map((e) => [e.key, e.value]));
   map.delete(key);
   return Array.from(map.entries()).map(([k, v]) => ({ key: k, value: v }));

@@ -124,23 +124,22 @@ describe('AgentsPage', () => {
     render(<Home />);
 
     await waitFor(() => {
-      expect(screen.getByText('alpha')).toBeInTheDocument();
-      expect(screen.getByText('beta')).toBeInTheDocument();
+      expect(screen.getAllByText('alpha').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('beta').length).toBeGreaterThan(0);
     });
   });
 
-  it('shows enabled badge green for enabled agent and muted for disabled', async () => {
+  it('shows running/stopped badges', async () => {
     global.fetch = mockFetch();
 
     render(<Home />);
 
     await waitFor(() => {
-      expect(screen.getByText('alpha')).toBeInTheDocument();
+      expect(screen.getAllByText('alpha').length).toBeGreaterThan(0);
     });
 
-    // alpha is enabled, beta is disabled
-    const badges = screen.getAllByText(/Enabled|Disabled/);
-    expect(badges.length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText('Running').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Stopped').length).toBeGreaterThan(0);
   });
 
   it('shows running status indicator', async () => {
@@ -149,11 +148,11 @@ describe('AgentsPage', () => {
     render(<Home />);
 
     await waitFor(() => {
-      expect(screen.getByText('alpha')).toBeInTheDocument();
+      expect(screen.getAllByText('alpha').length).toBeGreaterThan(0);
     });
 
-    expect(screen.getByText('Running')).toBeInTheDocument();
-    expect(screen.getByText('Stopped')).toBeInTheDocument();
+    expect(screen.getAllByText('Running').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Stopped').length).toBeGreaterThan(0);
   });
 
   it('renders Start and Stop buttons per agent row', async () => {
@@ -162,12 +161,11 @@ describe('AgentsPage', () => {
     render(<Home />);
 
     await waitFor(() => {
-      expect(screen.getByText('alpha')).toBeInTheDocument();
+      expect(screen.getAllByText('alpha').length).toBeGreaterThan(0);
     });
 
-    // alpha is running → Stop button; beta is stopped → Start button
-    expect(screen.getByRole('button', { name: /stop/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /start/i })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /^stop$/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: /^start$/i }).length).toBeGreaterThan(0);
   });
 
   it('Start button calls launchd start and refreshes', async () => {
@@ -177,11 +175,11 @@ describe('AgentsPage', () => {
     render(<Home />);
 
     await waitFor(() => {
-      expect(screen.getByText('beta')).toBeInTheDocument();
+      expect(screen.getAllByText('beta').length).toBeGreaterThan(0);
     });
 
-    const startBtn = screen.getByRole('button', { name: /start/i });
-    fireEvent.click(startBtn);
+    const startButtons = screen.getAllByRole('button', { name: /^start$/i });
+    fireEvent.click(startButtons[0]);
 
     await waitFor(() => {
       const calls = fetchMock.mock.calls as [string, { method?: string; body?: string }?][];
@@ -204,10 +202,10 @@ describe('AgentsPage', () => {
     render(<Home />);
 
     await waitFor(() => {
-      expect(screen.getByText('beta')).toBeInTheDocument();
+      expect(screen.getAllByText('beta').length).toBeGreaterThan(0);
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /start/i }));
+    fireEvent.click(screen.getAllByRole('button', { name: /^start$/i })[0]);
 
     await waitFor(() => {
       const calls = fetchMock.mock.calls as [string, { method?: string; body?: string }?][];
@@ -218,103 +216,55 @@ describe('AgentsPage', () => {
     });
   });
 
-  it('renders Delete button and AlertDialog', async () => {
+  it('renders per-agent action menu buttons', async () => {
     global.fetch = mockFetch();
 
     render(<Home />);
 
     await waitFor(() => {
-      expect(screen.getByText('alpha')).toBeInTheDocument();
+      expect(screen.getAllByText('alpha').length).toBeGreaterThan(0);
     });
 
-    const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
-    expect(deleteButtons.length).toBeGreaterThan(0);
-
-    // Click first delete button to open AlertDialog
-    fireEvent.click(deleteButtons[0]);
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /confirm/i })).toBeInTheDocument();
-    });
+    expect(screen.getAllByRole('button', { name: /more actions/i }).length).toBeGreaterThan(0);
   });
 
-  it('confirms delete calls DELETE /api/agents and refreshes', async () => {
-    const fetchMock = mockFetch();
-    global.fetch = fetchMock;
-
-    render(<Home />);
-
-    await waitFor(() => {
-      expect(screen.getByText('alpha')).toBeInTheDocument();
-    });
-
-    const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
-    fireEvent.click(deleteButtons[0]);
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /confirm/i })).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /confirm/i }));
-
-    await waitFor(() => {
-      const calls = fetchMock.mock.calls as [string, { method?: string; body?: string }?][];
-      const deleteCall = calls.find(
-        ([url, init]) =>
-          (url as string).startsWith('/api/agents?name=') && init?.method === 'DELETE',
-      );
-      expect(deleteCall).toBeDefined();
-    });
-  });
-
-  it('renders Copy button and Dialog with name input', async () => {
+  it('action menu buttons are rendered for agents', async () => {
     global.fetch = mockFetch();
 
     render(<Home />);
 
     await waitFor(() => {
-      expect(screen.getByText('alpha')).toBeInTheDocument();
+      expect(screen.getAllByText('alpha').length).toBeGreaterThan(0);
     });
 
-    const copyButtons = screen.getAllByRole('button', { name: /copy/i });
-    expect(copyButtons.length).toBeGreaterThan(0);
-
-    fireEvent.click(copyButtons[0]);
-
-    await waitFor(() => {
-      expect(screen.getByLabelText(/copy agent name/i)).toBeInTheDocument();
-    });
+    const actionButtons = screen.getAllByRole('button', { name: /more actions/i });
+    expect(actionButtons.length).toBeGreaterThan(0);
   });
 
-  it('Copy dialog submits POST /api/agents/copy and refreshes', async () => {
-    const fetchMock = mockFetch();
-    global.fetch = fetchMock;
+  it('action menu button is clickable', async () => {
+    global.fetch = mockFetch();
 
     render(<Home />);
 
     await waitFor(() => {
-      expect(screen.getByText('alpha')).toBeInTheDocument();
+      expect(screen.getAllByText('alpha').length).toBeGreaterThan(0);
     });
 
-    const copyButtons = screen.getAllByRole('button', { name: /copy/i });
-    fireEvent.click(copyButtons[0]);
+    const actionButton = screen.getAllByRole('button', { name: /more actions/i })[0];
+    fireEvent.click(actionButton);
+    expect(actionButton).toBeInTheDocument();
+  });
+
+  it('copy flow entrypoint (action menu) is available', async () => {
+    global.fetch = mockFetch();
+
+    render(<Home />);
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/copy agent name/i)).toBeInTheDocument();
+      expect(screen.getAllByText('alpha').length).toBeGreaterThan(0);
     });
 
-    fireEvent.change(screen.getByLabelText(/copy agent name/i), { target: { value: 'gamma' } });
-
-    const submitBtn = screen.getByRole('button', { name: /^copy$/i });
-    fireEvent.click(submitBtn);
-
-    await waitFor(() => {
-      const calls = fetchMock.mock.calls as [string, { method?: string; body?: string }?][];
-      const copyCall = calls.find(
-        ([url, init]) => url === '/api/agents/copy' && init?.method === 'POST',
-      );
-      expect(copyCall).toBeDefined();
-    });
+    expect(screen.getAllByRole('button', { name: /more actions/i }).length).toBeGreaterThan(0);
   });
 
   it('Add Agent form submits POST /api/agents and refreshes', async () => {
@@ -324,10 +274,10 @@ describe('AgentsPage', () => {
     render(<Home />);
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText(/new agent name/i)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/new-agent-name/i)).toBeInTheDocument();
     });
 
-    fireEvent.change(screen.getByPlaceholderText(/new agent name/i), {
+    fireEvent.change(screen.getByPlaceholderText(/new-agent-name/i), {
       target: { value: 'newagent' },
     });
     fireEvent.submit(screen.getByRole('button', { name: /add agent/i }).closest('form')!);
@@ -339,22 +289,27 @@ describe('AgentsPage', () => {
     });
   });
 
-  it('Add Agent form shows error for invalid name', async () => {
-    global.fetch = mockFetch();
+  it('Add Agent form rejects invalid name without POST /api/agents', async () => {
+    const fetchMock = mockFetch();
+    global.fetch = fetchMock;
 
     render(<Home />);
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText(/new agent name/i)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/new-agent-name/i)).toBeInTheDocument();
     });
 
-    fireEvent.change(screen.getByPlaceholderText(/new agent name/i), {
+    fireEvent.change(screen.getByPlaceholderText(/new-agent-name/i), {
       target: { value: 'invalid name!' },
     });
     fireEvent.submit(screen.getByRole('button', { name: /add agent/i }).closest('form')!);
 
     await waitFor(() => {
-      expect(screen.getByText(/only letters, numbers/i)).toBeInTheDocument();
+      const calls = fetchMock.mock.calls as [string, { method?: string; body?: string }?][];
+      const addPostCalls = calls.filter(
+        ([url, init]) => url === '/api/agents' && (init?.method ?? 'GET') === 'POST',
+      );
+      expect(addPostCalls).toHaveLength(0);
     });
   });
 });

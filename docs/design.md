@@ -6,7 +6,7 @@
 
 - Next.js App Router（Node ランタイム）
 - UI: Tailwind + shadcn/ui
-- データ: Drizzle ORM + better-sqlite3（./data/app.db）
+- データ: Drizzle ORM + better-sqlite3（./runtime/data/app.db）
 - ファイル/実行: Node.js fs/path と child_process.execFile（launchctl/dotenvx/hermes）
 - 配置: mini ホスト上で直接起動、Caddy 経由で内部公開
 
@@ -14,7 +14,7 @@
 
 - Agent
   - name: string(/[a-zA-Z0-9_-]+/)
-  - home: string（{PROJECT_ROOT}/agents/{name}）
+  - home: string（{PROJECT_ROOT}/runtime/agents/{name}）
   - label: string（ai.hermes.gateway.{name}）
   - enabled: boolean（UIトグル/launchdインストール状態の表示）
   - createdAt/updatedAt: number(ms)
@@ -41,10 +41,11 @@
 
 ## 4. ディレクトリ構成
 
-- /agents/{name}/
+- /runtime/agents/{name}/
   - AGENTS.md, SOUL.md, config.yaml, .env, logs/
-- /globals/.env（DB の global vars から自動生成）
-- /data/app.db（SQLite）
+- /runtime/globals/.env（DB の global vars から自動生成）
+- /runtime/data/app.db（SQLite）
+- /runtime/logs/webapp.log, /runtime/logs/webapp.error.log（webapp ログ）
 
 ## 5. API 設計（主要ポイント）
 
@@ -59,7 +60,7 @@
   - 原子書き込み（.tmp→rename）
 - /api/env: GET(.env/parse)/POST/DELETE
 - /api/env/resolved: GET（global+agent のマージ）
-- /api/globals: GET/POST/DELETE + regenerate globals/.env
+- /api/globals: GET/POST/DELETE + regenerate runtime/globals/.env
 - /api/skills/tree, /api/skills/links{GET/POST/DELETE}
 - /api/logs: tail 相当
 - /api/logs/stream: SSE keepalive/polling
@@ -67,13 +68,13 @@
 ## 6. Launchd 実行モデル
 
 - Hermes gateway
-  - ProgramArguments: /bin/bash {PROJECT}/scripts/run-agent-gateway.sh {HERMES_HOME}/.env {PROJECT}/globals/.env
+  - ProgramArguments: /bin/bash {PROJECT}/scripts/run-agent-gateway.sh {HERMES_HOME}/.env {PROJECT}/runtime/globals/.env
   - Env: HERMES_HOME={home}
   - Stdout/Err: {home}/logs/gateway.log / gateway.error.log
 - WebApp 自体
   - ProgramArguments: node ./.next/standalone/server.js（もしくは next start）
   - Env: NODE_ENV=production, PORT=18470 ← 確定ポート
-  - Stdout/Err: logs/webapp.log / webapp.error.log
+  - Stdout/Err: runtime/logs/webapp.log / runtime/logs/webapp.error.log
 
 ## 7. UI 設計
 
@@ -106,7 +107,16 @@
 - ビルド: npm run build → next start（または standalone）
 - 常駐: launchd plist（webapp）
 - Caddy: hermes-agents.mini.tumf.dev → localhost:18470 ← 確定ポート
-- 監視: logs/webapp.log, /api/health（簡易）
+- 監視: runtime/logs/webapp.log, /api/health（簡易）
+
+### 11.1 既存環境の runtime 移行
+
+- 実行コマンド: `npm run migrate:runtime -- --dry-run --verbose`（事前確認）
+- 実適用: `npm run migrate:runtime -- --verbose`
+- 移行内容:
+  - `agents/`, `globals/`, `data/`, `logs/` を `runtime/` 配下へコピー＆旧ディレクトリ削除
+  - SQLite `agents.home` の旧パス（`{PROJECT_ROOT}/agents/*`）を `runtime/agents/*` へ更新
+  - launchd は WebUI から uninstall → install → start で plist を再生成
 
 ## 12. 将来拡張
 

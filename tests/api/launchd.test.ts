@@ -52,7 +52,7 @@ describe('generatePlist', () => {
   });
 
   it('references the globals .env file', () => {
-    expect(plist).toContain(`${process.cwd()}/globals/.env`);
+    expect(plist).toContain(`${process.cwd()}/runtime/globals/.env`);
   });
 
   it('is valid XML with plist root element', () => {

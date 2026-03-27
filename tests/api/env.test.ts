@@ -55,7 +55,7 @@ function makeReq(url: string, init?: ConstructorParameters<typeof NextRequest>[1
 const ALPHA = {
   id: 1,
   name: 'alpha',
-  home: '/agents/alpha',
+  home: '/runtime/agents/alpha',
   label: 'ai.hermes.gateway.alpha',
   enabled: false,
   createdAt: new Date(),

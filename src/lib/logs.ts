@@ -21,6 +21,9 @@ export async function readLastNLines(
   try {
     const data = await fs.readFile(filePath, 'utf8');
     const lines = data.split(/\r?\n/);
+    if (lines.length > 0 && lines[lines.length - 1] === '') {
+      lines.pop();
+    }
     return { lines: lines.slice(-n), totalBytes: Buffer.byteLength(data, 'utf8') };
   } catch {
     return { lines: [], totalBytes: 0 };

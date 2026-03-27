@@ -1,7 +1,9 @@
-import path from 'path';
 import Database from 'better-sqlite3';
 
-const DB_PATH = path.resolve(process.cwd(), 'data/app.db');
+import { ensureRuntimeDirectories, getRuntimeDataRootPath } from '../src/lib/runtime-paths';
+
+ensureRuntimeDirectories();
+const DB_PATH = getRuntimeDataRootPath('app.db');
 
 const db = new Database(DB_PATH);
 

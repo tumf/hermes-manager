@@ -9,7 +9,7 @@ Implement a server-side API to manage macOS launchd services associated with Her
 - Execution: Use child_process.execFile for all system calls (no shell injection)
 - Agent resolution: Look up agent by name in SQLite to obtain home and label.
 - Plist path: ~/Library/LaunchAgents/ai.hermes.gateway.{name}.plist
-- ProgramArguments: dotenvx run -f {HERMES_HOME}/.env -f {PROJECT}/globals/.env -- hermes gateway
+- ProgramArguments: dotenvx run -f {HERMES_HOME}/.env -f {PROJECT}/runtime/globals/.env -- hermes gateway
 - EnvironmentVariables: HERMES_HOME={home}
 - Stdout/Err: {home}/logs/gateway.log and {home}/logs/gateway.error.log
 

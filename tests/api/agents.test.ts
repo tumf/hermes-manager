@@ -84,7 +84,7 @@ describe('GET /api/agents', () => {
       {
         id: 1,
         name: 'alpha',
-        home: '/agents/alpha',
+        home: '/runtime/agents/alpha',
         label: 'ai.hermes.gateway.alpha',
         enabled: false,
         createdAt: new Date(),
@@ -109,7 +109,7 @@ describe('POST /api/agents', () => {
     const created = {
       id: 1,
       name: 'alpha_1',
-      home: '/agents/alpha_1',
+      home: '/runtime/agents/alpha_1',
       label: 'ai.hermes.gateway.alpha_1',
       enabled: false,
       createdAt: new Date(),
@@ -158,7 +158,7 @@ describe('POST /api/agents', () => {
       {
         id: 2,
         name: 'beta',
-        home: '/agents/beta',
+        home: '/runtime/agents/beta',
         label: 'ai.hermes.gateway.beta',
         enabled: false,
         createdAt: new Date(),
@@ -188,7 +188,7 @@ describe('DELETE /api/agents', () => {
       {
         id: 1,
         name: 'bravo',
-        home: '/agents/bravo',
+        home: '/runtime/agents/bravo',
         label: 'ai.hermes.gateway.bravo',
         enabled: false,
         createdAt: new Date(),
@@ -207,7 +207,7 @@ describe('DELETE /api/agents', () => {
       {
         id: 1,
         name: 'bravo',
-        home: '/agents/bravo',
+        home: '/runtime/agents/bravo',
         label: 'ai.hermes.gateway.bravo',
         enabled: false,
         createdAt: new Date(),
@@ -224,7 +224,7 @@ describe('DELETE /api/agents', () => {
       {
         id: 1,
         name: 'charlie',
-        home: '/agents/charlie',
+        home: '/runtime/agents/charlie',
         label: 'ai.hermes.gateway.charlie',
         enabled: false,
         createdAt: new Date(),
@@ -235,7 +235,7 @@ describe('DELETE /api/agents', () => {
       method: 'DELETE',
     });
     await DELETE(req);
-    expect(vi.mocked(fs.rm)).toHaveBeenCalledWith('/agents/charlie', {
+    expect(vi.mocked(fs.rm)).toHaveBeenCalledWith('/runtime/agents/charlie', {
       recursive: true,
       force: true,
     });
@@ -259,7 +259,7 @@ describe('DELETE /api/agents', () => {
       {
         id: 1,
         name: 'bravo',
-        home: '/agents/bravo',
+        home: '/runtime/agents/bravo',
         label: 'ai.hermes.gateway.bravo',
         enabled: false,
         createdAt: new Date(),
@@ -288,7 +288,7 @@ describe('POST /api/agents/copy', () => {
       {
         id: 1,
         name: 'delta',
-        home: '/agents/delta',
+        home: '/runtime/agents/delta',
         label: 'ai.hermes.gateway.delta',
         enabled: false,
         createdAt: new Date(),
@@ -298,7 +298,7 @@ describe('POST /api/agents/copy', () => {
       {
         id: 2,
         name: 'echo',
-        home: '/agents/echo',
+        home: '/runtime/agents/echo',
         label: 'ai.hermes.gateway.echo',
         enabled: false,
         createdAt: new Date(),
@@ -323,7 +323,7 @@ describe('POST /api/agents/copy', () => {
       {
         id: 1,
         name: 'delta',
-        home: '/agents/delta',
+        home: '/runtime/agents/delta',
         label: 'ai.hermes.gateway.delta',
         enabled: false,
         createdAt: new Date(),
@@ -333,7 +333,7 @@ describe('POST /api/agents/copy', () => {
       {
         id: 2,
         name: 'foxtrot',
-        home: '/agents/foxtrot',
+        home: '/runtime/agents/foxtrot',
         label: 'ai.hermes.gateway.foxtrot',
         enabled: false,
         createdAt: new Date(),
@@ -348,7 +348,7 @@ describe('POST /api/agents/copy', () => {
 
     await COPY_POST(req);
     expect(vi.mocked(fs.cp)).toHaveBeenCalledWith(
-      '/agents/delta',
+      '/runtime/agents/delta',
       expect.stringContaining('foxtrot'),
       { recursive: true },
     );

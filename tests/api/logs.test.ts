@@ -155,7 +155,13 @@ describe('GET /api/logs', () => {
 
   it('returns empty result when log file does not exist', async () => {
     mockState.agentRows = [
-      { id: 1, name: 'alice', home: '/nonexistent/agents/alice', label: 'l', enabled: false },
+      {
+        id: 1,
+        name: 'alice',
+        home: '/nonexistent/runtime/agents/alice',
+        label: 'l',
+        enabled: false,
+      },
     ];
     const req = makeReq('http://localhost/api/logs?agent=alice&file=gateway.log');
     const res = await GET(req);

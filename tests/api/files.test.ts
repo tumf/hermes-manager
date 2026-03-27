@@ -52,7 +52,7 @@ function makeReq(url: string, init?: ConstructorParameters<typeof NextRequest>[1
 const AGENT = {
   id: 1,
   name: 'alpha',
-  home: '/agents/alpha',
+  home: '/runtime/agents/alpha',
   label: 'ai.hermes.gateway.alpha',
   enabled: false,
   createdAt: new Date(),
@@ -117,13 +117,13 @@ describe('PUT /api/files', () => {
     expect(body.ok).toBe(true);
 
     expect(vi.mocked(fs.writeFile)).toHaveBeenCalledWith(
-      '/agents/alpha/SOUL.md.tmp',
+      '/runtime/agents/alpha/SOUL.md.tmp',
       '# Soul\n',
       'utf-8',
     );
     expect(vi.mocked(fs.rename)).toHaveBeenCalledWith(
-      '/agents/alpha/SOUL.md.tmp',
-      '/agents/alpha/SOUL.md',
+      '/runtime/agents/alpha/SOUL.md.tmp',
+      '/runtime/agents/alpha/SOUL.md',
     );
   });
 

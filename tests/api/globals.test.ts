@@ -86,7 +86,7 @@ describe('POST /api/globals', () => {
     expect(json.value).toBe('bar');
     expect(json.scope).toBe('global');
 
-    const envFile = path.join(tmpDir, 'globals', '.env');
+    const envFile = path.join(tmpDir, 'runtime', 'globals', '.env');
     expect(fs.existsSync(envFile)).toBe(true);
     expect(fs.readFileSync(envFile, 'utf-8')).toContain('FOO=bar');
   });
@@ -99,7 +99,7 @@ describe('POST /api/globals', () => {
     const json = await res.json();
     expect(json.value).toBe('new');
 
-    const envFile = path.join(tmpDir, 'globals', '.env');
+    const envFile = path.join(tmpDir, 'runtime', 'globals', '.env');
     const content = fs.readFileSync(envFile, 'utf-8');
     expect(content).toContain('FOO=new');
     expect(content).not.toContain('FOO=old');
@@ -129,7 +129,7 @@ describe('DELETE /api/globals', () => {
       .where(and(eq(schema.envVars.scope, 'global'), eq(schema.envVars.key, 'BAZ')));
     expect(remaining).toHaveLength(0);
 
-    const envFile = path.join(tmpDir, 'globals', '.env');
+    const envFile = path.join(tmpDir, 'runtime', 'globals', '.env');
     const content = fs.readFileSync(envFile, 'utf-8');
     expect(content).not.toContain('BAZ=qux');
   });
@@ -151,7 +151,7 @@ describe('globals/.env format', () => {
     const { regenerateGlobalsEnv } = await import('../../src/lib/globals-env');
     await regenerateGlobalsEnv();
 
-    const envFile = path.join(tmpDir, 'globals', '.env');
+    const envFile = path.join(tmpDir, 'runtime', 'globals', '.env');
     const content = fs.readFileSync(envFile, 'utf-8');
     expect(content).toBe('A=1\nB=2\n');
   });

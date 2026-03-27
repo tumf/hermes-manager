@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { db, schema } from '@/src/lib/db';
 import { parse } from '@/src/lib/dotenv-parser';
+import { getRuntimeGlobalsRootPath } from '@/src/lib/runtime-paths';
 
 type EnvSource = 'global' | 'agent' | 'agent-override';
 
@@ -36,8 +37,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'agent not found' }, { status: 404 });
   }
 
-  const hermesHome = process.env.HERMES_HOME ?? process.cwd();
-  const globalEnvPath = path.join(hermesHome, '.env');
+  const globalEnvPath = getRuntimeGlobalsRootPath('.env');
   const agentEnvPath = path.join(agent.home, '.env');
 
   const [globalContent, agentContent] = await Promise.all([
