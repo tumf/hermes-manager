@@ -3,56 +3,7 @@ import path from 'node:path';
 
 import { describe, it, expect } from 'vitest';
 
-// --- plist generation (inline copy for unit testing) ---
-
-function getPlistPath(name: string): string {
-  return path.join(os.homedir(), 'Library', 'LaunchAgents', `ai.hermes.gateway.${name}.plist`);
-}
-
-function generatePlist(name: string, home: string, label: string): string {
-  const plistPath = path.join(process.cwd(), 'globals', '.env');
-  const hermesEnv = path.join(home, '.env');
-  const logDir = path.join(home, 'logs');
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key>
-  <string>${label}</string>
-  <key>ProgramArguments</key>
-  <array>
-    <string>dotenvx</string>
-    <string>run</string>
-    <string>-f</string>
-    <string>${hermesEnv}</string>
-    <string>-f</string>
-    <string>${plistPath}</string>
-    <string>--</string>
-    <string>hermes</string>
-    <string>gateway</string>
-  </array>
-  <key>EnvironmentVariables</key>
-  <dict>
-    <key>HERMES_HOME</key>
-    <string>${home}</string>
-  </dict>
-  <key>StandardOutPath</key>
-  <string>${logDir}/gateway.log</string>
-  <key>StandardErrorPath</key>
-  <string>${logDir}/gateway.error.log</string>
-  <key>RunAtLoad</key>
-  <false/>
-</dict>
-</plist>
-`;
-}
-
-// --- status parsing helper ---
-
-function parseRunning(stdout: string): boolean {
-  const stateMatch = stdout.match(/state\s*=\s*(\S+)/);
-  return stateMatch ? stateMatch[1] === 'running' : false;
-}
+import { generatePlist, getPlistPath, isServiceMissing, parseRunning } from '@/src/lib/launchd';
 
 // --- tests ---
 
@@ -75,13 +26,12 @@ describe('generatePlist', () => {
     expect(plist).toContain(`<string>${label}</string>`);
   });
 
-  it('contains dotenvx as first ProgramArgument', () => {
-    expect(plist).toContain('<string>dotenvx</string>');
+  it('contains bash as first ProgramArgument', () => {
+    expect(plist).toContain('<string>/bin/bash</string>');
   });
 
-  it('contains hermes gateway in ProgramArguments', () => {
-    expect(plist).toContain('<string>hermes</string>');
-    expect(plist).toContain('<string>gateway</string>');
+  it('contains gateway runner script in ProgramArguments', () => {
+    expect(plist).toContain(`${process.cwd()}/scripts/run-agent-gateway.sh`);
   });
 
   it('sets HERMES_HOME environment variable', () => {
@@ -99,6 +49,10 @@ describe('generatePlist', () => {
 
   it('references the agent home .env file', () => {
     expect(plist).toContain(`${home}/.env`);
+  });
+
+  it('references the globals .env file', () => {
+    expect(plist).toContain(`${process.cwd()}/globals/.env`);
   });
 
   it('is valid XML with plist root element', () => {
@@ -134,5 +88,34 @@ describe('parseRunning (status parsing)', () => {
   it('handles state with extra spaces', () => {
     const output = 'state   =   running';
     expect(parseRunning(output)).toBe(true);
+  });
+});
+
+describe('isServiceMissing', () => {
+  it('returns true when launchctl reports missing service on stdout', () => {
+    expect(
+      isServiceMissing({
+        stdout: 'Bad request.\nCould not find service "ai.hermes.gateway.alpha" in domain',
+        stderr: '',
+        code: 3,
+      }),
+    ).toBe(true);
+  });
+
+  it('returns true when launchctl reports missing service on stderr', () => {
+    expect(
+      isServiceMissing({
+        stdout: '',
+        stderr: 'Could not find service "ai.hermes.gateway.alpha"',
+        code: 1,
+      }),
+    ).toBe(true);
+  });
+
+  it('returns false for successful or unrelated failures', () => {
+    expect(isServiceMissing({ stdout: '', stderr: '', code: 0 })).toBe(false);
+    expect(
+      isServiceMissing({ stdout: '', stderr: 'Bootstrap failed: 5: Input/output error', code: 5 }),
+    ).toBe(false);
   });
 });

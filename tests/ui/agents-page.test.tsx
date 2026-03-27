@@ -52,6 +52,12 @@ function mockFetch(overrides: Record<string, unknown> = {}) {
           if (body.action === 'status') {
             return { ok: true, json: async () => ({ running: body.agent === 'alpha' }) };
           }
+          if (body.action === 'start' && overrides.launchdStartFail) {
+            return {
+              ok: false,
+              json: async () => ({ stderr: 'Could not find service "ai.hermes.gateway.beta"' }),
+            };
+          }
           return { ok: true, json: async () => ({}) };
         }
 
@@ -186,6 +192,29 @@ describe('AgentsPage', () => {
           JSON.parse(init?.body as string).action === 'start',
       );
       expect(launchdCall).toBeDefined();
+    });
+  });
+
+  it('does not report success when launchd start fails', async () => {
+    const fetchMock = mockFetch({
+      launchdStartFail: true,
+    });
+    global.fetch = fetchMock;
+
+    render(<Home />);
+
+    await waitFor(() => {
+      expect(screen.getByText('beta')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /start/i }));
+
+    await waitFor(() => {
+      const calls = fetchMock.mock.calls as [string, { method?: string; body?: string }?][];
+      const refreshCalls = calls.filter(
+        ([url, init]) => url === '/api/agents' && (init?.method ?? 'GET') === 'GET',
+      );
+      expect(refreshCalls).toHaveLength(1);
     });
   });
 

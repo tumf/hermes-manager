@@ -125,11 +125,22 @@ export default function Home() {
 
   async function handleStartStop(agent: AgentWithStatus, action: 'start' | 'stop') {
     try {
-      await fetch('/api/launchd', {
+      const res = await fetch('/api/launchd', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ agent: agent.name, action }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const message =
+          typeof data.error === 'string'
+            ? data.error
+            : typeof data.stderr === 'string' && data.stderr.trim()
+              ? data.stderr.trim()
+              : `Failed to ${action} ${agent.name}`;
+        toast.error(message);
+        return;
+      }
       toast.success(`${agent.name} ${action === 'start' ? 'started' : 'stopped'}`);
       await fetchAgents();
     } catch {

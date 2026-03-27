@@ -56,11 +56,22 @@ export default function AgentPage({ params }: AgentPageProps) {
   async function handleStartStop(action: 'start' | 'stop') {
     setActionBusy(true);
     try {
-      await fetch('/api/launchd', {
+      const res = await fetch('/api/launchd', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ agent: name, action }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const message =
+          typeof data.error === 'string'
+            ? data.error
+            : typeof data.stderr === 'string' && data.stderr.trim()
+              ? data.stderr.trim()
+              : `Failed to ${action}`;
+        toast.error(message);
+        return;
+      }
       toast.success(`${name} ${action === 'start' ? 'started' : 'stopped'}`);
       await fetchStatus();
     } catch {
