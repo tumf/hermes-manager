@@ -17,7 +17,7 @@ Then the webapp process starts on port 18470 automatically.
 
 Given the plist is loaded and the webapp is running,
 When the process writes to stdout or stderr,
-Then output appears in logs/webapp.log and logs/webapp.error.log respectively.
+Then output appears in runtime/logs/webapp.log and runtime/logs/webapp.error.log respectively.
 
 ### Requirement: Caddy snippet routes public subdomain
 

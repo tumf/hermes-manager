@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
 
 import { db, schema } from '@/src/lib/db';
+import { getRuntimeAgentsRootPath } from '@/src/lib/runtime-paths';
 import { CreateAgentSchema } from '@/src/lib/validators/agents';
 
 export async function GET() {
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
   }
 
   const { name } = result.data;
-  const home = path.join(process.cwd(), 'agents', name);
+  const home = getRuntimeAgentsRootPath(name);
 
   await fs.mkdir(path.join(home, 'logs'), { recursive: true });
   await fs.writeFile(path.join(home, 'AGENTS.md'), `# ${name}\n`);

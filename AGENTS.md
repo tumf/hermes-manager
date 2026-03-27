@@ -44,9 +44,11 @@ hermes-agents/
 │   └── design.md             # 設計ドキュメント（変更時は必ず更新）
 ├── openspec/changes/         # Conflux change proposals
 ├── tests/                    # Vitest ユニット/コンポーネントテスト
-├── agents/                   # エージェント HERMES_HOME 実体
-├── globals/                  # globals/.env 自動生成（gitignore）
-├── data/                     # SQLite DB（gitignore）
+├── runtime/
+│   ├── agents/               # エージェント HERMES_HOME 実体
+│   ├── globals/              # globals/.env 自動生成（gitignore）
+│   ├── data/                 # SQLite DB（gitignore）
+│   └── logs/                 # webapp ログ（gitignore）
 └── .wt/setup                 # worktree ブートストラップ
 ```
 
@@ -55,28 +57,33 @@ hermes-agents/
 ## 開発ルール
 
 ### 1. ドキュメントは常に最新を保つ
+
 - **要件/設計が変わったら、コードより先にドキュメントを更新する。**
 - `docs/requirements.md` の FR/NFR と `docs/design.md` の API/DB 設計は、実装と常に一致している必要がある。
 - DB スキーマ（db/schema.ts）を変更したら `docs/design.md` の「データベース設計」セクションも同時に更新する。
 
 ### 2. スキーマ変更のフロー
+
 1. `db/schema.ts` を変更
 2. `npm run db:generate` でマイグレーションファイル生成
 3. `npm run db:push` または起動時マイグレーションで適用
 4. `docs/design.md` の §3 を更新
 
 ### 3. API 変更のフロー
+
 1. 対応する `openspec/changes/<id>/` の提案を確認（または新規作成）
 2. `docs/design.md` §5 の API 設計を更新
 3. 実装
 4. テストを追加
 
 ### 4. バリデーション
+
 - API の入力は **必ず zod で検証** する（query/body 両方）
 - ファイルパス操作はすべて `resolve` + `startsWith(home)` で traversal 防止
 - launchctl/hermes の呼び出しは `execFile`（引数配列）のみ。`exec` + 文字列連結は禁止
 
 ### 5. テスト
+
 - `npm run test`（Vitest）: ユニット/コンポーネントテスト
 - `npm run typecheck`: 型チェック
 - `npm run lint`: ESLint（next lint）
@@ -87,11 +94,11 @@ hermes-agents/
 
 ## ドメインモデル（概要）
 
-| モデル | テーブル | キー関係 |
-|--------|---------|---------|
-| Agent | agents | name UNIQUE、home と label を持つ |
-| EnvVar | env_vars | scope='global' / scope=agentName |
-| SkillLink | skill_links | agent → sourcePath → targetPath |
+| モデル    | テーブル    | キー関係                          |
+| --------- | ----------- | --------------------------------- |
+| Agent     | agents      | name UNIQUE、home と label を持つ |
+| EnvVar    | env_vars    | scope='global' / scope=agentName  |
+| SkillLink | skill_links | agent → sourcePath → targetPath   |
 
 詳細: `docs/design.md §2〜3`
 
@@ -119,5 +126,3 @@ PORT=18470 npm run start   # ポート 18470 固定（mini 上の既存サービ
 - 実装後は `npm run test && npm run typecheck && npm run lint` を通過させてからコミット
 
 ---
-
-

@@ -51,5 +51,5 @@ caddy reload --config /etc/caddy/Caddyfile
 
 ## Log files
 
-- stdout → `logs/webapp.log`
-- stderr → `logs/webapp.error.log`
+- stdout → `runtime/logs/webapp.log`
+- stderr → `runtime/logs/webapp.error.log`

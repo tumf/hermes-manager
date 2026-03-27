@@ -1,6 +1,8 @@
 import os from 'node:os';
 import path from 'node:path';
 
+import { getProjectRootPath, getRuntimeGlobalsRootPath } from './runtime-paths';
+
 export interface ExecResult {
   stdout: string;
   stderr: string;
@@ -12,8 +14,8 @@ export function getPlistPath(name: string): string {
 }
 
 export function generatePlist(_name: string, home: string, label: string): string {
-  const runnerScriptPath = path.join(process.cwd(), 'scripts', 'run-agent-gateway.sh');
-  const globalsEnvPath = path.join(process.cwd(), 'globals', '.env');
+  const runnerScriptPath = getProjectRootPath('scripts', 'run-agent-gateway.sh');
+  const globalsEnvPath = getRuntimeGlobalsRootPath('.env');
   const agentEnvPath = path.join(home, '.env');
   const logDir = path.join(home, 'logs');
 

@@ -1,10 +1,10 @@
 import fs from 'node:fs/promises';
-import path from 'node:path';
 
 import { eq } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
 
 import { db, schema } from '@/src/lib/db';
+import { getRuntimeAgentsRootPath } from '@/src/lib/runtime-paths';
 import { CopyAgentSchema } from '@/src/lib/validators/agents';
 
 export async function POST(request: NextRequest) {
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'source agent not found' }, { status: 404 });
   }
 
-  const toHome = path.join(process.cwd(), 'agents', to);
+  const toHome = getRuntimeAgentsRootPath(to);
   await fs.cp(sourceAgent.home, toHome, { recursive: true });
 
   const label = `ai.hermes.gateway.${to}`;

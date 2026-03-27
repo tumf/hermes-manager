@@ -99,7 +99,7 @@ function makeReq(url: string, init?: ConstructorParameters<typeof NextRequest>[1
 const ALPHA = {
   id: 1,
   name: 'alpha',
-  home: '/agents/alpha',
+  home: '/runtime/agents/alpha',
   label: 'ai.hermes.gateway.alpha',
   enabled: false,
   createdAt: new Date(),
@@ -197,10 +197,10 @@ describe('GET /api/skills/links', () => {
         id: 1,
         agent: 'alpha',
         sourcePath: '/hermes/skills/coding',
-        targetPath: '/agents/alpha/skills/coding',
+        targetPath: '/runtime/agents/alpha/skills/coding',
       },
     ];
-    mockState.fsLstat['/agents/alpha/skills/coding'] = true;
+    mockState.fsLstat['/runtime/agents/alpha/skills/coding'] = true;
     const res = await GET_LINKS(makeReq('http://localhost/api/skills/links?agent=alpha'));
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -213,7 +213,7 @@ describe('GET /api/skills/links', () => {
         id: 2,
         agent: 'alpha',
         sourcePath: '/hermes/skills/writing',
-        targetPath: '/agents/alpha/skills/writing',
+        targetPath: '/runtime/agents/alpha/skills/writing',
       },
     ];
     // fsLstat doesn't have this path → lstatSync will throw ENOENT
@@ -306,7 +306,7 @@ describe('POST /api/skills/links', () => {
         id: 1,
         agent: 'alpha',
         sourcePath: '/hermes/skills/coding',
-        targetPath: '/agents/alpha/skills/coding',
+        targetPath: '/runtime/agents/alpha/skills/coding',
       },
     ];
 
@@ -351,17 +351,17 @@ describe('DELETE /api/skills/links', () => {
         id: 5,
         agent: 'alpha',
         sourcePath: '/hermes/skills/coding',
-        targetPath: '/agents/alpha/skills/coding',
+        targetPath: '/runtime/agents/alpha/skills/coding',
       },
     ];
-    mockState.fsLstat['/agents/alpha/skills/coding'] = true;
+    mockState.fsLstat['/runtime/agents/alpha/skills/coding'] = true;
 
     const res = await DELETE(
       makeReq('http://localhost/api/skills/links?id=5', { method: 'DELETE' }),
     );
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
-    expect(mockState.unlinkCalls).toContain('/agents/alpha/skills/coding');
+    expect(mockState.unlinkCalls).toContain('/runtime/agents/alpha/skills/coding');
     expect(mockState.deletedId).not.toBeNull();
   });
 
@@ -371,7 +371,7 @@ describe('DELETE /api/skills/links', () => {
         id: 7,
         agent: 'alpha',
         sourcePath: '/hermes/skills/writing',
-        targetPath: '/agents/alpha/skills/writing',
+        targetPath: '/runtime/agents/alpha/skills/writing',
       },
     ];
     // fsLstat not set → unlinkSync will throw ENOENT

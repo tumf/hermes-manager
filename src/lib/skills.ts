@@ -1,6 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { z } from 'zod';
+
 export function getSkillsRoot(): string {
   const home = process.env.HOME || process.env.USERPROFILE || '';
   return path.join(home, '.hermes', 'skills');
@@ -37,4 +39,7 @@ export function walkSkillsTree(root?: string, maxDepth = 5): SkillTree[] {
   return walk(base, 1);
 }
 
-export const CreateLinkSchema = undefined as any; // placeholder if imported elsewhere
+export const CreateLinkSchema = z.object({
+  agent: z.string().min(1),
+  sourcePath: z.string().min(1),
+});

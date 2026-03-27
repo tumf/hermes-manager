@@ -1,11 +1,20 @@
-import Database from 'better-sqlite3';
+#!/usr/bin/env node
 
-import { ensureRuntimeDirectories, getRuntimeDataRootPath } from '../src/lib/runtime-paths';
+const fs = require('node:fs');
+const path = require('node:path');
+const Database = require('better-sqlite3');
 
-ensureRuntimeDirectories();
-const DB_PATH = getRuntimeDataRootPath('app.db');
+function getRuntimeDataRootPath(...segments) {
+  return path.join(process.cwd(), 'runtime', 'data', ...segments);
+}
 
-const db = new Database(DB_PATH);
+const dataDir = getRuntimeDataRootPath();
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
+
+const dbPath = getRuntimeDataRootPath('app.db');
+const db = new Database(dbPath);
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS agents (
@@ -35,4 +44,4 @@ db.exec(`
 
 db.close();
 
-console.log('Migration complete: all tables created or already exist.');
+console.log(`Migration complete: ${dbPath}`);
