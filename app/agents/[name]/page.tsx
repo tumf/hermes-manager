@@ -308,14 +308,14 @@ function FileEditor({ name, filePath, label }: { name: string; filePath: string;
 
 type EnvVisibility = 'plain' | 'secure';
 
-interface AgentEnvRow {
+export interface AgentEnvRow {
   key: string;
   value: string;
   masked: boolean;
   visibility: EnvVisibility;
 }
 
-function AgentEnvTab({ name }: { name: string }) {
+export function AgentEnvTab({ name }: { name: string }) {
   const [rows, setRows] = useState<AgentEnvRow[]>([]);
   const [loading, setLoading] = useState(true);
 

@@ -16,3 +16,7 @@
 
 - [x] Prevent Agent Env edit flow from overwriting secure values with masked placeholder (`***`) when visibility is changed without entering a new value.
 - [x] Add a regression UI/API test that proves secure agent variables keep their runtime value when visibility is edited without replacing the value.
+
+## Acceptance #2 Failure Follow-up
+
+- [x] Add a UI regression test for `app/agents/[name]/page.tsx` Env tab that verifies secure variables render as masked (`***`) and keep `secure` visibility selected.
