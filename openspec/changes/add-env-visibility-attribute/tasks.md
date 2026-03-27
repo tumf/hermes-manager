@@ -11,3 +11,8 @@
 
 - Consider adding audited reveal controls if operators later need temporary plaintext viewing for secure variables.
 - Consider at-rest encryption if the product expands beyond current intranet-only trust assumptions.
+
+## Acceptance #1 Failure Follow-up
+
+- [x] Prevent Agent Env edit flow from overwriting secure values with masked placeholder (`***`) when visibility is changed without entering a new value.
+- [x] Add a regression UI/API test that proves secure agent variables keep their runtime value when visibility is edited without replacing the value.

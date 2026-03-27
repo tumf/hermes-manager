@@ -14,7 +14,7 @@ const visibilitySchema = z.enum(['plain', 'secure']);
 const UpsertEnvSchema = z.object({
   agent: z.string().min(1),
   key: z.string().min(1),
-  value: z.string(),
+  value: z.string().optional(),
   visibility: visibilitySchema.default('plain'),
 });
 
@@ -93,24 +93,32 @@ export async function POST(request: NextRequest) {
 
   const envPath = path.join(agent.home, '.env');
   const content = await readEnvFile(envPath);
-  const entries = await upsert(parse(content), key, value);
-  await fs.writeFile(envPath, await serialize(entries), 'utf-8');
+  const parsedEntries = parse(content);
+  const existingEntry = parsedEntries.find((entry) => entry.key === key);
 
   const existingMetadata = await db
     .select()
     .from(schema.envVars)
     .where(and(eq(schema.envVars.scope, agentName), eq(schema.envVars.key, key)));
 
+  const nextValue = value ?? existingEntry?.value ?? existingMetadata[0]?.value;
+  if (nextValue === undefined) {
+    return NextResponse.json({ error: 'value is required for new key' }, { status: 400 });
+  }
+
+  const entries = await upsert(parsedEntries, key, nextValue);
+  await fs.writeFile(envPath, await serialize(entries), 'utf-8');
+
   if (existingMetadata.length > 0) {
     await db
       .update(schema.envVars)
-      .set({ visibility: safeVisibility, value })
+      .set({ visibility: safeVisibility, value: nextValue })
       .where(and(eq(schema.envVars.scope, agentName), eq(schema.envVars.key, key)));
   } else {
     await db.insert(schema.envVars).values({
       scope: agentName,
       key,
-      value,
+      value: nextValue,
       visibility: safeVisibility,
     });
   }

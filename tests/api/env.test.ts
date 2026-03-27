@@ -202,6 +202,41 @@ describe('POST /api/env', () => {
       },
     ]);
   });
+
+  it('keeps secure runtime value when only visibility is updated without value', async () => {
+    const envPath = path.join(tmpDir, 'runtime', 'agents', 'alpha', '.env');
+    await fsp.writeFile(envPath, 'API_KEY=super-secret\n', 'utf-8');
+    await testDb.insert(schema.envVars).values({
+      scope: 'alpha',
+      key: 'API_KEY',
+      value: 'super-secret',
+      visibility: 'secure',
+    });
+
+    const { POST, GET } = await import('../../app/api/env/route');
+    const req = makeReq('http://localhost/api/env', {
+      method: 'POST',
+      body: JSON.stringify({ agent: 'alpha', key: 'API_KEY', visibility: 'plain' }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, visibility: 'plain' });
+
+    const updatedEnv = await fsp.readFile(envPath, 'utf-8');
+    expect(updatedEnv).toContain('API_KEY=super-secret');
+
+    const readRes = await GET(makeReq('http://localhost/api/env?agent=alpha'));
+    expect(await readRes.json()).toEqual([
+      {
+        key: 'API_KEY',
+        value: 'super-secret',
+        masked: false,
+        visibility: 'plain',
+      },
+    ]);
+  });
 });
 
 describe('DELETE /api/env', () => {

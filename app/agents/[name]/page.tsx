@@ -525,16 +525,24 @@ function AgentEnvEditDialog({
               onClick={async () => {
                 setSaving(true);
                 try {
-                  const nextValue = value.length > 0 ? value : row.value;
+                  const payload: {
+                    agent: string;
+                    key: string;
+                    visibility: EnvVisibility;
+                    value?: string;
+                  } = {
+                    agent: agentName,
+                    key: row.key,
+                    visibility,
+                  };
+                  if (value.length > 0) {
+                    payload.value = value;
+                  }
+
                   const res = await fetch('/api/env', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      agent: agentName,
-                      key: row.key,
-                      value: nextValue,
-                      visibility,
-                    }),
+                    body: JSON.stringify(payload),
                   });
                   if (!res.ok) {
                     throw new Error('save failed');
