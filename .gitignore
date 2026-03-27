@@ -10,3 +10,4 @@ coverage
 /.wt/worktrees/
 /data/
 /drizzle/
+/logs/*.log
