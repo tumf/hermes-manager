@@ -41,8 +41,8 @@
 - FR-1 Agents API: GET/POST/DELETE/copy（name 検証、標準ファイル作成、DB 登録）
 - FR-2 Launchd API: install/uninstall/start/stop/status（child_process.execFile、stdout/err/code返却）
 - FR-3 Files API: AGENTS.md / SOUL.md / config.yaml の read/put（YAML 構文検証、原子書き込み）
-- FR-4 Env API: agent .env CRUD、resolved（global+agent マージ）
-- FR-5 Globals API: CRUD、書き換え時に runtime/globals/.env を再生成
+- FR-4 Env API: agent .env CRUD、resolved（global+agent マージ）、各変数に `visibility`（plain/secure）を保持し secure は管理表示でマスク
+- FR-5 Globals API: CRUD、`visibility`（plain/secure）を保持、secure は管理表示でマスクしつつ runtime/globals/.env は実値で再生成
 - FR-6 Skills API: skills tree 取得、symlink 管理（リンク/解除、DB 記録）
 - FR-7 Logs API: 読み取り（tail）、SSE で追尾
 - FR-8 UI: Agents 一覧（起動/停止/状態表示/追加/削除/コピー）、詳細タブ UI、Globals UI

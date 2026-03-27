@@ -20,6 +20,7 @@ export const envVars = sqliteTable('env_vars', {
   scope: text('scope').notNull(), // "global" | agent name
   key: text('key').notNull(),
   value: text('value').notNull(),
+  visibility: text('visibility').notNull().default('plain'), // "plain" | "secure"
 });
 
 export const skillLinks = sqliteTable('skill_links', {
