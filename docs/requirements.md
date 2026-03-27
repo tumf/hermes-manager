@@ -23,7 +23,7 @@
   - 変数管理: HERMES_HOME/.env CRUD、グローバル変数 CRUD と runtime/globals/.env 再生成
   - スキル管理: ~/.hermes/skills → {HERMES_HOME}/skills への symlink
   - ログ閲覧: gateway.log / gateway.error.log / errors.log（tail / SSE）
-  - UI: Agents リスト、Agent 詳細（Memory/Config/Env/Skills/Logs）、Globals 管理
+  - UI: Agents リスト、Agent 詳細（Memory/Config/Env/Logs）、Globals 管理
 - out of scope（当面）:
   - 外部認証/権限管理、外部公開
   - リモートホスト運用
