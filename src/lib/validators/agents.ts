@@ -6,6 +6,13 @@ export const CreateAgentSchema = z.object({
   name: z
     .string()
     .regex(nameRegex, 'Name must only contain alphanumeric, underscore, or hyphen characters'),
+  templates: z
+    .object({
+      agentsMd: z.string().optional(),
+      soulMd: z.string().optional(),
+      configYaml: z.string().optional(),
+    })
+    .optional(),
 });
 
 export const CopyAgentSchema = z.object({

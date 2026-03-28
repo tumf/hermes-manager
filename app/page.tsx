@@ -2,7 +2,7 @@
 
 import { Copy, EllipsisVertical, Play, Plus, Square, Trash2 } from 'lucide-react';
 import Link from 'next/link';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import {
@@ -37,6 +37,13 @@ import {
   DropdownMenuTrigger,
 } from '@/src/components/ui/dropdown-menu';
 import { Input } from '@/src/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/src/components/ui/select';
 import { Skeleton } from '@/src/components/ui/skeleton';
 
 interface Agent {
@@ -53,11 +60,23 @@ interface AgentWithStatus extends Agent {
   running?: boolean;
 }
 
+interface Template {
+  id: number;
+  fileType: string;
+  name: string;
+  content: string;
+}
+
 export default function Home() {
   const [agents, setAgents] = useState<AgentWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [addName, setAddName] = useState('');
   const [addBusy, setAddBusy] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [addTemplateAgentsMd, setAddTemplateAgentsMd] = useState('default');
+  const [addTemplateSoulMd, setAddTemplateSoulMd] = useState('default');
+  const [addTemplateConfigYaml, setAddTemplateConfigYaml] = useState('default');
+  const [allTemplates, setAllTemplates] = useState<Template[]>([]);
   const [copyTo, setCopyTo] = useState('');
 
   const fetchAgents = useCallback(async () => {
@@ -91,9 +110,35 @@ export default function Home() {
     }
   }, []);
 
+  const fetchTemplates = useCallback(async () => {
+    try {
+      const res = await fetch('/api/templates');
+      if (res.ok) {
+        const data: Template[] = await res.json();
+        setAllTemplates(data);
+      }
+    } catch {
+      // Templates fetch is non-critical; dialog still works with no templates
+    }
+  }, []);
+
+  const agentsMdTemplates = useMemo(
+    () => allTemplates.filter((t) => t.fileType === 'agents.md'),
+    [allTemplates],
+  );
+  const soulMdTemplates = useMemo(
+    () => allTemplates.filter((t) => t.fileType === 'soul.md'),
+    [allTemplates],
+  );
+  const configYamlTemplates = useMemo(
+    () => allTemplates.filter((t) => t.fileType === 'config.yaml'),
+    [allTemplates],
+  );
+
   useEffect(() => {
     void fetchAgents();
-  }, [fetchAgents]);
+    void fetchTemplates();
+  }, [fetchAgents, fetchTemplates]);
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -105,10 +150,26 @@ export default function Home() {
     }
     setAddBusy(true);
     try {
+      const templates: Record<string, string> = {};
+      if (addTemplateAgentsMd && addTemplateAgentsMd !== 'default') {
+        templates.agentsMd = addTemplateAgentsMd;
+      }
+      if (addTemplateSoulMd && addTemplateSoulMd !== 'default') {
+        templates.soulMd = addTemplateSoulMd;
+      }
+      if (addTemplateConfigYaml && addTemplateConfigYaml !== 'default') {
+        templates.configYaml = addTemplateConfigYaml;
+      }
+
+      const body: Record<string, unknown> = { name: trimmed };
+      if (Object.keys(templates).length > 0) {
+        body.templates = templates;
+      }
+
       const res = await fetch('/api/agents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: trimmed }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
@@ -116,6 +177,10 @@ export default function Home() {
         return;
       }
       setAddName('');
+      setAddTemplateAgentsMd('default');
+      setAddTemplateSoulMd('default');
+      setAddTemplateConfigYaml('default');
+      setAddDialogOpen(false);
       toast.success(`Agent "${trimmed}" created`);
       await fetchAgents();
     } finally {
@@ -192,20 +257,76 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Add agent form */}
-      <form onSubmit={handleAdd} className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <Input
-          value={addName}
-          onChange={(e) => setAddName(e.target.value)}
-          placeholder="new-agent-name"
-          aria-label="New agent name"
-          className="h-11 sm:max-w-xs"
-        />
-        <Button type="submit" disabled={addBusy} className="h-11 gap-2">
-          <Plus className="size-4" />
-          {addBusy ? 'Adding...' : 'Add Agent'}
-        </Button>
-      </form>
+      {/* Add agent dialog */}
+      <Dialog
+        open={addDialogOpen}
+        onOpenChange={(open) => {
+          setAddDialogOpen(open);
+          if (open) void fetchTemplates();
+        }}
+      >
+        <DialogTrigger asChild>
+          <Button className="h-11 gap-2">
+            <Plus className="size-4" />
+            Add Agent
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+          <form onSubmit={handleAdd}>
+            <DialogHeader>
+              <DialogTitle>Add Agent</DialogTitle>
+              <DialogDescription>
+                Create a new agent with optional template selection.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="mt-4 space-y-4">
+              <div>
+                <label htmlFor="add-agent-name" className="mb-1.5 block text-sm font-medium">
+                  Name
+                </label>
+                <Input
+                  id="add-agent-name"
+                  value={addName}
+                  onChange={(e) => setAddName(e.target.value)}
+                  placeholder="new-agent-name"
+                  aria-label="New agent name"
+                />
+              </div>
+              <TemplateSelect
+                label="AGENTS.md Template"
+                id="tpl-agents-md"
+                value={addTemplateAgentsMd}
+                onValueChange={setAddTemplateAgentsMd}
+                templates={agentsMdTemplates}
+              />
+              <TemplateSelect
+                label="SOUL.md Template"
+                id="tpl-soul-md"
+                value={addTemplateSoulMd}
+                onValueChange={setAddTemplateSoulMd}
+                templates={soulMdTemplates}
+              />
+              <TemplateSelect
+                label="config.yaml Template"
+                id="tpl-config-yaml"
+                value={addTemplateConfigYaml}
+                onValueChange={setAddTemplateConfigYaml}
+                templates={configYamlTemplates}
+              />
+            </div>
+            <DialogFooter className="mt-6">
+              <DialogClose asChild>
+                <Button type="button" variant="outline">
+                  Cancel
+                </Button>
+              </DialogClose>
+              <Button type="submit" disabled={addBusy || !addName.trim()}>
+                {addBusy ? 'Creating...' : 'Create'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Loading skeleton */}
       {loading && (
@@ -458,5 +579,42 @@ function AgentActionsMenu({
         </AlertDialog>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+function TemplateSelect({
+  label,
+  id,
+  value,
+  onValueChange,
+  templates,
+}: {
+  label: string;
+  id: string;
+  value: string;
+  onValueChange: (v: string) => void;
+  templates: Template[];
+}) {
+  return (
+    <div>
+      <label htmlFor={id} className="mb-1.5 block text-sm font-medium">
+        {label}
+      </label>
+      <Select value={value} onValueChange={onValueChange}>
+        <SelectTrigger id={id}>
+          <SelectValue placeholder="default" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="default">default</SelectItem>
+          {templates
+            .filter((t) => t.name !== 'default')
+            .map((t) => (
+              <SelectItem key={t.id} value={t.name}>
+                {t.name}
+              </SelectItem>
+            ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }
