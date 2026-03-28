@@ -9,11 +9,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mockState = vi.hoisted(() => ({
   agentRows: [] as Record<string, unknown>[],
   insertRows: [] as Record<string, unknown>[],
+  // Track select call count to return empty array for ID uniqueness checks
+  selectCallCount: 0,
+  // When > 0, after the first N select calls return agentRows, subsequent calls return []
+  selectEmptyAfter: 0,
 }));
 
 // --- mock @/src/lib/db ---
 vi.mock('@/src/lib/db', async () => {
-  // Import real schema so drizzle column objects work with eq()
   const { agents, envVars, skillLinks } = await import('../../db/schema');
 
   function makeChain(resolveWith: unknown) {
@@ -33,7 +36,18 @@ vi.mock('@/src/lib/db', async () => {
   }
 
   const db = {
-    select: () => makeChain(mockState.agentRows),
+    select: (...args: unknown[]) => {
+      mockState.selectCallCount++;
+      // If selectEmptyAfter is set, return empty after that many calls
+      if (
+        mockState.selectEmptyAfter > 0 &&
+        mockState.selectCallCount > mockState.selectEmptyAfter
+      ) {
+        return makeChain([]);
+      }
+      void args;
+      return makeChain(mockState.agentRows);
+    },
     insert: () => makeChain(mockState.insertRows),
     delete: () => makeChain(undefined),
   };
@@ -56,6 +70,11 @@ vi.mock('node:child_process', () => ({
   execFile: vi.fn((_cmd: string, _args: string[], cb: (err: null) => void) => cb(null)),
 }));
 
+// --- mock src/lib/id ---
+vi.mock('../../src/lib/id', () => ({
+  generateAgentId: vi.fn(() => 'abc1234'),
+}));
+
 // Import handlers after mocks are set up
 import { POST as COPY_POST } from '../../app/api/agents/copy/route';
 import { DELETE, GET, POST } from '../../app/api/agents/route';
@@ -69,6 +88,8 @@ describe('GET /api/agents', () => {
     vi.clearAllMocks();
     mockState.agentRows = [];
     mockState.insertRows = [];
+    mockState.selectCallCount = 0;
+    mockState.selectEmptyAfter = 0;
   });
 
   it('returns empty array when no agents', async () => {
@@ -79,13 +100,13 @@ describe('GET /api/agents', () => {
     expect(body).toEqual([]);
   });
 
-  it('returns agents list', async () => {
+  it('returns agents list with agentId', async () => {
     mockState.agentRows = [
       {
         id: 1,
-        name: 'alpha',
-        home: '/runtime/agents/alpha',
-        label: 'ai.hermes.gateway.alpha',
+        agentId: 'abc1234',
+        home: '/runtime/agents/abc1234',
+        label: 'ai.hermes.gateway.abc1234',
         enabled: false,
         createdAt: new Date(),
       },
@@ -94,7 +115,7 @@ describe('GET /api/agents', () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toHaveLength(1);
-    expect(body[0].name).toBe('alpha');
+    expect(body[0].agentId).toBe('abc1234');
   });
 });
 
@@ -103,75 +124,41 @@ describe('POST /api/agents', () => {
     vi.clearAllMocks();
     mockState.agentRows = [];
     mockState.insertRows = [];
+    mockState.selectCallCount = 0;
+    mockState.selectEmptyAfter = 0;
   });
 
-  it('creates agent with valid name and returns 201', async () => {
+  it('creates agent without body and returns 201 with auto-generated id', async () => {
     const created = {
       id: 1,
-      name: 'alpha_1',
-      home: '/runtime/agents/alpha_1',
-      label: 'ai.hermes.gateway.alpha_1',
+      agentId: 'abc1234',
+      home: '/runtime/agents/abc1234',
+      label: 'ai.hermes.gateway.abc1234',
       enabled: false,
       createdAt: new Date(),
     };
     mockState.insertRows = [created];
 
-    const req = makeReq('http://localhost/api/agents', {
-      method: 'POST',
-      body: JSON.stringify({ name: 'alpha_1' }),
-      headers: { 'Content-Type': 'application/json' },
-    });
-
-    const res = await POST(req);
+    const res = await POST();
     expect(res.status).toBe(201);
     const body = await res.json();
-    expect(body.name).toBe('alpha_1');
-    expect(body.label).toBe('ai.hermes.gateway.alpha_1');
-  });
-
-  it('returns 400 for name with spaces', async () => {
-    const req = makeReq('http://localhost/api/agents', {
-      method: 'POST',
-      body: JSON.stringify({ name: 'bad name!' }),
-      headers: { 'Content-Type': 'application/json' },
-    });
-
-    const res = await POST(req);
-    expect(res.status).toBe(400);
-    const body = await res.json();
-    expect(body.error).toBeTruthy();
-  });
-
-  it('returns 400 for empty name', async () => {
-    const req = makeReq('http://localhost/api/agents', {
-      method: 'POST',
-      body: JSON.stringify({ name: '' }),
-      headers: { 'Content-Type': 'application/json' },
-    });
-
-    const res = await POST(req);
-    expect(res.status).toBe(400);
+    expect(body.agentId).toBe('abc1234');
+    expect(body.label).toBe('ai.hermes.gateway.abc1234');
   });
 
   it('scaffolds filesystem on create', async () => {
     mockState.insertRows = [
       {
         id: 2,
-        name: 'beta',
-        home: '/runtime/agents/beta',
-        label: 'ai.hermes.gateway.beta',
+        agentId: 'abc1234',
+        home: '/runtime/agents/abc1234',
+        label: 'ai.hermes.gateway.abc1234',
         enabled: false,
         createdAt: new Date(),
       },
     ];
 
-    const req = makeReq('http://localhost/api/agents', {
-      method: 'POST',
-      body: JSON.stringify({ name: 'beta' }),
-      headers: { 'Content-Type': 'application/json' },
-    });
-
-    await POST(req);
+    await POST();
     expect(vi.mocked(fs.mkdir)).toHaveBeenCalled();
     expect(vi.mocked(fs.writeFile)).toHaveBeenCalled();
   });
@@ -181,21 +168,23 @@ describe('DELETE /api/agents', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockState.agentRows = [];
+    mockState.selectCallCount = 0;
+    mockState.selectEmptyAfter = 0;
   });
 
-  it('deletes agent and returns ok', async () => {
+  it('deletes agent by id and returns ok', async () => {
     mockState.agentRows = [
       {
         id: 1,
-        name: 'bravo',
-        home: '/runtime/agents/bravo',
-        label: 'ai.hermes.gateway.bravo',
+        agentId: 'abc1234',
+        home: '/runtime/agents/abc1234',
+        label: 'ai.hermes.gateway.abc1234',
         enabled: false,
         createdAt: new Date(),
       },
     ];
 
-    const req = makeReq('http://localhost/api/agents?name=bravo', { method: 'DELETE' });
+    const req = makeReq('http://localhost/api/agents?id=abc1234', { method: 'DELETE' });
     const res = await DELETE(req);
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -206,15 +195,15 @@ describe('DELETE /api/agents', () => {
     mockState.agentRows = [
       {
         id: 1,
-        name: 'bravo',
-        home: '/runtime/agents/bravo',
-        label: 'ai.hermes.gateway.bravo',
+        agentId: 'abc1234',
+        home: '/runtime/agents/abc1234',
+        label: 'ai.hermes.gateway.abc1234',
         enabled: false,
         createdAt: new Date(),
       },
     ];
 
-    const req = makeReq('http://localhost/api/agents?name=bravo', { method: 'DELETE' });
+    const req = makeReq('http://localhost/api/agents?id=abc1234', { method: 'DELETE' });
     await DELETE(req);
     expect(vi.mocked(fs.rm)).not.toHaveBeenCalled();
   });
@@ -223,25 +212,25 @@ describe('DELETE /api/agents', () => {
     mockState.agentRows = [
       {
         id: 1,
-        name: 'charlie',
-        home: '/runtime/agents/charlie',
-        label: 'ai.hermes.gateway.charlie',
+        agentId: 'def5678',
+        home: '/runtime/agents/def5678',
+        label: 'ai.hermes.gateway.def5678',
         enabled: false,
         createdAt: new Date(),
       },
     ];
 
-    const req = makeReq('http://localhost/api/agents?name=charlie&purge=true', {
+    const req = makeReq('http://localhost/api/agents?id=def5678&purge=true', {
       method: 'DELETE',
     });
     await DELETE(req);
-    expect(vi.mocked(fs.rm)).toHaveBeenCalledWith('/runtime/agents/charlie', {
+    expect(vi.mocked(fs.rm)).toHaveBeenCalledWith('/runtime/agents/def5678', {
       recursive: true,
       force: true,
     });
   });
 
-  it('returns 400 if name is missing', async () => {
+  it('returns 400 if id is missing', async () => {
     const req = makeReq('http://localhost/api/agents', { method: 'DELETE' });
     const res = await DELETE(req);
     expect(res.status).toBe(400);
@@ -249,7 +238,7 @@ describe('DELETE /api/agents', () => {
 
   it('returns 404 if agent not found', async () => {
     mockState.agentRows = [];
-    const req = makeReq('http://localhost/api/agents?name=ghost', { method: 'DELETE' });
+    const req = makeReq('http://localhost/api/agents?id=ghost11', { method: 'DELETE' });
     const res = await DELETE(req);
     expect(res.status).toBe(404);
   });
@@ -258,15 +247,15 @@ describe('DELETE /api/agents', () => {
     mockState.agentRows = [
       {
         id: 1,
-        name: 'bravo',
-        home: '/runtime/agents/bravo',
-        label: 'ai.hermes.gateway.bravo',
+        agentId: 'abc1234',
+        home: '/runtime/agents/abc1234',
+        label: 'ai.hermes.gateway.abc1234',
         enabled: false,
         createdAt: new Date(),
       },
     ];
 
-    const req = makeReq('http://localhost/api/agents?name=bravo', { method: 'DELETE' });
+    const req = makeReq('http://localhost/api/agents?id=abc1234', { method: 'DELETE' });
     await DELETE(req);
     expect(vi.mocked(execFile)).toHaveBeenCalledWith(
       'launchctl',
@@ -281,15 +270,19 @@ describe('POST /api/agents/copy', () => {
     vi.clearAllMocks();
     mockState.agentRows = [];
     mockState.insertRows = [];
+    mockState.selectCallCount = 0;
+    mockState.selectEmptyAfter = 0;
   });
 
-  it('copies agent and returns 201', async () => {
+  it('copies agent with auto-generated id and returns 201', async () => {
+    // First select finds the source agent, subsequent selects return empty (no collision)
+    mockState.selectEmptyAfter = 1;
     mockState.agentRows = [
       {
         id: 1,
-        name: 'delta',
-        home: '/runtime/agents/delta',
-        label: 'ai.hermes.gateway.delta',
+        agentId: 'delta11',
+        home: '/runtime/agents/delta11',
+        label: 'ai.hermes.gateway.delta11',
         enabled: false,
         createdAt: new Date(),
       },
@@ -297,9 +290,9 @@ describe('POST /api/agents/copy', () => {
     mockState.insertRows = [
       {
         id: 2,
-        name: 'echo',
-        home: '/runtime/agents/echo',
-        label: 'ai.hermes.gateway.echo',
+        agentId: 'abc1234',
+        home: '/runtime/agents/abc1234',
+        label: 'ai.hermes.gateway.abc1234',
         enabled: false,
         createdAt: new Date(),
       },
@@ -307,24 +300,24 @@ describe('POST /api/agents/copy', () => {
 
     const req = makeReq('http://localhost/api/agents/copy', {
       method: 'POST',
-      body: JSON.stringify({ from: 'delta', to: 'echo' }),
+      body: JSON.stringify({ from: 'delta11' }),
       headers: { 'Content-Type': 'application/json' },
     });
 
     const res = await COPY_POST(req);
     expect(res.status).toBe(201);
     const body = await res.json();
-    expect(body.name).toBe('echo');
-    expect(body.label).toBe('ai.hermes.gateway.echo');
+    expect(body.agentId).toBe('abc1234');
   });
 
   it('calls fs.cp recursively', async () => {
+    mockState.selectEmptyAfter = 1;
     mockState.agentRows = [
       {
         id: 1,
-        name: 'delta',
-        home: '/runtime/agents/delta',
-        label: 'ai.hermes.gateway.delta',
+        agentId: 'delta11',
+        home: '/runtime/agents/delta11',
+        label: 'ai.hermes.gateway.delta11',
         enabled: false,
         createdAt: new Date(),
       },
@@ -332,9 +325,9 @@ describe('POST /api/agents/copy', () => {
     mockState.insertRows = [
       {
         id: 2,
-        name: 'foxtrot',
-        home: '/runtime/agents/foxtrot',
-        label: 'ai.hermes.gateway.foxtrot',
+        agentId: 'abc1234',
+        home: '/runtime/agents/abc1234',
+        label: 'ai.hermes.gateway.abc1234',
         enabled: false,
         createdAt: new Date(),
       },
@@ -342,16 +335,14 @@ describe('POST /api/agents/copy', () => {
 
     const req = makeReq('http://localhost/api/agents/copy', {
       method: 'POST',
-      body: JSON.stringify({ from: 'delta', to: 'foxtrot' }),
+      body: JSON.stringify({ from: 'delta11' }),
       headers: { 'Content-Type': 'application/json' },
     });
 
     await COPY_POST(req);
-    expect(vi.mocked(fs.cp)).toHaveBeenCalledWith(
-      '/runtime/agents/delta',
-      expect.stringContaining('foxtrot'),
-      { recursive: true },
-    );
+    expect(vi.mocked(fs.cp)).toHaveBeenCalledWith('/runtime/agents/delta11', expect.any(String), {
+      recursive: true,
+    });
   });
 
   it('returns 404 if source agent not found', async () => {
@@ -359,7 +350,7 @@ describe('POST /api/agents/copy', () => {
 
     const req = makeReq('http://localhost/api/agents/copy', {
       method: 'POST',
-      body: JSON.stringify({ from: 'missing', to: 'new' }),
+      body: JSON.stringify({ from: 'missing' }),
       headers: { 'Content-Type': 'application/json' },
     });
 

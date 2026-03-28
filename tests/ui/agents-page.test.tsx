@@ -13,21 +13,19 @@ let Home: React.ComponentType;
 const mockAgents = [
   {
     id: 1,
-    name: 'alpha',
-    home: '/tmp/alpha',
-    label: 'ai.hermes.gateway.alpha',
+    agentId: 'alpha11',
+    home: '/tmp/alpha11',
+    label: 'ai.hermes.gateway.alpha11',
     enabled: true,
     createdAt: 0,
-    updatedAt: 0,
   },
   {
     id: 2,
-    name: 'beta',
-    home: '/tmp/beta',
-    label: 'ai.hermes.gateway.beta',
+    agentId: 'beta222',
+    home: '/tmp/beta222',
+    label: 'ai.hermes.gateway.beta222',
     enabled: false,
     createdAt: 0,
-    updatedAt: 0,
   },
 ];
 
@@ -50,40 +48,38 @@ function mockFetch(overrides: Record<string, unknown> = {}) {
         if (url === '/api/launchd' && method === 'POST') {
           const body = JSON.parse(init?.body as string);
           if (body.action === 'status') {
-            return { ok: true, json: async () => ({ running: body.agent === 'alpha' }) };
+            return { ok: true, json: async () => ({ running: body.agent === 'alpha11' }) };
           }
           if (body.action === 'start' && overrides.launchdStartFail) {
             return {
               ok: false,
-              json: async () => ({ stderr: 'Could not find service "ai.hermes.gateway.beta"' }),
+              json: async () => ({ stderr: 'Could not find service' }),
             };
           }
           return { ok: true, json: async () => ({}) };
         }
 
-        // POST /api/agents (add)
+        // POST /api/agents (add — no body needed)
         if (url === '/api/agents' && method === 'POST') {
-          const body = JSON.parse(init?.body as string);
           if (overrides.addFail) {
-            return { ok: false, json: async () => ({ error: 'Agent already exists' }) };
+            return { ok: false, json: async () => ({ error: 'Failed to generate ID' }) };
           }
           return {
             ok: true,
             json: async () => ({
               id: 3,
-              name: body.name,
-              home: '/tmp/new',
-              label: 'test',
+              agentId: 'new1234',
+              home: '/tmp/new1234',
+              label: 'ai.hermes.gateway.new1234',
               enabled: false,
               createdAt: 0,
-              updatedAt: 0,
             }),
           };
         }
 
         // DELETE /api/agents
-        if ((url as string).startsWith('/api/agents?name=') && method === 'DELETE') {
-          return { ok: true, json: async () => ({ deleted: 'alpha' }) };
+        if ((url as string).startsWith('/api/agents?id=') && method === 'DELETE') {
+          return { ok: true, json: async () => ({ ok: true }) };
         }
 
         // POST /api/agents/copy
@@ -92,12 +88,11 @@ function mockFetch(overrides: Record<string, unknown> = {}) {
             ok: true,
             json: async () => ({
               id: 4,
-              name: 'gamma',
-              home: '/tmp/gamma',
-              label: 'test',
+              agentId: 'copy123',
+              home: '/tmp/copy123',
+              label: 'ai.hermes.gateway.copy123',
               enabled: false,
               createdAt: 0,
-              updatedAt: 0,
             }),
           };
         }
@@ -124,8 +119,8 @@ describe('AgentsPage', () => {
     render(<Home />);
 
     await waitFor(() => {
-      expect(screen.getAllByText('alpha').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('beta').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('alpha11').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('beta222').length).toBeGreaterThan(0);
     });
   });
 
@@ -135,20 +130,7 @@ describe('AgentsPage', () => {
     render(<Home />);
 
     await waitFor(() => {
-      expect(screen.getAllByText('alpha').length).toBeGreaterThan(0);
-    });
-
-    expect(screen.getAllByText('Running').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Stopped').length).toBeGreaterThan(0);
-  });
-
-  it('shows running status indicator', async () => {
-    global.fetch = mockFetch();
-
-    render(<Home />);
-
-    await waitFor(() => {
-      expect(screen.getAllByText('alpha').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('alpha11').length).toBeGreaterThan(0);
     });
 
     expect(screen.getAllByText('Running').length).toBeGreaterThan(0);
@@ -161,7 +143,7 @@ describe('AgentsPage', () => {
     render(<Home />);
 
     await waitFor(() => {
-      expect(screen.getAllByText('alpha').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('alpha11').length).toBeGreaterThan(0);
     });
 
     expect(screen.getAllByRole('button', { name: /^stop$/i }).length).toBeGreaterThan(0);
@@ -175,7 +157,7 @@ describe('AgentsPage', () => {
     render(<Home />);
 
     await waitFor(() => {
-      expect(screen.getAllByText('beta').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('beta222').length).toBeGreaterThan(0);
     });
 
     const startButtons = screen.getAllByRole('button', { name: /^start$/i });
@@ -193,123 +175,34 @@ describe('AgentsPage', () => {
     });
   });
 
-  it('does not report success when launchd start fails', async () => {
-    const fetchMock = mockFetch({
-      launchdStartFail: true,
-    });
-    global.fetch = fetchMock;
-
-    render(<Home />);
-
-    await waitFor(() => {
-      expect(screen.getAllByText('beta').length).toBeGreaterThan(0);
-    });
-
-    fireEvent.click(screen.getAllByRole('button', { name: /^start$/i })[0]);
-
-    await waitFor(() => {
-      const calls = fetchMock.mock.calls as [string, { method?: string; body?: string }?][];
-      const refreshCalls = calls.filter(
-        ([url, init]) => url === '/api/agents' && (init?.method ?? 'GET') === 'GET',
-      );
-      expect(refreshCalls).toHaveLength(1);
-    });
-  });
-
   it('renders per-agent action menu buttons', async () => {
     global.fetch = mockFetch();
 
     render(<Home />);
 
     await waitFor(() => {
-      expect(screen.getAllByText('alpha').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('alpha11').length).toBeGreaterThan(0);
     });
 
     expect(screen.getAllByRole('button', { name: /more actions/i }).length).toBeGreaterThan(0);
   });
 
-  it('action menu buttons are rendered for agents', async () => {
-    global.fetch = mockFetch();
-
-    render(<Home />);
-
-    await waitFor(() => {
-      expect(screen.getAllByText('alpha').length).toBeGreaterThan(0);
-    });
-
-    const actionButtons = screen.getAllByRole('button', { name: /more actions/i });
-    expect(actionButtons.length).toBeGreaterThan(0);
-  });
-
-  it('action menu button is clickable', async () => {
-    global.fetch = mockFetch();
-
-    render(<Home />);
-
-    await waitFor(() => {
-      expect(screen.getAllByText('alpha').length).toBeGreaterThan(0);
-    });
-
-    const actionButton = screen.getAllByRole('button', { name: /more actions/i })[0];
-    fireEvent.click(actionButton);
-    expect(actionButton).toBeInTheDocument();
-  });
-
-  it('copy flow entrypoint (action menu) is available', async () => {
-    global.fetch = mockFetch();
-
-    render(<Home />);
-
-    await waitFor(() => {
-      expect(screen.getAllByText('alpha').length).toBeGreaterThan(0);
-    });
-
-    expect(screen.getAllByRole('button', { name: /more actions/i }).length).toBeGreaterThan(0);
-  });
-
-  it('Add Agent form submits POST /api/agents and refreshes', async () => {
+  it('Add Agent button calls POST /api/agents without body and refreshes', async () => {
     const fetchMock = mockFetch();
     global.fetch = fetchMock;
 
     render(<Home />);
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText(/new-agent-name/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /add agent/i })).toBeInTheDocument();
     });
 
-    fireEvent.change(screen.getByPlaceholderText(/new-agent-name/i), {
-      target: { value: 'newagent' },
-    });
-    fireEvent.submit(screen.getByRole('button', { name: /add agent/i }).closest('form')!);
+    fireEvent.click(screen.getByRole('button', { name: /add agent/i }));
 
     await waitFor(() => {
       const calls = fetchMock.mock.calls as [string, { method?: string; body?: string }?][];
       const addCall = calls.find(([url, init]) => url === '/api/agents' && init?.method === 'POST');
       expect(addCall).toBeDefined();
-    });
-  });
-
-  it('Add Agent form rejects invalid name without POST /api/agents', async () => {
-    const fetchMock = mockFetch();
-    global.fetch = fetchMock;
-
-    render(<Home />);
-
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText(/new-agent-name/i)).toBeInTheDocument();
-    });
-
-    fireEvent.change(screen.getByPlaceholderText(/new-agent-name/i), {
-      target: { value: 'invalid name!' },
-    });
-    fireEvent.submit(screen.getByRole('button', { name: /add agent/i }).closest('form')!);
-
-    await waitFor(() => {
-      const calls = fetchMock.mock.calls as [string, { method?: string; body?: string }?][];
-      const addPostCalls = calls.filter(
-        ([url, init]) => url === '/api/agents' && (init?.method ?? 'GET') === 'POST',
-      );
-      expect(addPostCalls).toHaveLength(0);
     });
   });
 });

@@ -32,7 +32,7 @@ beforeEach(async () => {
   sqlite.exec(`
     CREATE TABLE agents (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
+      agent_id TEXT NOT NULL UNIQUE,
       home TEXT NOT NULL,
       label TEXT NOT NULL,
       enabled INTEGER NOT NULL DEFAULT 0,
@@ -57,7 +57,7 @@ beforeEach(async () => {
   const agentHome = path.join(tmpDir, 'runtime', 'agents', 'alpha');
   await fsp.mkdir(agentHome, { recursive: true });
   await testDb.insert(schema.agents).values({
-    name: 'alpha',
+    agentId: 'alpha',
     home: agentHome,
     label: 'ai.hermes.gateway.alpha',
     enabled: false,

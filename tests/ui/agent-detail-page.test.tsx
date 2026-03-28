@@ -11,7 +11,7 @@ vi.mock('sonner', () => ({
   },
 }));
 
-let AgentDetailPage: React.ComponentType<{ params: { name: string } }>;
+let AgentDetailPage: React.ComponentType<{ params: Promise<{ id: string }> }>;
 
 const fileContents: Record<string, string> = {
   'AGENTS.md': '# Agents file\n',
@@ -69,7 +69,7 @@ function createFetchMock() {
 }
 
 beforeEach(async () => {
-  const mod = await import('../../app/agents/[name]/page');
+  const mod = await import('../../app/agents/[id]/page');
   AgentDetailPage = mod.default;
 });
 
@@ -82,7 +82,7 @@ describe('Agent detail memory tab', () => {
   it('renders required tabs including Env and Skills', async () => {
     global.fetch = createFetchMock();
 
-    render(<AgentDetailPage params={{ name: 'alpha' }} />);
+    render(<AgentDetailPage params={Promise.resolve({ id: 'alpha' })} />);
 
     await waitFor(() => {
       expect(screen.getByRole('tab', { name: 'Memory' })).toBeInTheDocument();
@@ -97,7 +97,7 @@ describe('Agent detail memory tab', () => {
   it('shows only one memory editor at a time', async () => {
     global.fetch = createFetchMock();
 
-    render(<AgentDetailPage params={{ name: 'alpha' }} />);
+    render(<AgentDetailPage params={Promise.resolve({ id: 'alpha' })} />);
 
     await waitFor(() => {
       expect(screen.getByRole('textbox', { name: 'Edit AGENTS.md' })).toBeInTheDocument();
@@ -111,7 +111,7 @@ describe('Agent detail memory tab', () => {
     const fetchMock = createFetchMock();
     global.fetch = fetchMock;
 
-    render(<AgentDetailPage params={{ name: 'alpha' }} />);
+    render(<AgentDetailPage params={Promise.resolve({ id: 'alpha' })} />);
 
     await waitFor(() => {
       expect(screen.getByRole('textbox', { name: 'Edit AGENTS.md' })).toBeInTheDocument();
@@ -134,7 +134,7 @@ describe('Agent detail memory tab', () => {
     global.fetch = fetchMock;
     const confirmMock = vi.spyOn(window, 'confirm').mockReturnValue(false);
 
-    render(<AgentDetailPage params={{ name: 'alpha' }} />);
+    render(<AgentDetailPage params={Promise.resolve({ id: 'alpha' })} />);
 
     await waitFor(() => {
       expect(screen.getByRole('textbox', { name: 'Edit AGENTS.md' })).toBeInTheDocument();
@@ -160,7 +160,7 @@ describe('Agent detail memory tab', () => {
     const fetchMock = createFetchMock();
     global.fetch = fetchMock;
 
-    render(<AgentDetailPage params={{ name: 'alpha' }} />);
+    render(<AgentDetailPage params={Promise.resolve({ id: 'alpha' })} />);
 
     await waitFor(() => {
       expect(screen.getByRole('textbox', { name: 'Edit AGENTS.md' })).toBeInTheDocument();
@@ -194,7 +194,7 @@ describe('Agent detail memory tab', () => {
     const fetchMock = createFetchMock();
     global.fetch = fetchMock;
 
-    render(<AgentDetailPage params={{ name: 'alpha' }} />);
+    render(<AgentDetailPage params={Promise.resolve({ id: 'alpha' })} />);
 
     await waitFor(() => {
       expect(screen.getByRole('tab', { name: 'Env' })).toBeInTheDocument();
@@ -220,7 +220,7 @@ describe('Agent detail memory tab', () => {
     const fetchMock = createFetchMock();
     global.fetch = fetchMock;
 
-    render(<AgentDetailPage params={{ name: 'alpha' }} />);
+    render(<AgentDetailPage params={Promise.resolve({ id: 'alpha' })} />);
 
     await waitFor(() => {
       expect(screen.getByRole('tab', { name: 'Skills' })).toBeInTheDocument();

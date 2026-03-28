@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import '@testing-library/jest-dom';
 
-import AgentPage from '../../app/agents/[name]/page';
+import AgentPage from '../../app/agents/[id]/page';
 
 vi.mock('next/link', () => ({
   default: ({ children, href, ...props }: React.PropsWithChildren<{ href: string }>) => (
@@ -105,7 +105,7 @@ function createFetchMock() {
 }
 
 function renderAgentPage() {
-  return render(<AgentPage params={{ name: 'alpha' }} />);
+  return render(<AgentPage params={Promise.resolve({ id: 'alpha' })} />);
 }
 
 function openEnvTab() {

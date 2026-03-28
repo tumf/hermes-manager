@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Verify agent exists
-  const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.name, agentName));
+  const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.agentId, agentName));
   if (!agent) {
     return NextResponse.json({ error: 'agent not found' }, { status: 404 });
   }

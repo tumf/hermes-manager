@@ -20,33 +20,21 @@ import { Badge } from '@/src/components/ui/badge';
 import { Button } from '@/src/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/src/components/ui/card';
 import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/src/components/ui/dialog';
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/src/components/ui/dropdown-menu';
-import { Input } from '@/src/components/ui/input';
 import { Skeleton } from '@/src/components/ui/skeleton';
 
 interface Agent {
   id: number;
-  name: string;
+  agentId: string;
   home: string;
   label: string;
   enabled: boolean;
   createdAt: number | string;
-  updatedAt: number | string;
 }
 
 interface AgentWithStatus extends Agent {
@@ -56,9 +44,7 @@ interface AgentWithStatus extends Agent {
 export default function Home() {
   const [agents, setAgents] = useState<AgentWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
-  const [addName, setAddName] = useState('');
   const [addBusy, setAddBusy] = useState(false);
-  const [copyTo, setCopyTo] = useState('');
 
   const fetchAgents = useCallback(async () => {
     try {
@@ -71,7 +57,7 @@ export default function Home() {
             const sr = await fetch('/api/launchd', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ agent: agent.name, action: 'status' }),
+              body: JSON.stringify({ agent: agent.agentId, action: 'status' }),
             });
             if (sr.ok) {
               const s = await sr.json();
@@ -95,28 +81,19 @@ export default function Home() {
     void fetchAgents();
   }, [fetchAgents]);
 
-  async function handleAdd(e: React.FormEvent) {
-    e.preventDefault();
-    const trimmed = addName.trim();
-    if (!trimmed) return;
-    if (!/^[a-zA-Z0-9_-]{1,64}$/.test(trimmed)) {
-      toast.error('Invalid name: use only a-z, 0-9, _, - (max 64 chars)');
-      return;
-    }
+  async function handleAdd() {
     setAddBusy(true);
     try {
       const res = await fetch('/api/agents', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: trimmed }),
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
         toast.error(typeof d.error === 'string' ? d.error : 'Failed to create');
         return;
       }
-      setAddName('');
-      toast.success(`Agent "${trimmed}" created`);
+      const created = await res.json();
+      toast.success(`Agent "${created.agentId}" created`);
       await fetchAgents();
     } finally {
       setAddBusy(false);
@@ -128,7 +105,7 @@ export default function Home() {
       const res = await fetch('/api/launchd', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agent: agent.name, action }),
+        body: JSON.stringify({ agent: agent.agentId, action }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -137,46 +114,43 @@ export default function Home() {
             ? data.error
             : typeof data.stderr === 'string' && data.stderr.trim()
               ? data.stderr.trim()
-              : `Failed to ${action} ${agent.name}`;
+              : `Failed to ${action} ${agent.agentId}`;
         toast.error(message);
         return;
       }
-      toast.success(`${agent.name} ${action === 'start' ? 'started' : 'stopped'}`);
+      toast.success(`${agent.agentId} ${action === 'start' ? 'started' : 'stopped'}`);
       await fetchAgents();
     } catch {
-      toast.error(`Failed to ${action} ${agent.name}`);
+      toast.error(`Failed to ${action} ${agent.agentId}`);
     }
   }
 
-  async function handleDelete(name: string) {
+  async function handleDelete(agentId: string) {
     try {
-      await fetch(`/api/agents?name=${encodeURIComponent(name)}`, {
+      await fetch(`/api/agents?id=${encodeURIComponent(agentId)}`, {
         method: 'DELETE',
       });
-      toast.success(`Agent "${name}" deleted`);
+      toast.success(`Agent "${agentId}" deleted`);
       await fetchAgents();
     } catch {
-      toast.error(`Failed to delete "${name}"`);
+      toast.error(`Failed to delete "${agentId}"`);
     }
   }
 
-  async function handleCopy(fromName: string, toName: string) {
-    if (!/^[a-zA-Z0-9_-]{1,64}$/.test(toName)) {
-      toast.error('Invalid name');
-      return;
-    }
+  async function handleCopy(fromId: string) {
     try {
       const res = await fetch('/api/agents/copy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from: fromName, to: toName }),
+        body: JSON.stringify({ from: fromId }),
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
         toast.error(typeof d.error === 'string' ? d.error : 'Failed to copy');
         return;
       }
-      toast.success(`Copied "${fromName}" to "${toName}"`);
+      const created = await res.json();
+      toast.success(`Copied "${fromId}" → "${created.agentId}"`);
       await fetchAgents();
     } catch {
       toast.error('Failed to copy');
@@ -190,22 +164,11 @@ export default function Home() {
           <h1 className="text-2xl font-semibold tracking-tight">Agents</h1>
           <p className="text-sm text-muted-foreground">Manage your Hermes AI agents.</p>
         </div>
-      </div>
-
-      {/* Add agent form */}
-      <form onSubmit={handleAdd} className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <Input
-          value={addName}
-          onChange={(e) => setAddName(e.target.value)}
-          placeholder="new-agent-name"
-          aria-label="New agent name"
-          className="h-11 sm:max-w-xs"
-        />
-        <Button type="submit" disabled={addBusy} className="h-11 gap-2">
+        <Button onClick={() => void handleAdd()} disabled={addBusy} className="h-11 gap-2">
           <Plus className="size-4" />
           {addBusy ? 'Adding...' : 'Add Agent'}
         </Button>
-      </form>
+      </div>
 
       {/* Loading skeleton */}
       {loading && (
@@ -246,10 +209,10 @@ export default function Home() {
                 <div className="min-w-0 flex-1">
                   <CardTitle className="truncate">
                     <Link
-                      href={`/agents/${encodeURIComponent(a.name)}`}
+                      href={`/agents/${encodeURIComponent(a.agentId)}`}
                       className="hover:underline"
                     >
-                      {a.name}
+                      {a.agentId}
                     </Link>
                   </CardTitle>
                   {a.label && (
@@ -280,15 +243,9 @@ export default function Home() {
                   </Button>
                 )}
                 <Button variant="outline" size="sm" asChild>
-                  <Link href={`/agents/${encodeURIComponent(a.name)}`}>Manage</Link>
+                  <Link href={`/agents/${encodeURIComponent(a.agentId)}`}>Manage</Link>
                 </Button>
-                <AgentActionsMenu
-                  agent={a}
-                  onDelete={handleDelete}
-                  onCopy={handleCopy}
-                  copyTo={copyTo}
-                  setCopyTo={setCopyTo}
-                />
+                <AgentActionsMenu agent={a} onDelete={handleDelete} onCopy={handleCopy} />
               </CardFooter>
             </Card>
           ))}
@@ -301,7 +258,7 @@ export default function Home() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/50">
-                <th className="px-4 py-3 text-left font-medium">Name</th>
+                <th className="px-4 py-3 text-left font-medium">ID</th>
                 <th className="px-4 py-3 text-left font-medium">Label</th>
                 <th className="px-4 py-3 text-left font-medium">Status</th>
                 <th className="px-4 py-3 text-right font-medium">Actions</th>
@@ -312,10 +269,10 @@ export default function Home() {
                 <tr key={a.id} className="border-b transition-colors hover:bg-muted/30">
                   <td className="px-4 py-3 font-medium">
                     <Link
-                      href={`/agents/${encodeURIComponent(a.name)}`}
+                      href={`/agents/${encodeURIComponent(a.agentId)}`}
                       className="hover:underline"
                     >
-                      {a.name}
+                      {a.agentId}
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{a.label || '--'}</td>
@@ -344,13 +301,7 @@ export default function Home() {
                           Start
                         </Button>
                       )}
-                      <AgentActionsMenu
-                        agent={a}
-                        onDelete={handleDelete}
-                        onCopy={handleCopy}
-                        copyTo={copyTo}
-                        setCopyTo={setCopyTo}
-                      />
+                      <AgentActionsMenu agent={a} onDelete={handleDelete} onCopy={handleCopy} />
                     </div>
                   </td>
                 </tr>
@@ -367,14 +318,10 @@ function AgentActionsMenu({
   agent,
   onDelete,
   onCopy,
-  copyTo,
-  setCopyTo,
 }: {
   agent: AgentWithStatus;
-  onDelete: (name: string) => Promise<void>;
-  onCopy: (from: string, to: string) => Promise<void>;
-  copyTo: string;
-  setCopyTo: (v: string) => void;
+  onDelete: (agentId: string) => Promise<void>;
+  onCopy: (fromId: string) => Promise<void>;
 }) {
   return (
     <DropdownMenu>
@@ -385,44 +332,11 @@ function AgentActionsMenu({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        {/* Copy dialog */}
-        <Dialog>
-          <DialogTrigger asChild>
-            <DropdownMenuItem
-              onSelect={(e) => {
-                e.preventDefault();
-                setCopyTo('');
-              }}
-            >
-              <Copy className="size-4" />
-              Copy
-            </DropdownMenuItem>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Copy Agent</DialogTitle>
-              <DialogDescription>
-                Create a copy of &quot;{agent.name}&quot; with a new name.
-              </DialogDescription>
-            </DialogHeader>
-            <Input
-              value={copyTo}
-              onChange={(e) => setCopyTo(e.target.value)}
-              placeholder="new-agent-name"
-              aria-label="New agent name for copy"
-            />
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button variant="outline">Cancel</Button>
-              </DialogClose>
-              <DialogClose asChild>
-                <Button onClick={() => void onCopy(agent.name, copyTo)} disabled={!copyTo.trim()}>
-                  Copy
-                </Button>
-              </DialogClose>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        {/* Copy — no name input needed */}
+        <DropdownMenuItem onClick={() => void onCopy(agent.agentId)}>
+          <Copy className="size-4" />
+          Copy
+        </DropdownMenuItem>
 
         <DropdownMenuSeparator />
 
@@ -439,7 +353,7 @@ function AgentActionsMenu({
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete &quot;{agent.name}&quot;?</AlertDialogTitle>
+              <AlertDialogTitle>Delete &quot;{agent.agentId}&quot;?</AlertDialogTitle>
               <AlertDialogDescription>
                 This action cannot be undone. The agent and all associated files will be permanently
                 removed.
@@ -449,7 +363,7 @@ function AgentActionsMenu({
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                onClick={() => void onDelete(agent.name)}
+                onClick={() => void onDelete(agent.agentId)}
               >
                 Delete
               </AlertDialogAction>

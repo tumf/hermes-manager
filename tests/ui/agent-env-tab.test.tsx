@@ -34,8 +34,9 @@ function mockFetch() {
 }
 
 beforeEach(async () => {
-  const mod = await import('../../app/agents/[name]/page');
-  AgentEnvTab = mod.AgentEnvTab;
+  const mod = await import('../../app/agents/[id]/page');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  AgentEnvTab = (mod as any).AgentEnvTab;
 });
 
 afterEach(() => {
