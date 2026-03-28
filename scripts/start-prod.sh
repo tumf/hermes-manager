@@ -1,6 +1,9 @@
-#!/usr/bin/env bash
+#!/bin/bash
 set -euo pipefail
 PORT=${PORT:-18470}
 
-node scripts/migrate.js
-NODE_ENV=production next start -p "$PORT"
+# launchd 環境では PATH に node が含まれないため絶対パスを使う
+NODE=/opt/homebrew/bin/node
+
+"$NODE" scripts/migrate.js
+NODE_ENV=production "$NODE" node_modules/.bin/next start -p "$PORT"

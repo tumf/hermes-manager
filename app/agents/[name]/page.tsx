@@ -774,11 +774,16 @@ function SkillTreeNode({
   depth: number;
 }) {
   const [expanded, setExpanded] = useState(false);
+  // スキルディレクトリは子フォルダを表示しない（再帰的に深掘りしない）
+  // 非スキルディレクトリだけ展開可能
+  const canExpand = !node.hasSkill && node.children.length > 0;
+  // スキルディレクトリの場合は子を非表示
+  const visibleChildren = node.hasSkill ? [] : node.children;
 
   return (
     <div className="space-y-0.5">
       <div className="flex items-center gap-2 py-1" style={{ paddingLeft: `${depth * 1.5}rem` }}>
-        {node.children.length > 0 && (
+        {canExpand && (
           <button
             onClick={() => setExpanded(!expanded)}
             className="inline-flex size-5 items-center justify-center rounded hover:bg-muted"
@@ -787,7 +792,7 @@ function SkillTreeNode({
           </button>
         )}
 
-        {node.children.length === 0 && <div className="size-5" />}
+        {!canExpand && <div className="size-5" />}
 
         {node.hasSkill ? (
           <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -809,9 +814,9 @@ function SkillTreeNode({
         )}
       </div>
 
-      {expanded && node.children.length > 0 && (
+      {expanded && visibleChildren.length > 0 && (
         <div>
-          {node.children.map((child) => (
+          {visibleChildren.map((child) => (
             <SkillTreeNode
               key={child.relativePath}
               node={child}
