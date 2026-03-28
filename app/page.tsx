@@ -1,6 +1,6 @@
 'use client';
 
-import { Copy, EllipsisVertical, Play, Plus, Square, Trash2 } from 'lucide-react';
+import { Copy, EllipsisVertical, Play, Plus, RotateCcw, Square, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -188,7 +188,7 @@ export default function Home() {
     }
   }
 
-  async function handleStartStop(agent: AgentWithStatus, action: 'start' | 'stop') {
+  async function handleStartStop(agent: AgentWithStatus, action: 'start' | 'stop' | 'restart') {
     try {
       const res = await fetch('/api/launchd', {
         method: 'POST',
@@ -206,7 +206,12 @@ export default function Home() {
         toast.error(message);
         return;
       }
-      toast.success(`${agent.name} ${action === 'start' ? 'started' : 'stopped'}`);
+      const labels: Record<string, string> = {
+        start: 'started',
+        stop: 'stopped',
+        restart: 'restarted',
+      };
+      toast.success(`${agent.name} ${labels[action]}`);
       await fetchAgents();
     } catch {
       toast.error(`Failed to ${action} ${agent.name}`);
@@ -386,14 +391,24 @@ export default function Home() {
               </CardHeader>
               <CardFooter className="flex-wrap gap-2">
                 {a.running ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void handleStartStop(a, 'stop')}
-                  >
-                    <Square className="size-3.5" />
-                    Stop
-                  </Button>
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void handleStartStop(a, 'stop')}
+                    >
+                      <Square className="size-3.5" />
+                      Stop
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void handleStartStop(a, 'restart')}
+                    >
+                      <RotateCcw className="size-3.5" />
+                      Restart
+                    </Button>
+                  </>
                 ) : (
                   <Button size="sm" onClick={() => void handleStartStop(a, 'start')}>
                     <Play className="size-3.5" />
@@ -451,14 +466,24 @@ export default function Home() {
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-2">
                       {a.running ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => void handleStartStop(a, 'stop')}
-                        >
-                          <Square className="size-3.5" />
-                          Stop
-                        </Button>
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => void handleStartStop(a, 'stop')}
+                          >
+                            <Square className="size-3.5" />
+                            Stop
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => void handleStartStop(a, 'restart')}
+                          >
+                            <RotateCcw className="size-3.5" />
+                            Restart
+                          </Button>
+                        </>
                       ) : (
                         <Button size="sm" onClick={() => void handleStartStop(a, 'start')}>
                           <Play className="size-3.5" />
