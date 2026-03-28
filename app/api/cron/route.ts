@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Verify agent exists
-  const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.name, agentName));
+  const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.agentId, agentName));
   if (!agent) {
     return NextResponse.json({ error: 'agent not found' }, { status: 404 });
   }
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
   const { agent: agentName, schedule: scheduleExpr, prompt, name, deliver } = result.data;
 
   // Verify agent exists
-  const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.name, agentName));
+  const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.agentId, agentName));
   if (!agent) {
     return NextResponse.json({ error: 'agent not found' }, { status: 404 });
   }
@@ -135,7 +135,7 @@ export async function PUT(request: NextRequest) {
   const { agent: agentName, id: jobId } = result.data;
 
   // Verify agent exists
-  const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.name, agentName));
+  const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.agentId, agentName));
   if (!agent) {
     return NextResponse.json({ error: 'agent not found' }, { status: 404 });
   }
@@ -214,7 +214,7 @@ export async function DELETE(request: NextRequest) {
   }
 
   // Verify agent exists
-  const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.name, agentName));
+  const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.agentId, agentName));
   if (!agent) {
     return NextResponse.json({ error: 'agent not found' }, { status: 404 });
   }

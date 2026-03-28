@@ -50,11 +50,11 @@ import { Skeleton } from '@/src/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/src/components/ui/tabs';
 
 interface AgentPageProps {
-  params: Promise<{ name: string }>;
+  params: Promise<{ id: string }>;
 }
 
 export default function AgentPage({ params }: AgentPageProps) {
-  const { name } = use(params);
+  const { id: name } = use(params);
 
   const [status, setStatus] = useState<{
     running: boolean;
@@ -101,7 +101,11 @@ export default function AgentPage({ params }: AgentPageProps) {
         toast.error(message);
         return;
       }
-      const labels: Record<string, string> = { start: 'started', stop: 'stopped', restart: 'restarted' };
+      const labels: Record<string, string> = {
+        start: 'started',
+        stop: 'stopped',
+        restart: 'restarted',
+      };
       toast.success(`${name} ${labels[action]}`);
       await fetchStatus();
     } catch {
@@ -393,11 +397,7 @@ function FileEditor({ name, filePath, label }: { name: string; filePath: string;
             disabled={saving || loading || !dirty}
             className="gap-1.5"
           >
-            {saving ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <Save className="size-3.5" />
-            )}
+            {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
             {saving ? 'Saving...' : 'Save'}
           </Button>
         </div>
@@ -427,7 +427,7 @@ interface AgentEnvRow {
   visibility: EnvVisibility;
 }
 
-function AgentEnvTab({ name }: { name: string }) {
+export function AgentEnvTab({ name }: { name: string }) {
   const [rows, setRows] = useState<AgentEnvRow[]>([]);
   const [loading, setLoading] = useState(true);
 
