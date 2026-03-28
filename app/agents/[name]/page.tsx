@@ -9,6 +9,7 @@ import {
   Loader2,
   Play,
   Plus,
+  RotateCcw,
   Save,
   ScrollText,
   Settings,
@@ -83,7 +84,7 @@ export default function AgentPage({ params }: AgentPageProps) {
     void fetchStatus();
   }, [fetchStatus]);
 
-  async function handleStartStop(action: 'start' | 'stop') {
+  async function handleStartStop(action: 'start' | 'stop' | 'restart') {
     setActionBusy(true);
     try {
       const res = await fetch('/api/launchd', {
@@ -102,7 +103,8 @@ export default function AgentPage({ params }: AgentPageProps) {
         toast.error(message);
         return;
       }
-      toast.success(`${name} ${action === 'start' ? 'started' : 'stopped'}`);
+      const labels: Record<string, string> = { start: 'started', stop: 'stopped', restart: 'restarted' };
+      toast.success(`${name} ${labels[action]}`);
       await fetchStatus();
     } catch {
       toast.error(`Failed to ${action}`);
@@ -142,19 +144,34 @@ export default function AgentPage({ params }: AgentPageProps) {
                 {status?.running ? 'Running' : 'Stopped'}
               </Badge>
               {status?.running ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void handleStartStop('stop')}
-                  disabled={actionBusy}
-                >
-                  {actionBusy ? (
-                    <Loader2 className="size-3.5 animate-spin" />
-                  ) : (
-                    <Square className="size-3.5" />
-                  )}
-                  Stop
-                </Button>
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void handleStartStop('stop')}
+                    disabled={actionBusy}
+                  >
+                    {actionBusy ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <Square className="size-3.5" />
+                    )}
+                    Stop
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void handleStartStop('restart')}
+                    disabled={actionBusy}
+                  >
+                    {actionBusy ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <RotateCcw className="size-3.5" />
+                    )}
+                    Restart
+                  </Button>
+                </>
               ) : (
                 <Button
                   size="sm"
