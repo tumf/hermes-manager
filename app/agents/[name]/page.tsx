@@ -20,6 +20,7 @@ import { use, useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { CronTab } from '@/src/components/cron-tab';
+import { EnvKeyCombobox } from '@/src/components/env-key-combobox';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -456,13 +457,7 @@ function AgentEnvAddForm({
         }
       }}
     >
-      <Input
-        value={key}
-        onChange={(e) => setKey(e.target.value)}
-        placeholder="KEY_NAME"
-        aria-label="Env key"
-        className="h-10 font-mono sm:max-w-48"
-      />
+      <EnvKeyCombobox value={key} onChange={setKey} />
       <Input
         value={value}
         onChange={(e) => setValue(e.target.value)}
