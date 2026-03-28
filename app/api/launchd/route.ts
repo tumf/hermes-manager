@@ -20,7 +20,7 @@ const execFileAsync = promisify(execFile);
 
 const RequestSchema = z.object({
   agent: z.string(),
-  action: z.enum(['install', 'uninstall', 'start', 'stop', 'status']),
+  action: z.enum(['install', 'uninstall', 'start', 'stop', 'restart', 'status']),
 });
 
 async function runExecFile(cmd: string, args: string[]): Promise<ExecResult> {
@@ -118,6 +118,16 @@ export async function POST(request: Request) {
   if (action === 'stop') {
     const result = await runExecFile('launchctl', ['stop', label]);
     return NextResponse.json(result, { status: result.code === 0 ? 200 : 500 });
+  }
+
+  if (action === 'restart') {
+    const stopResult = await runExecFile('launchctl', ['stop', label]);
+    if (stopResult.code !== 0) {
+      return NextResponse.json(stopResult, { status: 500 });
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    const startResult = await runExecFile('launchctl', ['start', label]);
+    return NextResponse.json(startResult, { status: startResult.code === 0 ? 200 : 500 });
   }
 
   // action === 'status'

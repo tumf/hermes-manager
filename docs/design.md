@@ -55,7 +55,8 @@
   - install: write plist → launchctl bootstrap
   - uninstall: bootout → plist削除
   - start: 未 bootstrap の場合は plist を再生成して bootstrap 後に start
-  - stop/status
+  - stop/restart/status
+  - restart: stop → 500ms wait → start を順次実行
 - /api/files: GET/PUT（AGENTS.md/SOUL.md/config.yaml）
   - YAML 構文チェック（config.yaml）
   - 原子書き込み（.tmp→rename）
