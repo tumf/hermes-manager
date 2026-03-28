@@ -75,7 +75,7 @@ export async function POST(request: Request) {
   const agentRow = await db
     .select()
     .from(schema.agents)
-    .where(eq(schema.agents.name, agentName))
+    .where(eq(schema.agents.agentId, agentName))
     .get();
 
   if (!agentRow) {

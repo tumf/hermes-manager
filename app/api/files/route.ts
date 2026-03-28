@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 
   const { agent: agentName, path: filePath } = parseResult.data;
 
-  const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.name, agentName));
+  const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.agentId, agentName));
 
   if (!agent) {
     return NextResponse.json({ error: 'agent not found' }, { status: 404 });
@@ -72,7 +72,7 @@ export async function PUT(request: NextRequest) {
 
   const { agent: agentName, path: filePath, content } = parseResult.data;
 
-  const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.name, agentName));
+  const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.agentId, agentName));
 
   if (!agent) {
     return NextResponse.json({ error: 'agent not found' }, { status: 404 });

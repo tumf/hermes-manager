@@ -9,11 +9,11 @@ export interface ExecResult {
   code: number;
 }
 
-export function getPlistPath(name: string): string {
-  return path.join(os.homedir(), 'Library', 'LaunchAgents', `ai.hermes.gateway.${name}.plist`);
+export function getPlistPath(agentId: string): string {
+  return path.join(os.homedir(), 'Library', 'LaunchAgents', `ai.hermes.gateway.${agentId}.plist`);
 }
 
-export function generatePlist(_name: string, home: string, label: string): string {
+export function generatePlist(_agentId: string, home: string, label: string): string {
   const runnerScriptPath = getProjectRootPath('scripts', 'run-agent-gateway.sh');
   const globalsEnvPath = getRuntimeGlobalsRootPath('.env');
   const agentEnvPath = path.join(home, '.env');

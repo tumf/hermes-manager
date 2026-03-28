@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
   const { agent: agentName, id: jobId, action, reason } = result.data;
 
   // Verify agent exists
-  const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.name, agentName));
+  const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.agentId, agentName));
   if (!agent) {
     return NextResponse.json({ error: 'agent not found' }, { status: 404 });
   }

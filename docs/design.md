@@ -13,13 +13,13 @@
 ## 2. ドメインモデル
 
 - Agent
-  - name: string(/[a-zA-Z0-9_-]+/)
-  - home: string（{PROJECT_ROOT}/runtime/agents/{name}）
-  - label: string（ai.hermes.gateway.{name}）
+  - agentId: string（新規作成時は `[0-9a-z]{7}` を自動生成、既存エージェントは旧 name 形式をそのまま id として使用）
+  - home: string（{PROJECT_ROOT}/runtime/agents/{agentId}）
+  - label: string（ai.hermes.gateway.{agentId}）
   - enabled: boolean（UIトグル/launchdインストール状態の表示）
   - createdAt/updatedAt: number(ms)
 - EnvVar
-  - scope: 'global' | agentName
+  - scope: 'global' | agentId
   - key: string
   - value: string
   - visibility: 'plain' | 'secure'（管理画面でのマスク制御）
@@ -35,21 +35,21 @@
 
 ## 3. データベース設計
 
-- agents(id PK, name UNIQUE, home, label, enabled BOOL, created_at, updated_at)
+- agents(id PK, agent_id UNIQUE, home, label, enabled BOOL, created_at, updated_at)
 - env_vars(id PK, scope, key, value, visibility DEFAULT 'plain')
 - skill_links(id PK, agent, source_path, target_path)
 - templates(id PK, file_type, name, content, created_at, updated_at) — UNIQUE(file_type, name)
 
 インデックス案:
 
-- agents.name UNIQUE
+- agents.agent_id UNIQUE
 - env_vars(scope, key)
 - skill_links(agent)
 - templates(file_type, name) UNIQUE
 
 ## 4. ディレクトリ構成
 
-- /runtime/agents/{name}/
+- /runtime/agents/{agentId}/
   - AGENTS.md, SOUL.md, config.yaml, .env, logs/
 - /runtime/globals/.env（DB の global vars から自動生成）
 - /runtime/data/app.db（SQLite）
@@ -104,7 +104,7 @@
 ## 7. UI 設計
 
 - Layout: サイドバー（/、/globals、/templates へのナビ）、モバイルはシート/ドロワ
-- Agents 一覧: name, enabled, 状態バッジ、起動/停止、追加（ダイアログ + テンプレート選択）/削除/コピー
+- Agents 一覧: agentId, enabled, 状態バッジ、起動/停止、追加（ダイアログ + テンプレート選択、名前入力不要・ID自動生成）/削除/コピー（名前入力不要）
 - Agent 詳細: タブ（Memory/Config/Env/Skills/Cron/Logs）
   - Memory は `AGENTS.md` / `SOUL.md` を切替ボタンで選択し、常に1ファイルのみ編集表示
   - Env タブは `/api/env` で agent-local `.env` の CRUD を行う（値はデフォルト masked、`reveal=true` で表示切替）

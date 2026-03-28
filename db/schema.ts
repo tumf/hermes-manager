@@ -3,7 +3,7 @@ import { sqliteTable, text, integer, unique } from 'drizzle-orm/sqlite-core';
 
 export const agents = sqliteTable('agents', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  name: text('name').notNull().unique(),
+  agentId: text('agent_id').notNull().unique(),
   home: text('home').notNull(),
   label: text('label').notNull(),
   enabled: integer('enabled', { mode: 'boolean' }).notNull().default(false),
@@ -17,7 +17,7 @@ export const agents = sqliteTable('agents', {
 
 export const envVars = sqliteTable('env_vars', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  scope: text('scope').notNull(), // "global" | agent name
+  scope: text('scope').notNull(), // "global" | agent id
   key: text('key').notNull(),
   value: text('value').notNull(),
   visibility: text('visibility').notNull().default('plain'), // "plain" | "secure"

@@ -1,9 +1,7 @@
 'use client';
 
 import {
-  ChevronDown,
   ChevronLeft,
-  ChevronRight,
   Clock,
   FileText,
   Loader2,
@@ -17,11 +15,20 @@ import {
   Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
-import { use, useCallback, useEffect, useImperativeHandle, useRef, useState, forwardRef } from 'react';
+import {
+  use,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  forwardRef,
+} from 'react';
 import { toast } from 'sonner';
 
 import { CronTab } from '@/src/components/cron-tab';
 import { EnvKeyCombobox } from '@/src/components/env-key-combobox';
+import { SkillsTab } from '@/src/components/skills-tab';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,7 +43,6 @@ import {
 import { Badge } from '@/src/components/ui/badge';
 import { Button } from '@/src/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
-import { Checkbox } from '@/src/components/ui/checkbox';
 import {
   Dialog,
   DialogClose,
@@ -52,12 +58,11 @@ import { Skeleton } from '@/src/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/src/components/ui/tabs';
 
 interface AgentPageProps {
-  params: Promise<{ name: string }> | { name: string };
+  params: Promise<{ id: string }>;
 }
 
 export default function AgentPage({ params }: AgentPageProps) {
-  const resolvedParams = params instanceof Promise ? use(params) : params;
-  const { name } = resolvedParams;
+  const { id: name } = use(params);
 
   const [status, setStatus] = useState<{
     running: boolean;
@@ -104,7 +109,11 @@ export default function AgentPage({ params }: AgentPageProps) {
         toast.error(message);
         return;
       }
-      const labels: Record<string, string> = { start: 'started', stop: 'stopped', restart: 'restarted' };
+      const labels: Record<string, string> = {
+        start: 'started',
+        stop: 'stopped',
+        restart: 'restarted',
+      };
       toast.success(`${name} ${labels[action]}`);
       await fetchStatus();
     } catch {
@@ -299,172 +308,178 @@ interface FileEditorHandle {
   isDirty: () => boolean;
 }
 
-const FileEditor = forwardRef<FileEditorHandle, { name: string; filePath: string; label: string }>(function FileEditor({ name, filePath, label }, ref) {
-  const [content, setContent] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [dirty, setDirty] = useState(false);
-  const [saveAsTemplateOpen, setSaveAsTemplateOpen] = useState(false);
-  const [templateName, setTemplateName] = useState('');
-  const [savingTemplate, setSavingTemplate] = useState(false);
-  const originalRef = useRef('');
+const FileEditor = forwardRef<FileEditorHandle, { name: string; filePath: string; label: string }>(
+  function FileEditor({ name, filePath, label }, ref) {
+    const [content, setContent] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [dirty, setDirty] = useState(false);
+    const [saveAsTemplateOpen, setSaveAsTemplateOpen] = useState(false);
+    const [templateName, setTemplateName] = useState('');
+    const [savingTemplate, setSavingTemplate] = useState(false);
+    const originalRef = useRef('');
 
-  useImperativeHandle(ref, () => ({
-    isDirty: () => dirty,
-  }), [dirty]);
+    useImperativeHandle(
+      ref,
+      () => ({
+        isDirty: () => dirty,
+      }),
+      [dirty],
+    );
 
-  useEffect(() => {
-    async function load() {
+    useEffect(() => {
+      async function load() {
+        try {
+          const res = await fetch(
+            `/api/files?agent=${encodeURIComponent(name)}&path=${encodeURIComponent(filePath)}`,
+          );
+          if (res.ok) {
+            const data = await res.json();
+            const text = typeof data === 'string' ? data : (data.content ?? '');
+            setContent(text);
+            originalRef.current = text;
+          }
+        } catch {
+          /* ignore */
+        } finally {
+          setLoading(false);
+        }
+      }
+      void load();
+    }, [name, filePath]);
+
+    function handleChange(val: string) {
+      setContent(val);
+      setDirty(val !== originalRef.current);
+    }
+
+    async function save() {
+      setSaving(true);
       try {
-        const res = await fetch(
-          `/api/files?agent=${encodeURIComponent(name)}&path=${encodeURIComponent(filePath)}`,
-        );
+        const res = await fetch('/api/files', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ agent: name, path: filePath, content }),
+        });
         if (res.ok) {
-          const data = await res.json();
-          const text = typeof data === 'string' ? data : (data.content ?? '');
-          setContent(text);
-          originalRef.current = text;
+          originalRef.current = content;
+          setDirty(false);
+          toast.success(`${label} saved`);
+        } else {
+          toast.error(`Failed to save ${label}`);
         }
       } catch {
-        /* ignore */
-      } finally {
-        setLoading(false);
-      }
-    }
-    void load();
-  }, [name, filePath]);
-
-  function handleChange(val: string) {
-    setContent(val);
-    setDirty(val !== originalRef.current);
-  }
-
-  async function save() {
-    setSaving(true);
-    try {
-      const res = await fetch('/api/files', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agent: name, path: filePath, content }),
-      });
-      if (res.ok) {
-        originalRef.current = content;
-        setDirty(false);
-        toast.success(`${label} saved`);
-      } else {
         toast.error(`Failed to save ${label}`);
+      } finally {
+        setSaving(false);
       }
-    } catch {
-      toast.error(`Failed to save ${label}`);
-    } finally {
-      setSaving(false);
     }
-  }
 
-  async function saveAsTemplate() {
-    const trimmed = templateName.trim();
-    if (!trimmed) {
-      toast.error('Template name is required');
-      return;
-    }
-    const fileType = FILE_PATH_TO_FILE_TYPE[filePath];
-    if (!fileType) return;
-
-    setSavingTemplate(true);
-    try {
-      const res = await fetch('/api/templates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileType, name: trimmed, content }),
-      });
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        toast.error(typeof d.error === 'string' ? d.error : 'Failed to save template');
+    async function saveAsTemplate() {
+      const trimmed = templateName.trim();
+      if (!trimmed) {
+        toast.error('Template name is required');
         return;
       }
-      toast.success(`Saved as template "${trimmed}"`);
-      setSaveAsTemplateOpen(false);
-      setTemplateName('');
-    } finally {
-      setSavingTemplate(false);
-    }
-  }
+      const fileType = FILE_PATH_TO_FILE_TYPE[filePath];
+      if (!fileType) return;
 
-  return (
-    <Card>
-      <CardHeader className="flex-row items-center justify-between">
-        <CardTitle className="font-mono text-xs">{label}</CardTitle>
-        <div className="flex gap-1.5">
-          <Dialog open={saveAsTemplateOpen} onOpenChange={setSaveAsTemplateOpen}>
-            <DialogTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={loading}
-                className="gap-1.5"
-                onClick={() => setTemplateName('')}
-              >
-                <FileText className="size-3.5" />
-                Save as Template
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Save as Template</DialogTitle>
-                <DialogDescription>
-                  Save the current content of {label} as a reusable template.
-                </DialogDescription>
-              </DialogHeader>
-              <Input
-                value={templateName}
-                onChange={(e) => setTemplateName(e.target.value)}
-                placeholder="template-name"
-                aria-label="Template name"
-              />
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button variant="outline">Cancel</Button>
-                </DialogClose>
+      setSavingTemplate(true);
+      try {
+        const res = await fetch('/api/templates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileType, name: trimmed, content }),
+        });
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}));
+          toast.error(typeof d.error === 'string' ? d.error : 'Failed to save template');
+          return;
+        }
+        toast.success(`Saved as template "${trimmed}"`);
+        setSaveAsTemplateOpen(false);
+        setTemplateName('');
+      } finally {
+        setSavingTemplate(false);
+      }
+    }
+
+    return (
+      <Card>
+        <CardHeader className="flex-row items-center justify-between">
+          <CardTitle className="font-mono text-xs">{label}</CardTitle>
+          <div className="flex gap-1.5">
+            <Dialog open={saveAsTemplateOpen} onOpenChange={setSaveAsTemplateOpen}>
+              <DialogTrigger asChild>
                 <Button
-                  onClick={() => void saveAsTemplate()}
-                  disabled={savingTemplate || !templateName.trim()}
+                  variant="ghost"
+                  size="sm"
+                  disabled={loading}
+                  className="gap-1.5"
+                  onClick={() => setTemplateName('')}
                 >
-                  {savingTemplate ? 'Saving...' : 'Save'}
+                  <FileText className="size-3.5" />
+                  Save as Template
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void save()}
-            disabled={saving || loading || !dirty}
-            className="gap-1.5"
-          >
-            {saving ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <Save className="size-3.5" />
-            )}
-            {saving ? 'Saving...' : 'Save'}
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <Skeleton className="h-48 w-full" />
-        ) : (
-          <textarea
-            className="min-h-48 w-full resize-y rounded-md border border-input bg-muted/30 p-3 font-mono text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            value={content}
-            onChange={(e) => handleChange(e.target.value)}
-            aria-label={`Edit ${label}`}
-          />
-        )}
-      </CardContent>
-    </Card>
-  );
-});
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Save as Template</DialogTitle>
+                  <DialogDescription>
+                    Save the current content of {label} as a reusable template.
+                  </DialogDescription>
+                </DialogHeader>
+                <Input
+                  value={templateName}
+                  onChange={(e) => setTemplateName(e.target.value)}
+                  placeholder="template-name"
+                  aria-label="Template name"
+                />
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button variant="outline">Cancel</Button>
+                  </DialogClose>
+                  <Button
+                    onClick={() => void saveAsTemplate()}
+                    disabled={savingTemplate || !templateName.trim()}
+                  >
+                    {savingTemplate ? 'Saving...' : 'Save'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void save()}
+              disabled={saving || loading || !dirty}
+              className="gap-1.5"
+            >
+              {saving ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Save className="size-3.5" />
+              )}
+              {saving ? 'Saving...' : 'Save'}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <Skeleton className="h-48 w-full" />
+          ) : (
+            <textarea
+              className="min-h-48 w-full resize-y rounded-md border border-input bg-muted/30 p-3 font-mono text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              value={content}
+              onChange={(e) => handleChange(e.target.value)}
+              aria-label={`Edit ${label}`}
+            />
+          )}
+        </CardContent>
+      </Card>
+    );
+  },
+);
 
 type EnvVisibility = 'plain' | 'secure';
 
@@ -759,219 +774,7 @@ function AgentEnvDeleteButton({
   );
 }
 
-interface SkillNode {
-  name: string;
-  relativePath: string;
-  hasSkill: boolean;
-  children: SkillNode[];
-}
-
-interface EquippedLink {
-  id: number;
-  agent: string;
-  sourcePath: string;
-  targetPath: string;
-  exists: boolean;
-  relativePath: string;
-}
-
-function SkillsTab({ name }: { name: string }) {
-  const [tree, setTree] = useState<SkillNode[]>([]);
-  const [equipped, setEquipped] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
-  const [actioning, setActioning] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    async function loadSkills() {
-      try {
-        const [treeRes, linksRes] = await Promise.all([
-          fetch('/api/skills/tree'),
-          fetch(`/api/skills/links?agent=${encodeURIComponent(name)}`),
-        ]);
-
-        if (treeRes.ok) {
-          const data = await treeRes.json();
-          setTree(data.tree || []);
-        }
-
-        if (linksRes.ok) {
-          const links = await linksRes.json();
-          const equippedSet = new Set<string>(
-            links
-              .filter((link: EquippedLink) => link.exists)
-              .map((link: EquippedLink) => link.relativePath),
-          );
-          setEquipped(equippedSet);
-        }
-      } catch {
-        // ignore
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    void loadSkills();
-  }, [name]);
-
-  async function handleToggle(relativePath: string, checked: boolean) {
-    setActioning((s) => new Set([...s, relativePath]));
-
-    try {
-      if (checked) {
-        const res = await fetch('/api/skills/links', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ agent: name, relativePath }),
-        });
-
-        if (res.ok) {
-          setEquipped((s) => new Set([...s, relativePath]));
-          toast.success(`Equipped ${relativePath}`);
-        } else {
-          const err = await res.json().catch(() => ({}));
-          toast.error(typeof err.error === 'string' ? err.error : 'Failed to equip skill');
-        }
-      } else {
-        // Find the link ID from equipped list
-        const linksRes = await fetch(`/api/skills/links?agent=${encodeURIComponent(name)}`);
-        if (!linksRes.ok) {
-          toast.error('Failed to fetch links');
-          return;
-        }
-
-        const links = await linksRes.json();
-        const link = links.find((l: EquippedLink) => l.relativePath === relativePath);
-
-        if (!link) {
-          toast.error('Link not found');
-          return;
-        }
-
-        const delRes = await fetch(`/api/skills/links?id=${link.id}`, { method: 'DELETE' });
-
-        if (delRes.ok) {
-          setEquipped((s) => {
-            const next = new Set(s);
-            next.delete(relativePath);
-            return next;
-          });
-          toast.success(`Unequipped ${relativePath}`);
-        } else {
-          const err = await delRes.json().catch(() => ({}));
-          toast.error(typeof err.error === 'string' ? err.error : 'Failed to unequip skill');
-        }
-      }
-    } catch {
-      toast.error('Network error');
-    } finally {
-      setActioning((s) => {
-        const next = new Set(s);
-        next.delete(relativePath);
-        return next;
-      });
-    }
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-sm">Skills</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <Skeleton className="h-48 w-full" />
-        ) : tree.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No skills available in ~/.agents/skills</p>
-        ) : (
-          <div className="space-y-1">
-            {tree.map((node) => (
-              <SkillTreeNode
-                key={node.relativePath}
-                node={node}
-                equipped={equipped}
-                actioning={actioning}
-                onToggle={handleToggle}
-                depth={0}
-              />
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function SkillTreeNode({
-  node,
-  equipped,
-  actioning,
-  onToggle,
-  depth,
-}: {
-  node: SkillNode;
-  equipped: Set<string>;
-  actioning: Set<string>;
-  onToggle: (path: string, checked: boolean) => void;
-  depth: number;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  // スキルディレクトリは子フォルダを表示しない（再帰的に深掘りしない）
-  // 非スキルディレクトリだけ展開可能
-  const canExpand = !node.hasSkill && node.children.length > 0;
-  // スキルディレクトリの場合は子を非表示
-  const visibleChildren = node.hasSkill ? [] : node.children;
-
-  return (
-    <div className="space-y-0.5">
-      <div className="flex items-center gap-2 py-1" style={{ paddingLeft: `${depth * 1.5}rem` }}>
-        {canExpand && (
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="inline-flex size-5 items-center justify-center rounded hover:bg-muted"
-          >
-            {expanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-          </button>
-        )}
-
-        {!canExpand && <div className="size-5" />}
-
-        {node.hasSkill ? (
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <Checkbox
-              checked={equipped.has(node.relativePath)}
-              onCheckedChange={(checked) => void onToggle(node.relativePath, checked === true)}
-              disabled={actioning.has(node.relativePath)}
-              className="mt-0.5"
-            />
-            <label className="text-sm font-medium truncate select-none cursor-pointer flex-1">
-              {node.name}
-            </label>
-            {actioning.has(node.relativePath) && <Loader2 className="size-3 animate-spin flex-shrink-0" />}
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 flex-1">
-            <span className="text-xs font-medium text-muted-foreground">{node.name}</span>
-          </div>
-        )}
-      </div>
-
-      {expanded && visibleChildren.length > 0 && (
-        <div>
-          {visibleChildren.map((child) => (
-            <SkillTreeNode
-              key={child.relativePath}
-              node={child}
-              equipped={equipped}
-              actioning={actioning}
-              onToggle={onToggle}
-              depth={depth + 1}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+// SkillsTab is imported from @/src/components/skills-tab
 
 function LogViewer({ name }: { name: string }) {
   const [lines, setLines] = useState<string[]>([]);

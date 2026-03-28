@@ -7,8 +7,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, schema } from '@/src/lib/db';
 import { CreateLinkSchema, deriveRelativePath } from '@/src/lib/skills';
 
-async function getAgent(name: string) {
-  const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.name, name));
+async function getAgent(agentId: string) {
+  const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.agentId, agentId));
   return agent ?? null;
 }
 

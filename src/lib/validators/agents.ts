@@ -1,25 +1,28 @@
 import { z } from 'zod';
 
-const nameRegex = /^[a-zA-Z0-9_-]+$/;
+const agentIdRegex = /^[a-zA-Z0-9_-]+$/;
 
-export const CreateAgentSchema = z.object({
-  name: z
-    .string()
-    .regex(nameRegex, 'Name must only contain alphanumeric, underscore, or hyphen characters'),
-  templates: z
-    .object({
-      agentsMd: z.string().optional(),
-      soulMd: z.string().optional(),
-      configYaml: z.string().optional(),
-    })
-    .optional(),
-});
+/**
+ * POST /api/agents — body is optional (id is auto-generated).
+ * Optionally accepts templates for initial file content.
+ */
+export const CreateAgentSchema = z
+  .object({
+    templates: z
+      .object({
+        agentsMd: z.string().optional(),
+        soulMd: z.string().optional(),
+        configYaml: z.string().optional(),
+      })
+      .optional(),
+  })
+  .optional();
 
+/**
+ * POST /api/agents/copy — only `from` is required (destination id is auto-generated).
+ */
 export const CopyAgentSchema = z.object({
   from: z
     .string()
-    .regex(nameRegex, 'from must only contain alphanumeric, underscore, or hyphen characters'),
-  to: z
-    .string()
-    .regex(nameRegex, 'to must only contain alphanumeric, underscore, or hyphen characters'),
+    .regex(agentIdRegex, 'from must only contain alphanumeric, underscore, or hyphen characters'),
 });

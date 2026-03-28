@@ -18,8 +18,8 @@ const UpsertEnvSchema = z.object({
   visibility: visibilitySchema.default('plain'),
 });
 
-async function getAgent(name: string) {
-  const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.name, name));
+async function getAgent(agentId: string) {
+  const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.agentId, agentId));
   return agent ?? null;
 }
 

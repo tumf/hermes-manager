@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 
   const { agent: agentName, file } = result.data;
 
-  const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.name, agentName));
+  const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.agentId, agentName));
 
   if (!agent) {
     return new Response(JSON.stringify({ error: 'agent not found' }), {

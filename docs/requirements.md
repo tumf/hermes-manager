@@ -10,10 +10,10 @@
 
 ## 2. 用語
 
-- Agent: Hermes gateway を launchd で常駐させる単位。HERMES_HOME は {PROJECT_ROOT}/runtime/agents/{name}。
+- Agent: Hermes gateway を launchd で常駐させる単位。HERMES_HOME は {PROJECT_ROOT}/runtime/agents/{id}。id はシステムが自動生成する `[0-9a-z]{7}` のランダム文字列。
 - Global Vars: 全エージェント共通で参照する .env 値。runtime/globals/.env に生成され、dotenvx -f で積み上げる。
 - Skill: ~/.agents/skills 以下のスキル（階層ディレクトリ可）。HERMES_HOME/skills へ symlink 管理。スキルディレクトリ内に SKILL.md が存在するもののみ選択可能。
-- Launchd Label: ai.hermes.gateway.{agent_name}
+- Launchd Label: ai.hermes.gateway.{agent_id}
 
 ## 3. スコープ
 
@@ -38,7 +38,7 @@
 
 ## 5. 機能要件（FR）
 
-- FR-1 Agents API: GET/POST/DELETE/copy（name 検証、標準ファイル作成、DB 登録）
+- FR-1 Agents API: GET/POST/DELETE/copy（id 自動生成 `[0-9a-z]{7}`、標準ファイル作成、DB 登録、POST はボディ不要）
 - FR-2 Launchd API: install/uninstall/start/stop/status（child_process.execFile、stdout/err/code返却）
 - FR-3 Files API: AGENTS.md / SOUL.md / config.yaml の read/put（YAML 構文検証、原子書き込み）
 - FR-4 Env API: agent .env CRUD、resolved（global+agent マージ）、各変数に `visibility`（plain/secure）を保持し secure は管理表示でマスク
@@ -73,7 +73,7 @@
 ## 9. 制約/前提
 
 - Node >= 20, macOS launchd 環境、dotenvx インストール済
-- HERMES_HOME 構造: runtime/agents/{name}/{AGENTS.md, SOUL.md, config.yaml, .env, logs/}
+- HERMES_HOME 構造: runtime/agents/{id}/{AGENTS.md, SOUL.md, config.yaml, .env, logs/}
 
 ## 10. 受け入れ基準（抜粋）
 
@@ -89,4 +89,4 @@
 - / Agents 一覧（Add Agent ダイアログにテンプレート選択を含む）
 - /globals グローバル変数
 - /templates テンプレート管理（fileType 別グループ、追加/編集/削除）
-- /agents/[n] Memory / Config / Env / Skills / Cron / Logs タブ（Save as Template ボタン付き）
+- /agents/[id] Memory / Config / Env / Skills / Cron / Logs タブ（Save as Template ボタン付き）

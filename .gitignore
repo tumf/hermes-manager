@@ -11,7 +11,7 @@ coverage
 /data/
 /drizzle/
 /logs/*.log
-agents/
+/agents/
 runtime/
 globals/
 /.playwright-cli
