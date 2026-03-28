@@ -1,8 +1,8 @@
 'use client';
 
-import { Copy, EllipsisVertical, Play, Plus, Square, Trash2 } from 'lucide-react';
+import { Copy, EllipsisVertical, Play, Plus, RotateCcw, Square, Trash2 } from 'lucide-react';
 import Link from 'next/link';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import {
@@ -20,12 +20,29 @@ import { Badge } from '@/src/components/ui/badge';
 import { Button } from '@/src/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/src/components/ui/card';
 import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/src/components/ui/dialog';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/src/components/ui/dropdown-menu';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/src/components/ui/select';
 import { Skeleton } from '@/src/components/ui/skeleton';
 
 interface Agent {
@@ -41,10 +58,22 @@ interface AgentWithStatus extends Agent {
   running?: boolean;
 }
 
+interface Template {
+  id: number;
+  fileType: string;
+  name: string;
+  content: string;
+}
+
 export default function Home() {
   const [agents, setAgents] = useState<AgentWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [addBusy, setAddBusy] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [addTemplateAgentsMd, setAddTemplateAgentsMd] = useState('default');
+  const [addTemplateSoulMd, setAddTemplateSoulMd] = useState('default');
+  const [addTemplateConfigYaml, setAddTemplateConfigYaml] = useState('default');
+  const [allTemplates, setAllTemplates] = useState<Template[]>([]);
 
   const fetchAgents = useCallback(async () => {
     try {
@@ -77,15 +106,59 @@ export default function Home() {
     }
   }, []);
 
+  const fetchTemplates = useCallback(async () => {
+    try {
+      const res = await fetch('/api/templates');
+      if (res.ok) {
+        const data: Template[] = await res.json();
+        setAllTemplates(data);
+      }
+    } catch {
+      // Templates fetch is non-critical; dialog still works with no templates
+    }
+  }, []);
+
+  const agentsMdTemplates = useMemo(
+    () => allTemplates.filter((t) => t.fileType === 'agents.md'),
+    [allTemplates],
+  );
+  const soulMdTemplates = useMemo(
+    () => allTemplates.filter((t) => t.fileType === 'soul.md'),
+    [allTemplates],
+  );
+  const configYamlTemplates = useMemo(
+    () => allTemplates.filter((t) => t.fileType === 'config.yaml'),
+    [allTemplates],
+  );
+
   useEffect(() => {
     void fetchAgents();
-  }, [fetchAgents]);
+    void fetchTemplates();
+  }, [fetchAgents, fetchTemplates]);
 
   async function handleAdd() {
     setAddBusy(true);
     try {
+      const templates: Record<string, string> = {};
+      if (addTemplateAgentsMd && addTemplateAgentsMd !== 'default') {
+        templates.agentsMd = addTemplateAgentsMd;
+      }
+      if (addTemplateSoulMd && addTemplateSoulMd !== 'default') {
+        templates.soulMd = addTemplateSoulMd;
+      }
+      if (addTemplateConfigYaml && addTemplateConfigYaml !== 'default') {
+        templates.configYaml = addTemplateConfigYaml;
+      }
+
+      const body: Record<string, unknown> = {};
+      if (Object.keys(templates).length > 0) {
+        body.templates = templates;
+      }
+
       const res = await fetch('/api/agents', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
@@ -93,6 +166,10 @@ export default function Home() {
         return;
       }
       const created = await res.json();
+      setAddTemplateAgentsMd('default');
+      setAddTemplateSoulMd('default');
+      setAddTemplateConfigYaml('default');
+      setAddDialogOpen(false);
       toast.success(`Agent "${created.agentId}" created`);
       await fetchAgents();
     } finally {
@@ -100,7 +177,7 @@ export default function Home() {
     }
   }
 
-  async function handleStartStop(agent: AgentWithStatus, action: 'start' | 'stop') {
+  async function handleStartStop(agent: AgentWithStatus, action: 'start' | 'stop' | 'restart') {
     try {
       const res = await fetch('/api/launchd', {
         method: 'POST',
@@ -118,7 +195,12 @@ export default function Home() {
         toast.error(message);
         return;
       }
-      toast.success(`${agent.agentId} ${action === 'start' ? 'started' : 'stopped'}`);
+      const labels: Record<string, string> = {
+        start: 'started',
+        stop: 'stopped',
+        restart: 'restarted',
+      };
+      toast.success(`${agent.agentId} ${labels[action]}`);
       await fetchAgents();
     } catch {
       toast.error(`Failed to ${action} ${agent.agentId}`);
@@ -164,11 +246,71 @@ export default function Home() {
           <h1 className="text-2xl font-semibold tracking-tight">Agents</h1>
           <p className="text-sm text-muted-foreground">Manage your Hermes AI agents.</p>
         </div>
-        <Button onClick={() => void handleAdd()} disabled={addBusy} className="h-11 gap-2">
-          <Plus className="size-4" />
-          {addBusy ? 'Adding...' : 'Add Agent'}
-        </Button>
       </div>
+
+      {/* Add agent dialog */}
+      <Dialog
+        open={addDialogOpen}
+        onOpenChange={(open) => {
+          setAddDialogOpen(open);
+          if (open) void fetchTemplates();
+        }}
+      >
+        <DialogTrigger asChild>
+          <Button className="h-11 gap-2">
+            <Plus className="size-4" />
+            Add Agent
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void handleAdd();
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>Add Agent</DialogTitle>
+              <DialogDescription>
+                Create a new agent with an auto-generated ID and optional template selection.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="mt-4 space-y-4">
+              <TemplateSelect
+                label="AGENTS.md Template"
+                id="tpl-agents-md"
+                value={addTemplateAgentsMd}
+                onValueChange={setAddTemplateAgentsMd}
+                templates={agentsMdTemplates}
+              />
+              <TemplateSelect
+                label="SOUL.md Template"
+                id="tpl-soul-md"
+                value={addTemplateSoulMd}
+                onValueChange={setAddTemplateSoulMd}
+                templates={soulMdTemplates}
+              />
+              <TemplateSelect
+                label="config.yaml Template"
+                id="tpl-config-yaml"
+                value={addTemplateConfigYaml}
+                onValueChange={setAddTemplateConfigYaml}
+                templates={configYamlTemplates}
+              />
+            </div>
+            <DialogFooter className="mt-6">
+              <DialogClose asChild>
+                <Button type="button" variant="outline">
+                  Cancel
+                </Button>
+              </DialogClose>
+              <Button type="submit" disabled={addBusy}>
+                {addBusy ? 'Creating...' : 'Create'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Loading skeleton */}
       {loading && (
@@ -228,14 +370,24 @@ export default function Home() {
               </CardHeader>
               <CardFooter className="flex-wrap gap-2">
                 {a.running ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void handleStartStop(a, 'stop')}
-                  >
-                    <Square className="size-3.5" />
-                    Stop
-                  </Button>
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void handleStartStop(a, 'stop')}
+                    >
+                      <Square className="size-3.5" />
+                      Stop
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void handleStartStop(a, 'restart')}
+                    >
+                      <RotateCcw className="size-3.5" />
+                      Restart
+                    </Button>
+                  </>
                 ) : (
                   <Button size="sm" onClick={() => void handleStartStop(a, 'start')}>
                     <Play className="size-3.5" />
@@ -287,14 +439,24 @@ export default function Home() {
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-2">
                       {a.running ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => void handleStartStop(a, 'stop')}
-                        >
-                          <Square className="size-3.5" />
-                          Stop
-                        </Button>
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => void handleStartStop(a, 'stop')}
+                          >
+                            <Square className="size-3.5" />
+                            Stop
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => void handleStartStop(a, 'restart')}
+                          >
+                            <RotateCcw className="size-3.5" />
+                            Restart
+                          </Button>
+                        </>
                       ) : (
                         <Button size="sm" onClick={() => void handleStartStop(a, 'start')}>
                           <Play className="size-3.5" />
@@ -372,5 +534,42 @@ function AgentActionsMenu({
         </AlertDialog>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+function TemplateSelect({
+  label,
+  id,
+  value,
+  onValueChange,
+  templates,
+}: {
+  label: string;
+  id: string;
+  value: string;
+  onValueChange: (v: string) => void;
+  templates: Template[];
+}) {
+  return (
+    <div>
+      <label htmlFor={id} className="mb-1.5 block text-sm font-medium">
+        {label}
+      </label>
+      <Select value={value} onValueChange={onValueChange}>
+        <SelectTrigger id={id}>
+          <SelectValue placeholder="default" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="default">default</SelectItem>
+          {templates
+            .filter((t) => t.name !== 'default')
+            .map((t) => (
+              <SelectItem key={t.id} value={t.name}>
+                {t.name}
+              </SelectItem>
+            ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }

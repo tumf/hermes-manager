@@ -97,6 +97,11 @@ function mockFetch(overrides: Record<string, unknown> = {}) {
           };
         }
 
+        // GET /api/templates
+        if ((url as string).startsWith('/api/templates') && method === 'GET') {
+          return { ok: true, json: async () => [] };
+        }
+
         return { ok: true, json: async () => ({}) };
       },
     );
@@ -187,17 +192,24 @@ describe('AgentsPage', () => {
     expect(screen.getAllByRole('button', { name: /more actions/i }).length).toBeGreaterThan(0);
   });
 
-  it('Add Agent button calls POST /api/agents without body and refreshes', async () => {
+  it('Add Agent dialog calls POST /api/agents and refreshes', async () => {
     const fetchMock = mockFetch();
     global.fetch = fetchMock;
 
     render(<Home />);
 
+    // Click "Add Agent" button to open dialog
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /add agent/i })).toBeInTheDocument();
     });
-
     fireEvent.click(screen.getByRole('button', { name: /add agent/i }));
+
+    // Wait for dialog to open then click Create button (no name input needed)
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /create/i }));
 
     await waitFor(() => {
       const calls = fetchMock.mock.calls as [string, { method?: string; body?: string }?][];

@@ -1,6 +1,6 @@
 # Hermes Agents WebApp 要件定義
 
-最終更新: 2026-03-27
+最終更新: 2026-03-29
 
 ## 1. 背景/目的
 
@@ -47,6 +47,7 @@
 - FR-7 Logs API: 読み取り（tail）、SSE で追尾
 - FR-8 Cron API: jobs.json CRUD、pause/resume/run action、output ファイル閲覧（GET/POST/PUT/DELETE、原子書き込み）
 - FR-9 UI: Agents 一覧（起動/停止/状態表示/追加/削除/コピー）、詳細タブ UI（Memory/Config/Env/Cron/Logs）、Globals UI
+- FR-10 Templates API: テンプレート CRUD（GET/POST/PUT/DELETE）、fileType + name で UNIQUE 制約。エージェント作成時のテンプレート選択、default テンプレートへのフォールバック、既存ファイルからの Save as Template
 
 ## 6. 非機能要件（NFR）
 
@@ -81,10 +82,11 @@
 
 ## 11. API 高レベル一覧
 
-- /api/agents, /api/launchd, /api/files, /api/env, /api/env/resolved, /api/globals, /api/skills/\*, /api/logs, /api/logs/stream, /api/cron, /api/cron/action, /api/cron/output
+- /api/agents, /api/launchd, /api/files, /api/env, /api/env/resolved, /api/globals, /api/skills/\*, /api/logs, /api/logs/stream, /api/cron, /api/cron/action, /api/cron/output, /api/templates
 
 ## 12. UI 概要
 
-- / Agents 一覧
+- / Agents 一覧（Add Agent ダイアログにテンプレート選択を含む）
 - /globals グローバル変数
-- /agents/[id] Memory / Config / Env / Skills / Cron / Logs タブ
+- /templates テンプレート管理（fileType 別グループ、追加/編集/削除）
+- /agents/[id] Memory / Config / Env / Skills / Cron / Logs タブ（Save as Template ボタン付き）
