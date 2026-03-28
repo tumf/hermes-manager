@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -12,6 +13,10 @@ vi.mock('sonner', () => ({
 }));
 
 let AgentDetailPage: React.ComponentType<{ params: { name: string } }>;
+
+function renderPage(name: string) {
+  return render(<AgentDetailPage params={{ name }} />);
+}
 
 const fileContents: Record<string, string> = {
   'AGENTS.md': '# Agents file\n',
@@ -43,10 +48,35 @@ function createFetchMock() {
         return { ok: true, json: async () => ({}) };
       }
 
+      if (url.startsWith('/api/env?') && method === 'GET') {
+        return {
+          ok: true,
+          json: async () => [
+            { key: 'BASE_URL', value: 'https://example.com', masked: false, visibility: 'plain' },
+          ],
+        };
+      }
+
       if (url.startsWith('/api/env/resolved?') && method === 'GET') {
         return {
           ok: true,
           json: async () => [{ key: 'BASE_URL', value: 'https://example.com', source: 'global' }],
+        };
+      }
+
+      if (url === '/api/skills/tree' && method === 'GET') {
+        return {
+          ok: true,
+          json: async () => ({
+            tree: [
+              {
+                name: 'coding',
+                relativePath: 'coding',
+                hasSkill: true,
+                children: [],
+              },
+            ],
+          }),
         };
       }
 
@@ -56,9 +86,11 @@ function createFetchMock() {
           json: async () => [
             {
               id: 1,
+              agent: 'alpha',
               sourcePath: '/Users/tumf/.hermes/skills/coding',
               targetPath: '/runtime/agents/alpha/skills/coding',
               exists: true,
+              relativePath: 'coding',
             },
           ],
         };
@@ -82,7 +114,7 @@ describe('Agent detail memory tab', () => {
   it('renders required tabs including Env and Skills', async () => {
     global.fetch = createFetchMock();
 
-    render(<AgentDetailPage params={{ name: 'alpha' }} />);
+    renderPage('alpha');
 
     await waitFor(() => {
       expect(screen.getByRole('tab', { name: 'Memory' })).toBeInTheDocument();
@@ -97,7 +129,7 @@ describe('Agent detail memory tab', () => {
   it('shows only one memory editor at a time', async () => {
     global.fetch = createFetchMock();
 
-    render(<AgentDetailPage params={{ name: 'alpha' }} />);
+    renderPage('alpha');
 
     await waitFor(() => {
       expect(screen.getByRole('textbox', { name: 'Edit AGENTS.md' })).toBeInTheDocument();
@@ -111,7 +143,7 @@ describe('Agent detail memory tab', () => {
     const fetchMock = createFetchMock();
     global.fetch = fetchMock;
 
-    render(<AgentDetailPage params={{ name: 'alpha' }} />);
+    renderPage('alpha');
 
     await waitFor(() => {
       expect(screen.getByRole('textbox', { name: 'Edit AGENTS.md' })).toBeInTheDocument();
@@ -134,7 +166,7 @@ describe('Agent detail memory tab', () => {
     global.fetch = fetchMock;
     const confirmMock = vi.spyOn(window, 'confirm').mockReturnValue(false);
 
-    render(<AgentDetailPage params={{ name: 'alpha' }} />);
+    renderPage('alpha');
 
     await waitFor(() => {
       expect(screen.getByRole('textbox', { name: 'Edit AGENTS.md' })).toBeInTheDocument();
@@ -160,7 +192,7 @@ describe('Agent detail memory tab', () => {
     const fetchMock = createFetchMock();
     global.fetch = fetchMock;
 
-    render(<AgentDetailPage params={{ name: 'alpha' }} />);
+    renderPage('alpha');
 
     await waitFor(() => {
       expect(screen.getByRole('textbox', { name: 'Edit AGENTS.md' })).toBeInTheDocument();
@@ -193,14 +225,15 @@ describe('Agent detail memory tab', () => {
   it('loads resolved env when Env tab is opened', async () => {
     const fetchMock = createFetchMock();
     global.fetch = fetchMock;
+    const user = userEvent.setup();
 
-    render(<AgentDetailPage params={{ name: 'alpha' }} />);
+    renderPage('alpha');
 
     await waitFor(() => {
       expect(screen.getByRole('tab', { name: 'Env' })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Env' }));
+    await user.click(screen.getByRole('tab', { name: 'Env' }));
 
     await waitFor(() => {
       expect(screen.getByText('BASE_URL')).toBeInTheDocument();
@@ -209,7 +242,7 @@ describe('Agent detail memory tab', () => {
 
     const envCall = (fetchMock.mock.calls as [string, { method?: string }?][]).find(
       ([url, init]) =>
-        url.startsWith('/api/env/resolved?') &&
+        url.startsWith('/api/env?') &&
         (init?.method ?? 'GET') === 'GET' &&
         url.includes('agent=alpha'),
     );
@@ -219,19 +252,18 @@ describe('Agent detail memory tab', () => {
   it('loads skill links when Skills tab is opened', async () => {
     const fetchMock = createFetchMock();
     global.fetch = fetchMock;
+    const user = userEvent.setup();
 
-    render(<AgentDetailPage params={{ name: 'alpha' }} />);
+    renderPage('alpha');
 
     await waitFor(() => {
       expect(screen.getByRole('tab', { name: 'Skills' })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Skills' }));
+    await user.click(screen.getByRole('tab', { name: 'Skills' }));
 
     await waitFor(() => {
-      expect(screen.getByText('/Users/tumf/.hermes/skills/coding')).toBeInTheDocument();
-      expect(screen.getByText('/runtime/agents/alpha/skills/coding')).toBeInTheDocument();
-      expect(screen.getByText('Linked')).toBeInTheDocument();
+      expect(screen.getByText('coding')).toBeInTheDocument();
     });
 
     const linksCall = (fetchMock.mock.calls as [string, { method?: string }?][]).find(

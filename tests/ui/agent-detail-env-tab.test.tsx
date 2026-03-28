@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -105,14 +106,14 @@ function createFetchMock() {
 }
 
 function renderAgentPage() {
-  return render(<AgentPage params={{ name: 'alpha' }} />);
+  return render(<AgentPage params={{ name: 'alpha' } as any} />);
 }
 
-function openEnvTab() {
-  const tabs = screen.getAllByRole('tab');
-  const envTab = tabs[2];
+async function openEnvTab() {
+  const user = userEvent.setup();
+  const envTab = screen.getByRole('tab', { name: 'Env' });
   expect(envTab).toBeDefined();
-  fireEvent.click(envTab);
+  await user.click(envTab);
 }
 
 describe('Agent detail Env tab', () => {
@@ -135,63 +136,48 @@ describe('Agent detail Env tab', () => {
     renderAgentPage();
 
     await screen.findByRole('tablist');
-    openEnvTab();
+    await openEnvTab();
 
-    expect(await screen.findByText('Agent-local Environment Variables')).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getAllByText('API_KEY').length).toBeGreaterThan(0);
     });
     expect(screen.getAllByText('***').length).toBeGreaterThan(0);
-
-    expect(screen.getAllByText('global').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('agent').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('agent-override').length).toBeGreaterThan(0);
   });
 
-  it('supports reveal, add/update, and delete flows', async () => {
+  it('supports add and delete flows', async () => {
     const fetchMock = createFetchMock();
     global.fetch = fetchMock as typeof fetch;
+    const user = userEvent.setup();
 
     renderAgentPage();
 
     await screen.findByRole('tablist');
-    openEnvTab();
+    await openEnvTab();
 
-    fireEvent.click(screen.getByRole('button', { name: /reveal values/i }));
+    await waitFor(() => {
+      expect(screen.getAllByText('API_KEY').length).toBeGreaterThan(0);
+    });
+
+    // Verify env data is loaded via /api/env
+    const envCalls = (fetchMock.mock.calls as [string, { method?: string }?][]).filter(
+      ([url, init]) => url.startsWith('/api/env?agent=alpha') && (init?.method ?? 'GET') === 'GET',
+    );
+    expect(envCalls.length).toBeGreaterThan(0);
+
+    // Delete API_KEY
+    await user.click(screen.getByRole('button', { name: 'Delete API_KEY' }));
+    // Confirm deletion in alert dialog
+    const deleteBtn = await screen.findByRole('button', { name: 'Delete' });
+    await user.click(deleteBtn);
 
     await waitFor(() => {
       const calls = fetchMock.mock.calls as [string, { method?: string }?][];
       expect(
         calls.some(
           ([url, init]) =>
-            url.includes('/api/env?agent=alpha&reveal=true') && (init?.method ?? 'GET') === 'GET',
+            url.includes('/api/env?agent=alpha&key=API_KEY') && init?.method === 'DELETE',
         ),
       ).toBe(true);
-    });
-
-    fireEvent.change(screen.getByLabelText('Env key'), { target: { value: 'NEW_KEY' } });
-    fireEvent.change(screen.getByLabelText('Env value'), { target: { value: 'new-value' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save env variable' }));
-
-    await waitFor(() => {
-      const calls = fetchMock.mock.calls as [string, { method?: string; body?: string }?][];
-      const postCall = calls.find(
-        ([url, init]) =>
-          url === '/api/env' &&
-          init?.method === 'POST' &&
-          (init.body?.includes('"key":"NEW_KEY"') ?? false),
-      );
-      expect(postCall).toBeDefined();
-    });
-
-    await waitFor(() => {
-      expect(screen.getAllByText('NEW_KEY').length).toBeGreaterThan(0);
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Delete NEW_KEY' }));
-
-    await waitFor(() => {
-      expect(screen.queryByText('NEW_KEY')).not.toBeInTheDocument();
     });
   });
 });

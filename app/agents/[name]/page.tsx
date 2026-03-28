@@ -17,7 +17,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
-import { use, useCallback, useEffect, useRef, useState } from 'react';
+import { use, useCallback, useEffect, useImperativeHandle, useRef, useState, forwardRef } from 'react';
 import { toast } from 'sonner';
 
 import { CronTab } from '@/src/components/cron-tab';
@@ -52,11 +52,12 @@ import { Skeleton } from '@/src/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/src/components/ui/tabs';
 
 interface AgentPageProps {
-  params: Promise<{ name: string }>;
+  params: Promise<{ name: string }> | { name: string };
 }
 
 export default function AgentPage({ params }: AgentPageProps) {
-  const { name } = use(params);
+  const resolvedParams = params instanceof Promise ? use(params) : params;
+  const { name } = resolvedParams;
 
   const [status, setStatus] = useState<{
     running: boolean;
@@ -221,10 +222,7 @@ export default function AgentPage({ params }: AgentPageProps) {
         </TabsList>
 
         <TabsContent value="memory">
-          <div className="grid gap-4 lg:grid-cols-2">
-            <FileEditor name={name} filePath="AGENTS.md" label="AGENTS.md" />
-            <FileEditor name={name} filePath="SOUL.md" label="SOUL.md" />
-          </div>
+          <MemoryTab name={name} />
         </TabsContent>
 
         <TabsContent value="config">
@@ -257,7 +255,51 @@ const FILE_PATH_TO_FILE_TYPE: Record<string, string> = {
   'config.yaml': 'config.yaml',
 };
 
-function FileEditor({ name, filePath, label }: { name: string; filePath: string; label: string }) {
+const MEMORY_FILES = ['AGENTS.md', 'SOUL.md'] as const;
+
+function MemoryTab({ name }: { name: string }) {
+  const [selectedFile, setSelectedFile] = useState<string>(MEMORY_FILES[0]);
+  const editorRef = useRef<FileEditorHandle>(null);
+
+  function handleSwitch(file: string) {
+    if (file === selectedFile) return;
+    if (editorRef.current?.isDirty()) {
+      const confirmed = window.confirm('You have unsaved changes. Discard and switch?');
+      if (!confirmed) return;
+    }
+    setSelectedFile(file);
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex gap-1">
+        {MEMORY_FILES.map((file) => (
+          <Button
+            key={file}
+            variant={selectedFile === file ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => handleSwitch(file)}
+          >
+            {file}
+          </Button>
+        ))}
+      </div>
+      <FileEditor
+        key={selectedFile}
+        ref={editorRef}
+        name={name}
+        filePath={selectedFile}
+        label={selectedFile}
+      />
+    </div>
+  );
+}
+
+interface FileEditorHandle {
+  isDirty: () => boolean;
+}
+
+const FileEditor = forwardRef<FileEditorHandle, { name: string; filePath: string; label: string }>(function FileEditor({ name, filePath, label }, ref) {
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -266,6 +308,10 @@ function FileEditor({ name, filePath, label }: { name: string; filePath: string;
   const [templateName, setTemplateName] = useState('');
   const [savingTemplate, setSavingTemplate] = useState(false);
   const originalRef = useRef('');
+
+  useImperativeHandle(ref, () => ({
+    isDirty: () => dirty,
+  }), [dirty]);
 
   useEffect(() => {
     async function load() {
@@ -418,7 +464,7 @@ function FileEditor({ name, filePath, label }: { name: string; filePath: string;
       </CardContent>
     </Card>
   );
-}
+});
 
 type EnvVisibility = 'plain' | 'secure';
 
@@ -429,7 +475,7 @@ interface AgentEnvRow {
   visibility: EnvVisibility;
 }
 
-function AgentEnvTab({ name }: { name: string }) {
+export function AgentEnvTab({ name }: { name: string }) {
   const [rows, setRows] = useState<AgentEnvRow[]>([]);
   const [loading, setLoading] = useState(true);
 
