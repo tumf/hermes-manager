@@ -4,6 +4,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Clock,
   FileText,
   Loader2,
   Play,
@@ -18,6 +19,7 @@ import Link from 'next/link';
 import { use, useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { CronTab } from '@/src/components/cron-tab';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -190,6 +192,10 @@ export default function AgentPage({ params }: AgentPageProps) {
             <Settings className="size-3.5" />
             <span className="hidden sm:inline">Skills</span>
           </TabsTrigger>
+          <TabsTrigger value="cron" className="gap-1.5">
+            <Clock className="size-3.5" />
+            <span className="hidden sm:inline">Cron</span>
+          </TabsTrigger>
           <TabsTrigger value="logs" className="gap-1.5">
             <ScrollText className="size-3.5" />
             <span className="hidden sm:inline">Logs</span>
@@ -213,6 +219,10 @@ export default function AgentPage({ params }: AgentPageProps) {
 
         <TabsContent value="skills">
           <SkillsTab name={name} />
+        </TabsContent>
+
+        <TabsContent value="cron">
+          <CronTab name={name} />
         </TabsContent>
 
         <TabsContent value="logs">
