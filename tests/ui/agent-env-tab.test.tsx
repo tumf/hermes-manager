@@ -1,10 +1,10 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import React from 'react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import '@testing-library/jest-dom';
 
-let AgentEnvTab: React.ComponentType<{ name: string }>;
+import { AgentEnvTab } from '../../app/agents/[id]/page';
 
 function mockFetch() {
   return vi.fn().mockImplementation(async (url: string, init?: { method?: string }) => {
@@ -32,12 +32,6 @@ function mockFetch() {
     return { ok: true, json: async () => ({}) };
   });
 }
-
-beforeEach(async () => {
-  const mod = await import('../../app/agents/[id]/page');
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  AgentEnvTab = (mod as any).AgentEnvTab;
-});
 
 afterEach(() => {
   cleanup();
