@@ -13,6 +13,14 @@ vi.mock('sonner', () => ({
 
 let AgentDetailPage: React.ComponentType<{ params: Promise<{ id: string }> }>;
 
+function renderPage(name: string) {
+  return render(
+    <Suspense fallback={<div>Loading...</div>}>
+      <AgentDetailPage params={Promise.resolve({ id: name })} />
+    </Suspense>,
+  );
+}
+
 const fileContents: Record<string, string> = {
   'AGENTS.md': '# Agents file\n',
   'SOUL.md': '# Soul file\n',
@@ -57,22 +65,6 @@ function createFetchMock() {
         };
       }
 
-      if (url.startsWith('/api/skills/links?') && method === 'GET') {
-        return {
-          ok: true,
-          json: async () => [
-            {
-              id: 1,
-              agent: 'alpha',
-              sourcePath: '/Users/tumf/.hermes/skills/coding',
-              targetPath: '/runtime/agents/alpha/skills/coding',
-              exists: true,
-              relativePath: 'coding',
-            },
-          ],
-        };
-      }
-
       if (url === '/api/skills/tree' && method === 'GET') {
         return {
           ok: true,
@@ -86,6 +78,22 @@ function createFetchMock() {
               },
             ],
           }),
+        };
+      }
+
+      if (url.startsWith('/api/skills/links?') && method === 'GET') {
+        return {
+          ok: true,
+          json: async () => [
+            {
+              id: 1,
+              agent: 'alpha',
+              sourcePath: '/Users/tumf/.hermes/skills/coding',
+              targetPath: '/runtime/agents/alpha/skills/coding',
+              exists: true,
+              relativePath: 'coding',
+            },
+          ],
         };
       }
 
@@ -108,11 +116,7 @@ describe('Agent detail memory tab', () => {
     global.fetch = createFetchMock();
 
     await act(async () => {
-      render(
-        <Suspense fallback={<div>Loading...</div>}>
-          <AgentDetailPage params={Promise.resolve({ id: 'alpha' })} />
-        </Suspense>,
-      );
+      renderPage('alpha');
     });
 
     await waitFor(() => {
@@ -125,59 +129,46 @@ describe('Agent detail memory tab', () => {
     expect(screen.getByRole('tab', { name: 'Logs' })).toBeInTheDocument();
   });
 
-  it('shows both memory editors side by side', async () => {
+  it('shows single memory file editor (AGENTS.md by default)', async () => {
     global.fetch = createFetchMock();
 
     await act(async () => {
-      render(
-        <Suspense fallback={<div>Loading...</div>}>
-          <AgentDetailPage params={Promise.resolve({ id: 'alpha' })} />
-        </Suspense>,
-      );
+      renderPage('alpha');
     });
 
     await waitFor(() => {
       expect(screen.getByRole('textbox', { name: 'Edit AGENTS.md' })).toBeInTheDocument();
     });
 
-    expect(screen.getByRole('textbox', { name: 'Edit SOUL.md' })).toBeInTheDocument();
-    expect(screen.getAllByRole('textbox').length).toBe(2);
+    // Single file view: only one editor visible at a time
+    expect(screen.queryByRole('textbox', { name: 'Edit SOUL.md' })).not.toBeInTheDocument();
   });
 
-  it('loads both AGENTS.md and SOUL.md file content', async () => {
+  it('loads AGENTS.md file content by default', async () => {
     const fetchMock = createFetchMock();
     global.fetch = fetchMock;
 
     await act(async () => {
-      render(
-        <Suspense fallback={<div>Loading...</div>}>
-          <AgentDetailPage params={Promise.resolve({ id: 'alpha' })} />
-        </Suspense>,
-      );
+      renderPage('alpha');
     });
 
     await waitFor(() => {
       expect(screen.getByRole('textbox', { name: 'Edit AGENTS.md' })).toBeInTheDocument();
-      expect(screen.getByRole('textbox', { name: 'Edit SOUL.md' })).toBeInTheDocument();
     });
 
     const getCalls = (fetchMock.mock.calls as [string, { method?: string }?][]).filter(
       ([url, init]) => url.startsWith('/api/files?') && (init?.method ?? 'GET') === 'GET',
     );
     expect(getCalls.some(([url]) => url.includes('path=AGENTS.md'))).toBe(true);
-    expect(getCalls.some(([url]) => url.includes('path=SOUL.md'))).toBe(true);
   });
 
-  it('saves AGENTS.md when its Save button is clicked', async () => {
+  it('blocks switching when dirty and user cancels', async () => {
     const fetchMock = createFetchMock();
     global.fetch = fetchMock;
+    const confirmMock = vi.spyOn(window, 'confirm').mockReturnValue(false);
 
     await act(async () => {
-      render(
-        <Suspense fallback={<div>Loading...</div>}>
-          <AgentDetailPage params={Promise.resolve({ id: 'alpha' })} />
-        </Suspense>,
-      );
+      renderPage('alpha');
     });
 
     await waitFor(() => {
@@ -188,8 +179,41 @@ describe('Agent detail memory tab', () => {
       target: { value: '# updated agents\n' },
     });
 
-    const saveButtons = screen.getAllByRole('button', { name: /Save/i });
-    fireEvent.click(saveButtons[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'SOUL.md' }));
+
+    expect(confirmMock).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('textbox', { name: 'Edit SOUL.md' })).not.toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Edit AGENTS.md' })).toBeInTheDocument();
+
+    const getCalls = (fetchMock.mock.calls as [string, { method?: string }?][]).filter(
+      ([url, init]) => url.startsWith('/api/files?') && (init?.method ?? 'GET') === 'GET',
+    );
+    expect(getCalls.some(([url]) => url.includes('path=SOUL.md'))).toBe(false);
+  });
+
+  it('saves only currently selected memory file', async () => {
+    const fetchMock = createFetchMock();
+    global.fetch = fetchMock;
+
+    await act(async () => {
+      renderPage('alpha');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('textbox', { name: 'Edit AGENTS.md' })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'SOUL.md' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('textbox', { name: 'Edit SOUL.md' })).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Edit SOUL.md' }), {
+      target: { value: '# updated soul\n' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
       const putCalls = (
@@ -198,7 +222,7 @@ describe('Agent detail memory tab', () => {
       expect(putCalls.length).toBeGreaterThan(0);
 
       const lastPutBody = JSON.parse(putCalls[putCalls.length - 1][1]?.body ?? '{}');
-      expect(lastPutBody.path).toBe('AGENTS.md');
+      expect(lastPutBody.path).toBe('SOUL.md');
       expect(lastPutBody.agent).toBe('alpha');
     });
   });
@@ -207,11 +231,7 @@ describe('Agent detail memory tab', () => {
     global.fetch = createFetchMock();
 
     await act(async () => {
-      render(
-        <Suspense fallback={<div>Loading...</div>}>
-          <AgentDetailPage params={Promise.resolve({ id: 'alpha' })} />
-        </Suspense>,
-      );
+      renderPage('alpha');
     });
 
     await waitFor(() => {

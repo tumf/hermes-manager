@@ -15,7 +15,15 @@ import {
   Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
-import { use, useCallback, useEffect, useRef, useState } from 'react';
+import {
+  use,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  forwardRef,
+} from 'react';
 import { toast } from 'sonner';
 
 import { CronTab } from '@/src/components/cron-tab';
@@ -223,10 +231,7 @@ export default function AgentPage({ params }: AgentPageProps) {
         </TabsList>
 
         <TabsContent value="memory">
-          <div className="grid gap-4 lg:grid-cols-2">
-            <FileEditor name={name} filePath="AGENTS.md" label="AGENTS.md" />
-            <FileEditor name={name} filePath="SOUL.md" label="SOUL.md" />
-          </div>
+          <MemoryTab name={name} />
         </TabsContent>
 
         <TabsContent value="config">
@@ -259,164 +264,222 @@ const FILE_PATH_TO_FILE_TYPE: Record<string, string> = {
   'config.yaml': 'config.yaml',
 };
 
-function FileEditor({ name, filePath, label }: { name: string; filePath: string; label: string }) {
-  const [content, setContent] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [dirty, setDirty] = useState(false);
-  const [saveAsTemplateOpen, setSaveAsTemplateOpen] = useState(false);
-  const [templateName, setTemplateName] = useState('');
-  const [savingTemplate, setSavingTemplate] = useState(false);
-  const originalRef = useRef('');
+const MEMORY_FILES = ['AGENTS.md', 'SOUL.md'] as const;
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const res = await fetch(
-          `/api/files?agent=${encodeURIComponent(name)}&path=${encodeURIComponent(filePath)}`,
-        );
-        if (res.ok) {
-          const data = await res.json();
-          const text = typeof data === 'string' ? data : (data.content ?? '');
-          setContent(text);
-          originalRef.current = text;
-        }
-      } catch {
-        /* ignore */
-      } finally {
-        setLoading(false);
-      }
+function MemoryTab({ name }: { name: string }) {
+  const [selectedFile, setSelectedFile] = useState<string>(MEMORY_FILES[0]);
+  const editorRef = useRef<FileEditorHandle>(null);
+
+  function handleSwitch(file: string) {
+    if (file === selectedFile) return;
+    if (editorRef.current?.isDirty()) {
+      const confirmed = window.confirm('You have unsaved changes. Discard and switch?');
+      if (!confirmed) return;
     }
-    void load();
-  }, [name, filePath]);
-
-  function handleChange(val: string) {
-    setContent(val);
-    setDirty(val !== originalRef.current);
-  }
-
-  async function save() {
-    setSaving(true);
-    try {
-      const res = await fetch('/api/files', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agent: name, path: filePath, content }),
-      });
-      if (res.ok) {
-        originalRef.current = content;
-        setDirty(false);
-        toast.success(`${label} saved`);
-      } else {
-        toast.error(`Failed to save ${label}`);
-      }
-    } catch {
-      toast.error(`Failed to save ${label}`);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function saveAsTemplate() {
-    const trimmed = templateName.trim();
-    if (!trimmed) {
-      toast.error('Template name is required');
-      return;
-    }
-    const fileType = FILE_PATH_TO_FILE_TYPE[filePath];
-    if (!fileType) return;
-
-    setSavingTemplate(true);
-    try {
-      const res = await fetch('/api/templates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileType, name: trimmed, content }),
-      });
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        toast.error(typeof d.error === 'string' ? d.error : 'Failed to save template');
-        return;
-      }
-      toast.success(`Saved as template "${trimmed}"`);
-      setSaveAsTemplateOpen(false);
-      setTemplateName('');
-    } finally {
-      setSavingTemplate(false);
-    }
+    setSelectedFile(file);
   }
 
   return (
-    <Card>
-      <CardHeader className="flex-row items-center justify-between">
-        <CardTitle className="font-mono text-xs">{label}</CardTitle>
-        <div className="flex gap-1.5">
-          <Dialog open={saveAsTemplateOpen} onOpenChange={setSaveAsTemplateOpen}>
-            <DialogTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={loading}
-                className="gap-1.5"
-                onClick={() => setTemplateName('')}
-              >
-                <FileText className="size-3.5" />
-                Save as Template
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Save as Template</DialogTitle>
-                <DialogDescription>
-                  Save the current content of {label} as a reusable template.
-                </DialogDescription>
-              </DialogHeader>
-              <Input
-                value={templateName}
-                onChange={(e) => setTemplateName(e.target.value)}
-                placeholder="template-name"
-                aria-label="Template name"
-              />
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button variant="outline">Cancel</Button>
-                </DialogClose>
-                <Button
-                  onClick={() => void saveAsTemplate()}
-                  disabled={savingTemplate || !templateName.trim()}
-                >
-                  {savingTemplate ? 'Saving...' : 'Save'}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+    <div className="space-y-3">
+      <div className="flex gap-1">
+        {MEMORY_FILES.map((file) => (
           <Button
-            variant="outline"
+            key={file}
+            variant={selectedFile === file ? 'secondary' : 'ghost'}
             size="sm"
-            onClick={() => void save()}
-            disabled={saving || loading || !dirty}
-            className="gap-1.5"
+            onClick={() => handleSwitch(file)}
           >
-            {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
-            {saving ? 'Saving...' : 'Save'}
+            {file}
           </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <Skeleton className="h-48 w-full" />
-        ) : (
-          <textarea
-            className="min-h-48 w-full resize-y rounded-md border border-input bg-muted/30 p-3 font-mono text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            value={content}
-            onChange={(e) => handleChange(e.target.value)}
-            aria-label={`Edit ${label}`}
-          />
-        )}
-      </CardContent>
-    </Card>
+        ))}
+      </div>
+      <FileEditor
+        key={selectedFile}
+        ref={editorRef}
+        name={name}
+        filePath={selectedFile}
+        label={selectedFile}
+      />
+    </div>
   );
 }
+
+interface FileEditorHandle {
+  isDirty: () => boolean;
+}
+
+const FileEditor = forwardRef<FileEditorHandle, { name: string; filePath: string; label: string }>(
+  function FileEditor({ name, filePath, label }, ref) {
+    const [content, setContent] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [dirty, setDirty] = useState(false);
+    const [saveAsTemplateOpen, setSaveAsTemplateOpen] = useState(false);
+    const [templateName, setTemplateName] = useState('');
+    const [savingTemplate, setSavingTemplate] = useState(false);
+    const originalRef = useRef('');
+
+    useImperativeHandle(
+      ref,
+      () => ({
+        isDirty: () => dirty,
+      }),
+      [dirty],
+    );
+
+    useEffect(() => {
+      async function load() {
+        try {
+          const res = await fetch(
+            `/api/files?agent=${encodeURIComponent(name)}&path=${encodeURIComponent(filePath)}`,
+          );
+          if (res.ok) {
+            const data = await res.json();
+            const text = typeof data === 'string' ? data : (data.content ?? '');
+            setContent(text);
+            originalRef.current = text;
+          }
+        } catch {
+          /* ignore */
+        } finally {
+          setLoading(false);
+        }
+      }
+      void load();
+    }, [name, filePath]);
+
+    function handleChange(val: string) {
+      setContent(val);
+      setDirty(val !== originalRef.current);
+    }
+
+    async function save() {
+      setSaving(true);
+      try {
+        const res = await fetch('/api/files', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ agent: name, path: filePath, content }),
+        });
+        if (res.ok) {
+          originalRef.current = content;
+          setDirty(false);
+          toast.success(`${label} saved`);
+        } else {
+          toast.error(`Failed to save ${label}`);
+        }
+      } catch {
+        toast.error(`Failed to save ${label}`);
+      } finally {
+        setSaving(false);
+      }
+    }
+
+    async function saveAsTemplate() {
+      const trimmed = templateName.trim();
+      if (!trimmed) {
+        toast.error('Template name is required');
+        return;
+      }
+      const fileType = FILE_PATH_TO_FILE_TYPE[filePath];
+      if (!fileType) return;
+
+      setSavingTemplate(true);
+      try {
+        const res = await fetch('/api/templates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileType, name: trimmed, content }),
+        });
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}));
+          toast.error(typeof d.error === 'string' ? d.error : 'Failed to save template');
+          return;
+        }
+        toast.success(`Saved as template "${trimmed}"`);
+        setSaveAsTemplateOpen(false);
+        setTemplateName('');
+      } finally {
+        setSavingTemplate(false);
+      }
+    }
+
+    return (
+      <Card>
+        <CardHeader className="flex-row items-center justify-between">
+          <CardTitle className="font-mono text-xs">{label}</CardTitle>
+          <div className="flex gap-1.5">
+            <Dialog open={saveAsTemplateOpen} onOpenChange={setSaveAsTemplateOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={loading}
+                  className="gap-1.5"
+                  onClick={() => setTemplateName('')}
+                >
+                  <FileText className="size-3.5" />
+                  Save as Template
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Save as Template</DialogTitle>
+                  <DialogDescription>
+                    Save the current content of {label} as a reusable template.
+                  </DialogDescription>
+                </DialogHeader>
+                <Input
+                  value={templateName}
+                  onChange={(e) => setTemplateName(e.target.value)}
+                  placeholder="template-name"
+                  aria-label="Template name"
+                />
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button variant="outline">Cancel</Button>
+                  </DialogClose>
+                  <Button
+                    onClick={() => void saveAsTemplate()}
+                    disabled={savingTemplate || !templateName.trim()}
+                  >
+                    {savingTemplate ? 'Saving...' : 'Save'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void save()}
+              disabled={saving || loading || !dirty}
+              className="gap-1.5"
+            >
+              {saving ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Save className="size-3.5" />
+              )}
+              {saving ? 'Saving...' : 'Save'}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <Skeleton className="h-48 w-full" />
+          ) : (
+            <textarea
+              className="min-h-48 w-full resize-y rounded-md border border-input bg-muted/30 p-3 font-mono text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              value={content}
+              onChange={(e) => handleChange(e.target.value)}
+              aria-label={`Edit ${label}`}
+            />
+          )}
+        </CardContent>
+      </Card>
+    );
+  },
+);
 
 type EnvVisibility = 'plain' | 'secure';
 
