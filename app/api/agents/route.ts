@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
 
 import { db, schema } from '@/src/lib/db';
@@ -36,13 +36,47 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: result.error.errors[0].message }, { status: 400 });
   }
 
-  const { name } = result.data;
+  const { name, templates: templateNames } = result.data;
   const home = getRuntimeAgentsRootPath(name);
 
+  // Resolve template content for each file type
+  const resolveTemplateContent = async (
+    fileType: string,
+    templateName: string | undefined,
+    fallback: string,
+  ): Promise<string> => {
+    const nameToLookup = templateName ?? 'default';
+    const rows = await db
+      .select()
+      .from(schema.templates)
+      .where(
+        and(eq(schema.templates.fileType, fileType), eq(schema.templates.name, nameToLookup)),
+      );
+    if (rows.length > 0) return rows[0].content;
+    // If a specific template name was requested (not default) and not found, still fallback
+    return fallback;
+  };
+
+  const agentsMdContent = await resolveTemplateContent(
+    'agents.md',
+    templateNames?.agentsMd,
+    `# ${name}\n`,
+  );
+  const soulMdContent = await resolveTemplateContent(
+    'soul.md',
+    templateNames?.soulMd,
+    `# Soul: ${name}\n`,
+  );
+  const configYamlContent = await resolveTemplateContent(
+    'config.yaml',
+    templateNames?.configYaml,
+    `name: ${name}\n`,
+  );
+
   await fs.mkdir(path.join(home, 'logs'), { recursive: true });
-  await fs.writeFile(path.join(home, 'AGENTS.md'), `# ${name}\n`);
-  await fs.writeFile(path.join(home, 'SOUL.md'), `# Soul: ${name}\n`);
-  await fs.writeFile(path.join(home, 'config.yaml'), `name: ${name}\n`);
+  await fs.writeFile(path.join(home, 'AGENTS.md'), agentsMdContent);
+  await fs.writeFile(path.join(home, 'SOUL.md'), soulMdContent);
+  await fs.writeFile(path.join(home, 'config.yaml'), configYamlContent);
   await fs.writeFile(path.join(home, '.env'), '');
 
   const label = `ai.hermes.gateway.${name}`;

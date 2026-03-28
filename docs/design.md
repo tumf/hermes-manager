@@ -1,6 +1,6 @@
 # Hermes Agents WebApp 設計
 
-最終更新: 2026-03-27
+最終更新: 2026-03-29
 
 ## 1. アーキテクチャ概観
 
@@ -27,18 +27,25 @@
   - agent: string
   - sourcePath: string（~/.agents/skills 配下、カノニカルまたは互換レガシー）
   - targetPath: string（{HERMES_HOME}/skills/{relativePath}、階層構造保持）
+- Template
+  - fileType: 'agents.md' | 'soul.md' | 'config.yaml'
+  - name: string（fileType + name で UNIQUE）
+  - content: string（テンプレート内容）
+  - createdAt/updatedAt: number(ms)
 
 ## 3. データベース設計
 
 - agents(id PK, name UNIQUE, home, label, enabled BOOL, created_at, updated_at)
 - env_vars(id PK, scope, key, value, visibility DEFAULT 'plain')
 - skill_links(id PK, agent, source_path, target_path)
+- templates(id PK, file_type, name, content, created_at, updated_at) — UNIQUE(file_type, name)
 
 インデックス案:
 
 - agents.name UNIQUE
 - env_vars(scope, key)
 - skill_links(agent)
+- templates(file_type, name) UNIQUE
 
 ## 4. ディレクトリ構成
 
@@ -77,6 +84,11 @@
 - /api/cron/output: GET {agent, id, [file]}
   - ファイル一覧: {agent.home}/cron/output/{id}/\*.md をリスト（newest-first）
   - ファイル内容: 指定した .md ファイル の raw text 返却
+- /api/templates: GET（全件 or fileType フィルタ）/POST（作成、409 on duplicate）/PUT（更新）/DELETE（?fileType=...&name=...）
+  - fileType: 'agents.md' | 'soul.md' | 'config.yaml'
+  - name: テンプレート名（[a-zA-Z0-9_-]+）
+  - POST /api/agents に templates パラメータ追加: { templates?: { agentsMd?, soulMd?, configYaml? } }
+  - 未指定時は default テンプレートをフォールバック、default 不在時は固定 scaffold 内容
 
 ## 6. Launchd 実行モデル
 
@@ -91,8 +103,8 @@
 
 ## 7. UI 設計
 
-- Layout: サイドバー（/ と /globals へのナビ）、モバイルはシート/ドロワ
-- Agents 一覧: name, enabled, 状態バッジ、起動/停止、追加/削除/コピー
+- Layout: サイドバー（/、/globals、/templates へのナビ）、モバイルはシート/ドロワ
+- Agents 一覧: name, enabled, 状態バッジ、起動/停止、追加（ダイアログ + テンプレート選択）/削除/コピー
 - Agent 詳細: タブ（Memory/Config/Env/Skills/Cron/Logs）
   - Memory は `AGENTS.md` / `SOUL.md` を切替ボタンで選択し、常に1ファイルのみ編集表示
   - Env タブは `/api/env` で agent-local `.env` の CRUD を行う（値はデフォルト masked、`reveal=true` で表示切替）
@@ -102,8 +114,10 @@
     - ジョブリスト: 名前、スケジュール式、ステート（active/paused/completed）、次回実行予定、最後実行予定
     - ジョブアクション: 作成フォーム（name/schedule/prompt/deliver）、pause/resume/run-now/削除（確認あり）
     - 出力ビューア: ジョブをクリック → `/api/cron/output` で最新実行ファイル一覧表示 → ファイル選択で raw text 内容表示（<pre>）
+- Templates 管理: fileType 別グループ表示、追加/編集/削除ダイアログ
+- 各 FileEditor に "Save as Template" ボタン（Memory タブの AGENTS.md/SOUL.md、Config タブの config.yaml）
 - Globals: テーブルで inline 追加/編集/削除、再生成プレビュー
-- コンポーネント: StatusBadge, ConfirmDialog, EnvTable, LogViewer, CronTab, CronJobDialog
+- コンポーネント: StatusBadge, ConfirmDialog, EnvTable, LogViewer, CronTab, CronJobDialog, TemplateSelect
 
 ## 8. バリデーション/安全性
 

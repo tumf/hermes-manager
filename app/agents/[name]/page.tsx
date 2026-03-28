@@ -249,11 +249,20 @@ export default function AgentPage({ params }: AgentPageProps) {
   );
 }
 
+const FILE_PATH_TO_FILE_TYPE: Record<string, string> = {
+  'AGENTS.md': 'agents.md',
+  'SOUL.md': 'soul.md',
+  'config.yaml': 'config.yaml',
+};
+
 function FileEditor({ name, filePath, label }: { name: string; filePath: string; label: string }) {
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [saveAsTemplateOpen, setSaveAsTemplateOpen] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [savingTemplate, setSavingTemplate] = useState(false);
   const originalRef = useRef('');
 
   useEffect(() => {
@@ -304,20 +313,94 @@ function FileEditor({ name, filePath, label }: { name: string; filePath: string;
     }
   }
 
+  async function saveAsTemplate() {
+    const trimmed = templateName.trim();
+    if (!trimmed) {
+      toast.error('Template name is required');
+      return;
+    }
+    const fileType = FILE_PATH_TO_FILE_TYPE[filePath];
+    if (!fileType) return;
+
+    setSavingTemplate(true);
+    try {
+      const res = await fetch('/api/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileType, name: trimmed, content }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        toast.error(typeof d.error === 'string' ? d.error : 'Failed to save template');
+        return;
+      }
+      toast.success(`Saved as template "${trimmed}"`);
+      setSaveAsTemplateOpen(false);
+      setTemplateName('');
+    } finally {
+      setSavingTemplate(false);
+    }
+  }
+
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between">
         <CardTitle className="font-mono text-xs">{label}</CardTitle>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => void save()}
-          disabled={saving || loading || !dirty}
-          className="gap-1.5"
-        >
-          {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
-          {saving ? 'Saving...' : 'Save'}
-        </Button>
+        <div className="flex gap-1.5">
+          <Dialog open={saveAsTemplateOpen} onOpenChange={setSaveAsTemplateOpen}>
+            <DialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={loading}
+                className="gap-1.5"
+                onClick={() => setTemplateName('')}
+              >
+                <FileText className="size-3.5" />
+                Save as Template
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Save as Template</DialogTitle>
+                <DialogDescription>
+                  Save the current content of {label} as a reusable template.
+                </DialogDescription>
+              </DialogHeader>
+              <Input
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                placeholder="template-name"
+                aria-label="Template name"
+              />
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button variant="outline">Cancel</Button>
+                </DialogClose>
+                <Button
+                  onClick={() => void saveAsTemplate()}
+                  disabled={savingTemplate || !templateName.trim()}
+                >
+                  {savingTemplate ? 'Saving...' : 'Save'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void save()}
+            disabled={saving || loading || !dirty}
+            className="gap-1.5"
+          >
+            {saving ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Save className="size-3.5" />
+            )}
+            {saving ? 'Saving...' : 'Save'}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         {loading ? (

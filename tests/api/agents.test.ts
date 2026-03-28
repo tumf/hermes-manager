@@ -14,7 +14,7 @@ const mockState = vi.hoisted(() => ({
 // --- mock @/src/lib/db ---
 vi.mock('@/src/lib/db', async () => {
   // Import real schema so drizzle column objects work with eq()
-  const { agents, envVars, skillLinks } = await import('../../db/schema');
+  const { agents, envVars, skillLinks, templates } = await import('../../db/schema');
 
   function makeChain(resolveWith: unknown) {
     const thenable = {
@@ -38,7 +38,7 @@ vi.mock('@/src/lib/db', async () => {
     delete: () => makeChain(undefined),
   };
 
-  return { db, schema: { agents, envVars, skillLinks } };
+  return { db, schema: { agents, envVars, skillLinks, templates } };
 });
 
 // --- mock node:fs/promises ---
@@ -174,6 +174,61 @@ describe('POST /api/agents', () => {
     await POST(req);
     expect(vi.mocked(fs.mkdir)).toHaveBeenCalled();
     expect(vi.mocked(fs.writeFile)).toHaveBeenCalled();
+  });
+
+  it('scaffolds with fallback content when no templates exist', async () => {
+    mockState.agentRows = []; // No template rows returned from DB
+    mockState.insertRows = [
+      {
+        id: 3,
+        name: 'gamma',
+        home: '/runtime/agents/gamma',
+        label: 'ai.hermes.gateway.gamma',
+        enabled: false,
+        createdAt: new Date(),
+      },
+    ];
+
+    const req = makeReq('http://localhost/api/agents', {
+      method: 'POST',
+      body: JSON.stringify({ name: 'gamma' }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    await POST(req);
+    // Verify fallback content is used
+    const writeFileCalls = vi.mocked(fs.writeFile).mock.calls;
+    const agentsMdCall = writeFileCalls.find(
+      (c) => typeof c[0] === 'string' && c[0].endsWith('AGENTS.md'),
+    );
+    expect(agentsMdCall).toBeDefined();
+    expect(agentsMdCall![1]).toBe('# gamma\n');
+  });
+
+  it('accepts templates parameter in body', async () => {
+    mockState.agentRows = []; // Template lookups return empty
+    mockState.insertRows = [
+      {
+        id: 4,
+        name: 'delta',
+        home: '/runtime/agents/delta',
+        label: 'ai.hermes.gateway.delta',
+        enabled: false,
+        createdAt: new Date(),
+      },
+    ];
+
+    const req = makeReq('http://localhost/api/agents', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: 'delta',
+        templates: { agentsMd: 'telegram-bot', soulMd: 'default', configYaml: 'custom' },
+      }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(201);
   });
 });
 
