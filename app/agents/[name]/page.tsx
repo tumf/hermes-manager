@@ -1,7 +1,9 @@
 'use client';
 
 import {
+  ChevronDown,
   ChevronLeft,
+  ChevronRight,
   Clock,
   FileText,
   Loader2,
@@ -32,6 +34,7 @@ import {
 import { Badge } from '@/src/components/ui/badge';
 import { Button } from '@/src/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
+import { Checkbox } from '@/src/components/ui/checkbox';
 import {
   Dialog,
   DialogClose,
@@ -318,14 +321,14 @@ function FileEditor({ name, filePath, label }: { name: string; filePath: string;
 
 type EnvVisibility = 'plain' | 'secure';
 
-export interface AgentEnvRow {
+interface AgentEnvRow {
   key: string;
   value: string;
   masked: boolean;
   visibility: EnvVisibility;
 }
 
-export function AgentEnvTab({ name }: { name: string }) {
+function AgentEnvTab({ name }: { name: string }) {
   const [rows, setRows] = useState<AgentEnvRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -615,16 +618,212 @@ function AgentEnvDeleteButton({
   );
 }
 
+interface SkillNode {
+  name: string;
+  relativePath: string;
+  hasSkill: boolean;
+  children: SkillNode[];
+}
+
+interface EquippedLink {
+  id: number;
+  agent: string;
+  sourcePath: string;
+  targetPath: string;
+  exists: boolean;
+  relativePath: string;
+}
+
 function SkillsTab({ name }: { name: string }) {
+  const [tree, setTree] = useState<SkillNode[]>([]);
+  const [equipped, setEquipped] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+  const [actioning, setActioning] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    async function loadSkills() {
+      try {
+        const [treeRes, linksRes] = await Promise.all([
+          fetch('/api/skills/tree'),
+          fetch(`/api/skills/links?agent=${encodeURIComponent(name)}`),
+        ]);
+
+        if (treeRes.ok) {
+          const data = await treeRes.json();
+          setTree(data.tree || []);
+        }
+
+        if (linksRes.ok) {
+          const links = await linksRes.json();
+          const equippedSet = new Set<string>(
+            links
+              .filter((link: EquippedLink) => link.exists)
+              .map((link: EquippedLink) => link.relativePath),
+          );
+          setEquipped(equippedSet);
+        }
+      } catch {
+        // ignore
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    void loadSkills();
+  }, [name]);
+
+  async function handleToggle(relativePath: string, checked: boolean) {
+    setActioning((s) => new Set([...s, relativePath]));
+
+    try {
+      if (checked) {
+        const res = await fetch('/api/skills/links', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ agent: name, relativePath }),
+        });
+
+        if (res.ok) {
+          setEquipped((s) => new Set([...s, relativePath]));
+          toast.success(`Equipped ${relativePath}`);
+        } else {
+          const err = await res.json().catch(() => ({}));
+          toast.error(typeof err.error === 'string' ? err.error : 'Failed to equip skill');
+        }
+      } else {
+        // Find the link ID from equipped list
+        const linksRes = await fetch(`/api/skills/links?agent=${encodeURIComponent(name)}`);
+        if (!linksRes.ok) {
+          toast.error('Failed to fetch links');
+          return;
+        }
+
+        const links = await linksRes.json();
+        const link = links.find((l: EquippedLink) => l.relativePath === relativePath);
+
+        if (!link) {
+          toast.error('Link not found');
+          return;
+        }
+
+        const delRes = await fetch(`/api/skills/links?id=${link.id}`, { method: 'DELETE' });
+
+        if (delRes.ok) {
+          setEquipped((s) => {
+            const next = new Set(s);
+            next.delete(relativePath);
+            return next;
+          });
+          toast.success(`Unequipped ${relativePath}`);
+        } else {
+          const err = await delRes.json().catch(() => ({}));
+          toast.error(typeof err.error === 'string' ? err.error : 'Failed to unequip skill');
+        }
+      }
+    } catch {
+      toast.error('Network error');
+    } finally {
+      setActioning((s) => {
+        const next = new Set(s);
+        next.delete(relativePath);
+        return next;
+      });
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-sm">Skills</CardTitle>
       </CardHeader>
-      <CardContent className="text-sm text-muted-foreground">
-        Skills management for <span className="font-mono">{name}</span> will be added in this tab.
+      <CardContent>
+        {loading ? (
+          <Skeleton className="h-48 w-full" />
+        ) : tree.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No skills available in ~/.agents/skills</p>
+        ) : (
+          <div className="space-y-1">
+            {tree.map((node) => (
+              <SkillTreeNode
+                key={node.relativePath}
+                node={node}
+                equipped={equipped}
+                actioning={actioning}
+                onToggle={handleToggle}
+                depth={0}
+              />
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
+  );
+}
+
+function SkillTreeNode({
+  node,
+  equipped,
+  actioning,
+  onToggle,
+  depth,
+}: {
+  node: SkillNode;
+  equipped: Set<string>;
+  actioning: Set<string>;
+  onToggle: (path: string, checked: boolean) => void;
+  depth: number;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="space-y-0.5">
+      <div className="flex items-center gap-2 py-1" style={{ paddingLeft: `${depth * 1.5}rem` }}>
+        {node.children.length > 0 && (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="inline-flex size-5 items-center justify-center rounded hover:bg-muted"
+          >
+            {expanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+          </button>
+        )}
+
+        {node.children.length === 0 && <div className="size-5" />}
+
+        {node.hasSkill ? (
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <Checkbox
+              checked={equipped.has(node.relativePath)}
+              onCheckedChange={(checked) => void onToggle(node.relativePath, checked === true)}
+              disabled={actioning.has(node.relativePath)}
+              className="mt-0.5"
+            />
+            <label className="text-sm font-medium truncate select-none cursor-pointer flex-1">
+              {node.name}
+            </label>
+            {actioning.has(node.relativePath) && <Loader2 className="size-3 animate-spin flex-shrink-0" />}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 flex-1">
+            <span className="text-xs font-medium text-muted-foreground">{node.name}</span>
+          </div>
+        )}
+      </div>
+
+      {expanded && node.children.length > 0 && (
+        <div>
+          {node.children.map((child) => (
+            <SkillTreeNode
+              key={child.relativePath}
+              node={child}
+              equipped={equipped}
+              actioning={actioning}
+              onToggle={onToggle}
+              depth={depth + 1}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

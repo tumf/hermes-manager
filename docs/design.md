@@ -25,8 +25,8 @@
   - visibility: 'plain' | 'secure'（管理画面でのマスク制御）
 - SkillLink
   - agent: string
-  - sourcePath: string（~/.hermes/skills 配下）
-  - targetPath: string（{HERMES_HOME}/skills/{basename}）
+  - sourcePath: string（~/.agents/skills 配下、カノニカルまたは互換レガシー）
+  - targetPath: string（{HERMES_HOME}/skills/{relativePath}、階層構造保持）
 
 ## 3. データベース設計
 
@@ -62,7 +62,8 @@
 - /api/env: GET(.env/parse)/POST/DELETE（visibility を返却/永続化、secure は管理表示でマスク）
 - /api/env/resolved: GET（global+agent のマージ、実行値を返却しマスクしない）
 - /api/globals: GET/POST/DELETE + regenerate runtime/globals/.env（visibility を返却/永続化、secure は管理表示でマスク）
-- /api/skills/tree, /api/skills/links{GET/POST/DELETE}
+- /api/skills/tree: GET（~/.agents/skills を再帰走査、SKILL.md 検出、階層ノード返却）
+- /api/skills/links: GET（agent-local link 一覧、relativePath 導出、exists 状態）/POST {agent,relativePath}（symlink 作成、hierarchical target）/DELETE（symlink 削除、empty parent pruning）
 - /api/logs: tail 相当
 - /api/logs/stream: SSE keepalive/polling
 - /api/cron: GET/POST/PUT/DELETE（{agent.home}/cron/jobs.json の CRUD、原子書き込み）
@@ -91,10 +92,11 @@
 
 - Layout: サイドバー（/ と /globals へのナビ）、モバイルはシート/ドロワ
 - Agents 一覧: name, enabled, 状態バッジ、起動/停止、追加/削除/コピー
-- Agent 詳細: タブ（Memory/Config/Env/Cron/Logs）
+- Agent 詳細: タブ（Memory/Config/Env/Skills/Cron/Logs）
   - Memory は `AGENTS.md` / `SOUL.md` を切替ボタンで選択し、常に1ファイルのみ編集表示
   - Env タブは `/api/env` で agent-local `.env` の CRUD を行う（値はデフォルト masked、`reveal=true` で表示切替）
   - Env タブ内に `/api/env/resolved` の read-only 一覧を表示し、`global` / `agent` / `agent-override` を source として明示
+  - Skills タブは `/api/skills/tree` から階層ツリーを表示し、`hasSkill=true` のノードのみ checkbox で equip/unequip、stale link を badge で表示
   - Cron タブは `/api/cron` で job の CRUD を行う
     - ジョブリスト: 名前、スケジュール式、ステート（active/paused/completed）、次回実行予定、最後実行予定
     - ジョブアクション: 作成フォーム（name/schedule/prompt/deliver）、pause/resume/run-now/削除（確認あり）

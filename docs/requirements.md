@@ -12,7 +12,7 @@
 
 - Agent: Hermes gateway を launchd で常駐させる単位。HERMES_HOME は {PROJECT_ROOT}/runtime/agents/{name}。
 - Global Vars: 全エージェント共通で参照する .env 値。runtime/globals/.env に生成され、dotenvx -f で積み上げる。
-- Skill: ~/.hermes/skills 以下のスキル（階層ディレクトリ可）。HERMES_HOME/skills へ symlink 管理。
+- Skill: ~/.agents/skills 以下のスキル（階層ディレクトリ可）。HERMES_HOME/skills へ symlink 管理。スキルディレクトリ内に SKILL.md が存在するもののみ選択可能。
 - Launchd Label: ai.hermes.gateway.{agent_name}
 
 ## 3. スコープ
@@ -43,7 +43,7 @@
 - FR-3 Files API: AGENTS.md / SOUL.md / config.yaml の read/put（YAML 構文検証、原子書き込み）
 - FR-4 Env API: agent .env CRUD、resolved（global+agent マージ）、各変数に `visibility`（plain/secure）を保持し secure は管理表示でマスク
 - FR-5 Globals API: CRUD、`visibility`（plain/secure）を保持、secure は管理表示でマスクしつつ runtime/globals/.env は実値で再生成
-- FR-6 Skills API: skills tree 取得、symlink 管理（リンク/解除、DB 記録）
+- FR-6 Skills API: skills tree 取得（~/.agents/skills、階層構造、SKILL.md 検出）、symlink 管理（相対パス保持のリンク/解除、DB 記録）
 - FR-7 Logs API: 読み取り（tail）、SSE で追尾
 - FR-8 Cron API: jobs.json CRUD、pause/resume/run action、output ファイル閲覧（GET/POST/PUT/DELETE、原子書き込み）
 - FR-9 UI: Agents 一覧（起動/停止/状態表示/追加/削除/コピー）、詳細タブ UI（Memory/Config/Env/Cron/Logs）、Globals UI
@@ -87,4 +87,4 @@
 
 - / Agents 一覧
 - /globals グローバル変数
-- /agents/[n] Memory / Config / Env / Cron / Logs タブ
+- /agents/[n] Memory / Config / Env / Skills / Cron / Logs タブ
