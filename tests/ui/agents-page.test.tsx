@@ -102,6 +102,11 @@ function mockFetch(overrides: Record<string, unknown> = {}) {
           };
         }
 
+        // GET /api/templates
+        if ((url as string).startsWith('/api/templates') && method === 'GET') {
+          return { ok: true, json: async () => [] };
+        }
+
         return { ok: true, json: async () => ({}) };
       },
     );
@@ -267,12 +272,19 @@ describe('AgentsPage', () => {
     expect(screen.getAllByRole('button', { name: /more actions/i }).length).toBeGreaterThan(0);
   });
 
-  it('Add Agent form submits POST /api/agents and refreshes', async () => {
+  it('Add Agent dialog submits POST /api/agents and refreshes', async () => {
     const fetchMock = mockFetch();
     global.fetch = fetchMock;
 
     render(<Home />);
 
+    // Click "Add Agent" button to open dialog
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /add agent/i })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('button', { name: /add agent/i }));
+
+    // Wait for dialog to open and fill the name input
     await waitFor(() => {
       expect(screen.getByPlaceholderText(/new-agent-name/i)).toBeInTheDocument();
     });
@@ -280,7 +292,9 @@ describe('AgentsPage', () => {
     fireEvent.change(screen.getByPlaceholderText(/new-agent-name/i), {
       target: { value: 'newagent' },
     });
-    fireEvent.submit(screen.getByRole('button', { name: /add agent/i }).closest('form')!);
+
+    // Click Create button
+    fireEvent.click(screen.getByRole('button', { name: /create/i }));
 
     await waitFor(() => {
       const calls = fetchMock.mock.calls as [string, { method?: string; body?: string }?][];
@@ -289,12 +303,19 @@ describe('AgentsPage', () => {
     });
   });
 
-  it('Add Agent form rejects invalid name without POST /api/agents', async () => {
+  it('Add Agent dialog rejects invalid name without POST /api/agents', async () => {
     const fetchMock = mockFetch();
     global.fetch = fetchMock;
 
     render(<Home />);
 
+    // Click "Add Agent" button to open dialog
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /add agent/i })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('button', { name: /add agent/i }));
+
+    // Wait for dialog to open
     await waitFor(() => {
       expect(screen.getByPlaceholderText(/new-agent-name/i)).toBeInTheDocument();
     });
@@ -302,7 +323,9 @@ describe('AgentsPage', () => {
     fireEvent.change(screen.getByPlaceholderText(/new-agent-name/i), {
       target: { value: 'invalid name!' },
     });
-    fireEvent.submit(screen.getByRole('button', { name: /add agent/i }).closest('form')!);
+
+    // Click Create button
+    fireEvent.click(screen.getByRole('button', { name: /create/i }));
 
     await waitFor(() => {
       const calls = fetchMock.mock.calls as [string, { method?: string; body?: string }?][];
