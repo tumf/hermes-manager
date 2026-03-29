@@ -65,9 +65,37 @@ hermes-agents/
 ### 2. スキーマ変更のフロー
 
 1. `db/schema.ts` を変更
-2. `npm run db:generate` でマイグレーションファイル生成
-3. `npm run db:push` または起動時マイグレーションで適用
+2. `drizzle/` に連番 SQL マイグレーションファイルを作成（例: `0002_add_foo.sql`）
+   - `CREATE TABLE` / `CREATE INDEX` は必ず `IF NOT EXISTS` を付ける
+   - `ALTER TABLE` は冪等にできない場合、migrate.js の `execSafe()` がカラム不在エラーをスキップする
+   - ステートメント間は `--> statement-breakpoint` で区切る
+3. `npm run db:migrate` で適用（= `node scripts/migrate.js`）
 4. `docs/design.md` の §3 を更新
+
+### 2a. DB マイグレーション運用
+
+**マイグレーションランナー** (`scripts/migrate.js`):
+
+- `drizzle/` 配下の `*.sql` をファイル名昇順で実行
+- `__migrations` テーブルで適用済みを管理（冪等）
+- 本番起動時（`scripts/start-prod.sh`）に自動実行される
+
+**worktree 作成時** (`.wt/setup`):
+
+- ソースリポジトリの `runtime/data/app.db` を worktree にコピー
+- `node scripts/migrate.js` で worktree のマイグレーションを適用
+
+**worktree での開発フロー**:
+
+1. worktree 作成 → `.wt/setup` が DB コピー + migrate 実行
+2. スキーマ変更 → `drizzle/` に新規 SQL ファイル追加
+3. `npm run db:migrate` で worktree DB に適用・動作確認
+4. main にマージ → main の DB に対して `npm run db:migrate` を実行
+
+**worktree マージ後の本番 DB 更新**:
+
+1. `npm run db:migrate` を実行（新規マイグレーションのみ適用される）
+2. サービス再起動（`start-prod.sh` 内で自動実行されるため通常は不要）
 
 ### 3. API 変更のフロー
 
@@ -94,11 +122,11 @@ hermes-agents/
 
 ## ドメインモデル（概要）
 
-| モデル    | テーブル    | キー関係                          |
-| --------- | ----------- | --------------------------------- |
-| Agent     | agents      | name UNIQUE、home と label を持つ |
-| EnvVar    | env_vars    | scope='global' / scope=agentName  |
-| SkillLink | skill_links | agent → sourcePath → targetPath   |
+| モデル    | テーブル    | キー関係                              |
+| --------- | ----------- | ------------------------------------- |
+| Agent     | agents      | agent_id UNIQUE、home と label を持つ |
+| EnvVar    | env_vars    | scope='global' / scope=agentId        |
+| SkillLink | skill_links | agent → sourcePath → targetPath       |
 
 詳細: `docs/design.md §2〜3`
 

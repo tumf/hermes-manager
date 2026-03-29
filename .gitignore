@@ -9,7 +9,6 @@ coverage
 /.wt/setup.local
 /.wt/worktrees/
 /data/
-/drizzle/
 /logs/*.log
 /agents/
 runtime/

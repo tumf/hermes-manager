@@ -9,5 +9,11 @@
   "rules": {
     "import/order": ["error", { "alphabetize": { "order": "asc", "caseInsensitive": true } }],
     "unused-imports/no-unused-imports": "error"
-  }
+  },
+  "overrides": [
+    {
+      "files": ["scripts/**/*.js"],
+      "env": { "node": true }
+    }
+  ]
 }

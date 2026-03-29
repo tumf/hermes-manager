@@ -18,6 +18,22 @@ if [ ! -d node_modules ]; then
   npm ci || npm install
 fi
 
+# Runtime directories + DB copy from source repo
+mkdir -p runtime/agents runtime/globals runtime/data runtime/logs
+
+_src_db="${ROOT_WORKTREE_PATH:-}/runtime/data/app.db"
+_dst_db="runtime/data/app.db"
+if [ -n "${ROOT_WORKTREE_PATH:-}" ] && [ -f "$_src_db" ] && [ ! -f "$_dst_db" ]; then
+  echo "Copying DB from source repo..."
+  cp "$_src_db" "$_dst_db"
+  # Copy WAL/SHM if present
+  [ -f "${_src_db}-wal" ] && cp "${_src_db}-wal" "${_dst_db}-wal"
+  [ -f "${_src_db}-shm" ] && cp "${_src_db}-shm" "${_dst_db}-shm"
+fi
+
+# Run migrations on worktree DB
+node scripts/migrate.js
+
 # Husky / pre-commit hooks
 if [ -f .pre-commit-config.yaml ]; then
   if command -v pre-commit >/dev/null 2>&1; then

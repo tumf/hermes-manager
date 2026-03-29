@@ -16,7 +16,7 @@
     "test:ui": "vitest --ui",
     "migrate:runtime": "node scripts/migrate-runtime.js",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "node scripts/migrate.js",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "prepare": "husky"
