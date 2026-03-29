@@ -175,6 +175,7 @@ export function SkillsTab({ name }: { name: string }) {
 
     let succeeded = 0;
     let failed = 0;
+    const requestedCount = toAct.length;
 
     try {
       if (equip) {
@@ -219,8 +220,9 @@ export function SkillsTab({ name }: { name: string }) {
       await reloadLinks();
 
       if (failed === 0) {
+        const completedCount = equip ? succeeded : requestedCount;
         toast.success(
-          `${equip ? 'Equipped' : 'Unequipped'} ${succeeded} skill${succeeded !== 1 ? 's' : ''}`,
+          `${equip ? 'Equipped' : 'Unequipped'} ${completedCount} skill${completedCount !== 1 ? 's' : ''}`,
         );
       } else {
         toast.error(`${succeeded} succeeded, ${failed} failed`);
@@ -314,7 +316,7 @@ function SkillTreeNode({
   bulkBusy: boolean;
   depth: number;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   // スキルディレクトリは子フォルダを表示しない（再帰的に深掘りしない）
   // 非スキルディレクトリだけ展開可能
   const canExpand = !node.hasSkill && node.children.length > 0;
