@@ -4,35 +4,17 @@ import fs from 'node:fs/promises';
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { Agent } from '../../src/lib/agents';
+
 // --- hoisted mock state ---
 const mockState = vi.hoisted(() => ({
-  agentRows: [] as Record<string, unknown>[],
+  agent: null as Agent | null,
 }));
 
-// --- mock @/src/lib/db ---
-vi.mock('@/src/lib/db', async () => {
-  const { agents } = await import('../../db/schema');
-
-  function makeChain(resolveWith: unknown) {
-    const thenable = {
-      then: (res: (v: unknown) => unknown, rej: (e: unknown) => unknown) =>
-        Promise.resolve(resolveWith).then(res, rej),
-      catch: (cb: (e: unknown) => unknown) => Promise.resolve(resolveWith).catch(cb),
-      finally: (cb: () => void) => Promise.resolve(resolveWith).finally(cb),
-    };
-    return {
-      ...thenable,
-      from: () => ({ ...thenable, where: () => thenable }),
-      where: () => thenable,
-    };
-  }
-
-  const db = {
-    select: () => makeChain(mockState.agentRows),
-  };
-
-  return { db, schema: { agents } };
-});
+// --- mock @/src/lib/agents ---
+vi.mock('@/src/lib/agents', () => ({
+  getAgent: vi.fn(async () => mockState.agent),
+}));
 
 // --- mock node:fs/promises ---
 vi.mock('node:fs/promises', () => ({
@@ -49,23 +31,23 @@ function makeReq(url: string, init?: ConstructorParameters<typeof NextRequest>[1
   return new NextRequest(url, init);
 }
 
-const AGENT = {
-  id: 1,
-  name: 'alpha',
+const AGENT: Agent = {
+  agentId: 'alpha',
   home: '/runtime/agents/alpha',
   label: 'ai.hermes.gateway.alpha',
   enabled: false,
   createdAt: new Date(),
+  updatedAt: new Date(),
 };
 
 describe('GET /api/files', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockState.agentRows = [];
+    mockState.agent = null;
   });
 
   it('returns file content for allowed path', async () => {
-    mockState.agentRows = [AGENT];
+    mockState.agent = AGENT;
     vi.mocked(fs.readFile).mockResolvedValue('# Soul\n' as never);
 
     const req = makeReq('http://localhost/api/files?agent=alpha&path=SOUL.md');
@@ -76,14 +58,14 @@ describe('GET /api/files', () => {
   });
 
   it('returns 400 for disallowed path', async () => {
-    mockState.agentRows = [AGENT];
+    mockState.agent = AGENT;
     const req = makeReq('http://localhost/api/files?agent=alpha&path=../../etc/passwd');
     const res = await GET(req);
     expect(res.status).toBe(400);
   });
 
   it('returns 404 when agent not found', async () => {
-    mockState.agentRows = [];
+    mockState.agent = null;
     const req = makeReq('http://localhost/api/files?agent=ghost&path=SOUL.md');
     const res = await GET(req);
     expect(res.status).toBe(404);
@@ -99,11 +81,11 @@ describe('GET /api/files', () => {
 describe('PUT /api/files', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockState.agentRows = [];
+    mockState.agent = null;
   });
 
   it('writes file atomically and returns ok', async () => {
-    mockState.agentRows = [AGENT];
+    mockState.agent = AGENT;
 
     const req = makeReq('http://localhost/api/files', {
       method: 'PUT',
@@ -128,7 +110,7 @@ describe('PUT /api/files', () => {
   });
 
   it('returns 422 for invalid YAML in config.yaml', async () => {
-    mockState.agentRows = [AGENT];
+    mockState.agent = AGENT;
 
     const req = makeReq('http://localhost/api/files', {
       method: 'PUT',
@@ -143,7 +125,7 @@ describe('PUT /api/files', () => {
   });
 
   it('accepts valid YAML for config.yaml', async () => {
-    mockState.agentRows = [AGENT];
+    mockState.agent = AGENT;
 
     const req = makeReq('http://localhost/api/files', {
       method: 'PUT',
@@ -156,7 +138,7 @@ describe('PUT /api/files', () => {
   });
 
   it('returns 404 when agent not found', async () => {
-    mockState.agentRows = [];
+    mockState.agent = null;
 
     const req = makeReq('http://localhost/api/files', {
       method: 'PUT',
@@ -169,7 +151,7 @@ describe('PUT /api/files', () => {
   });
 
   it('returns 400 for disallowed path', async () => {
-    mockState.agentRows = [AGENT];
+    mockState.agent = AGENT;
 
     const req = makeReq('http://localhost/api/files', {
       method: 'PUT',

@@ -1,29 +1,24 @@
 import { execFile } from 'node:child_process';
-import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { eq } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
 
-import { db, schema } from '@/src/lib/db';
+import { agentExists, createAgent, deleteAgent, getAgent, listAgents } from '@/src/lib/agents';
 import { generateAgentId } from '@/src/lib/id';
-import { getRuntimeAgentsRootPath } from '@/src/lib/runtime-paths';
 import { resolveTemplateContent } from '@/src/lib/templates';
 import { CreateAgentSchema } from '@/src/lib/validators/agents';
 
 const MAX_ID_RETRIES = 5;
 
 export async function GET() {
-  const rows = await db
-    .select({
-      id: schema.agents.id,
-      agentId: schema.agents.agentId,
-      home: schema.agents.home,
-      label: schema.agents.label,
-      enabled: schema.agents.enabled,
-      createdAt: schema.agents.createdAt,
-    })
-    .from(schema.agents);
+  const agents = await listAgents();
+  const rows = agents.map((a) => ({
+    agentId: a.agentId,
+    home: a.home,
+    label: a.label,
+    enabled: a.enabled,
+    createdAt: a.createdAt,
+  }));
   return NextResponse.json(rows);
 }
 
@@ -46,11 +41,7 @@ export async function POST(request: NextRequest) {
   let agentId: string | null = null;
   for (let attempt = 0; attempt < MAX_ID_RETRIES; attempt++) {
     const candidate = generateAgentId();
-    const [existing] = await db
-      .select({ id: schema.agents.id })
-      .from(schema.agents)
-      .where(eq(schema.agents.agentId, candidate));
-    if (!existing) {
+    if (!(await agentExists(candidate))) {
       agentId = candidate;
       break;
     }
@@ -63,8 +54,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const home = getRuntimeAgentsRootPath(agentId);
-
   // Resolve template content from filesystem
   const agentsMdContent = resolveTemplateContent('AGENTS.md', agentId, templateNames?.agentsMd);
   const soulMdContent = resolveTemplateContent('SOUL.md', agentId, templateNames?.soulMd);
@@ -74,15 +63,13 @@ export async function POST(request: NextRequest) {
     templateNames?.configYaml,
   );
 
-  await fs.mkdir(path.join(home, 'logs'), { recursive: true });
-  await fs.writeFile(path.join(home, 'AGENTS.md'), agentsMdContent);
-  await fs.writeFile(path.join(home, 'SOUL.md'), soulMdContent);
-  await fs.writeFile(path.join(home, 'config.yaml'), configYamlContent);
-  await fs.writeFile(path.join(home, '.env'), '');
+  const agent = await createAgent(agentId, {
+    agentsMd: agentsMdContent,
+    soulMd: soulMdContent,
+    configYaml: configYamlContent,
+  });
 
-  const label = `ai.hermes.gateway.${agentId}`;
-  const [row] = await db.insert(schema.agents).values({ agentId, home, label }).returning();
-  return NextResponse.json(row, { status: 201 });
+  return NextResponse.json(agent, { status: 201 });
 }
 
 export async function DELETE(request: NextRequest) {
@@ -94,7 +81,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'id query param required' }, { status: 400 });
   }
 
-  const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.agentId, agentId));
+  const agent = await getAgent(agentId);
   if (!agent) {
     return NextResponse.json({ error: 'agent not found' }, { status: 404 });
   }
@@ -111,10 +98,8 @@ export async function DELETE(request: NextRequest) {
     execFile('launchctl', ['unload', plistPath], () => resolve());
   });
 
-  await db.delete(schema.agents).where(eq(schema.agents.agentId, agentId));
-
   if (purge) {
-    await fs.rm(agent.home, { recursive: true, force: true });
+    await deleteAgent(agentId);
   }
 
   return NextResponse.json({ ok: true });

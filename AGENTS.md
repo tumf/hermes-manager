@@ -8,7 +8,7 @@
 ## ドキュメント一覧（熟読必須）
 
 - `docs/requirements.md` — 要件定義（目的・ユースケース・機能要件・制約）
-- `docs/design.md` — アーキテクチャ・ドメインモデル・DB設計・API設計
+- `docs/design.md` — アーキテクチャ・ドメインモデル・データ層設計・API設計
 - `openspec/changes/` — 機能ごとの変更提案（proposal.md / tasks.md / specs/）
 
 **ドキュメントと実装に矛盾が生じた場合は、コードを変更する前に必ずドキュメントを参照し、
@@ -34,11 +34,11 @@ hermes-agents/
 │   ├── layout.tsx            # アプリシェル
 │   └── page.tsx              # Agentsリスト
 ├── components/               # 共有UIコンポーネント
-├── db/
-│   └── schema.ts             # Drizzle スキーマ定義（変更時は必ずmigrate）
 ├── src/
 │   └── lib/
-│       └── db.ts             # DB クライアント（better-sqlite3）
+│       ├── agents.ts          # ファイルシステムベースの Agent ヘルパー
+│       ├── env-meta.ts        # .env.meta.json visibility ヘルパー
+│       └── skill-links.ts     # シンボリックリンクベースの SkillLink ヘルパー
 ├── docs/
 │   ├── requirements.md       # 要件定義（変更時は必ず更新）
 │   └── design.md             # 設計ドキュメント（変更時は必ず更新）
@@ -46,8 +46,7 @@ hermes-agents/
 ├── tests/                    # Vitest ユニット/コンポーネントテスト
 ├── runtime/
 │   ├── agents/               # エージェント HERMES_HOME 実体
-│   ├── globals/              # globals/.env 自動生成（gitignore）
-│   ├── data/                 # SQLite DB（gitignore）
+│   ├── globals/              # globals/.env + .env.meta.json（gitignore）
 │   └── logs/                 # webapp ログ（gitignore）
 └── .wt/setup                 # worktree ブートストラップ
 ```
@@ -59,43 +58,14 @@ hermes-agents/
 ### 1. ドキュメントは常に最新を保つ
 
 - **要件/設計が変わったら、コードより先にドキュメントを更新する。**
-- `docs/requirements.md` の FR/NFR と `docs/design.md` の API/DB 設計は、実装と常に一致している必要がある。
-- DB スキーマ（db/schema.ts）を変更したら `docs/design.md` の「データベース設計」セクションも同時に更新する。
+- `docs/requirements.md` の FR/NFR と `docs/design.md` の API/データ層設計は、実装と常に一致している必要がある。
 
-### 2. スキーマ変更のフロー
+### 2. データ層
 
-1. `db/schema.ts` を変更
-2. `drizzle/` に連番 SQL マイグレーションファイルを作成（例: `0002_add_foo.sql`）
-   - `CREATE TABLE` / `CREATE INDEX` は必ず `IF NOT EXISTS` を付ける
-   - `ALTER TABLE` は冪等にできない場合、migrate.js の `execSafe()` がカラム不在エラーをスキップする
-   - ステートメント間は `--> statement-breakpoint` で区切る
-3. `npm run db:migrate` で適用（= `node scripts/migrate.js`）
-4. `docs/design.md` の §3 を更新
-
-### 2a. DB マイグレーション運用
-
-**マイグレーションランナー** (`scripts/migrate.js`):
-
-- `drizzle/` 配下の `*.sql` をファイル名昇順で実行
-- `__migrations` テーブルで適用済みを管理（冪等）
-- 本番起動時（`scripts/start-prod.sh`）に自動実行される
-
-**worktree 作成時** (`.wt/setup`):
-
-- ソースリポジトリの `runtime/data/app.db` を worktree にコピー
-- `node scripts/migrate.js` で worktree のマイグレーションを適用
-
-**worktree での開発フロー**:
-
-1. worktree 作成 → `.wt/setup` が DB コピー + migrate 実行
-2. スキーマ変更 → `drizzle/` に新規 SQL ファイル追加
-3. `npm run db:migrate` で worktree DB に適用・動作確認
-4. main にマージ → main の DB に対して `npm run db:migrate` を実行
-
-**worktree マージ後の本番 DB 更新**:
-
-1. `npm run db:migrate` を実行（新規マイグレーションのみ適用される）
-2. サービス再起動（`start-prod.sh` 内で自動実行されるため通常は不要）
+- データは `runtime/` ディレクトリ構造がソース・オブ・トゥルース（SQLite は使用しない）
+- エージェント: `runtime/agents/{agentId}/` ディレクトリ（config.yaml 必須）
+- 環境変数: `.env` ファイル + `.env.meta.json`（visibility メタデータ）
+- スキルリンク: `runtime/agents/{agentId}/skills/` 配下のシンボリックリンク
 
 ### 3. API 変更のフロー
 
@@ -122,11 +92,11 @@ hermes-agents/
 
 ## ドメインモデル（概要）
 
-| モデル    | テーブル    | キー関係                              |
-| --------- | ----------- | ------------------------------------- |
-| Agent     | agents      | agent_id UNIQUE、home と label を持つ |
-| EnvVar    | env_vars    | scope='global' / scope=agentId        |
-| SkillLink | skill_links | agent → sourcePath → targetPath       |
+| モデル    | ストレージ                | キー関係                                           |
+| --------- | ------------------------- | -------------------------------------------------- |
+| Agent     | `runtime/agents/{id}/`    | ディレクトリ名 = agentId、config.yaml 必須         |
+| EnvVar    | `.env` + `.env.meta.json` | scope='global'(`runtime/globals/`) / scope=agentId |
+| SkillLink | シンボリックリンク        | `{agent.home}/skills/{relativePath}` → sourcePath  |
 
 詳細: `docs/design.md §2〜3`
 

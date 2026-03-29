@@ -4,70 +4,29 @@ import fsp from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import * as schema from '../../db/schema';
-
-let testDb: ReturnType<typeof drizzle<typeof schema>>;
 let tmpDir: string;
 
-vi.mock('../../src/lib/db', () => {
-  return {
-    get db() {
-      return testDb;
-    },
-    schema,
-  };
-});
-
-function makeReq(url: string, init?: ConstructorParameters<typeof NextRequest>[1]) {
-  return new NextRequest(url, init);
-}
-
 beforeEach(async () => {
-  const sqlite = new Database(':memory:');
-  sqlite.exec(`
-    CREATE TABLE agents (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      agent_id TEXT NOT NULL UNIQUE,
-      home TEXT NOT NULL,
-      label TEXT NOT NULL,
-      enabled INTEGER NOT NULL DEFAULT 0,
-      created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')*1000),
-      updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now')*1000)
-    );
-
-    CREATE TABLE env_vars (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      scope TEXT NOT NULL,
-      key TEXT NOT NULL,
-      value TEXT NOT NULL,
-      visibility TEXT NOT NULL DEFAULT 'plain'
-    );
-  `);
-
-  testDb = drizzle(sqlite, { schema });
-
   tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'env-api-test-'));
   vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
 
   const agentHome = path.join(tmpDir, 'runtime', 'agents', 'alpha');
   await fsp.mkdir(agentHome, { recursive: true });
-  await testDb.insert(schema.agents).values({
-    agentId: 'alpha',
-    home: agentHome,
-    label: 'ai.hermes.gateway.alpha',
-    enabled: false,
-  });
+  await fsp.writeFile(path.join(agentHome, 'config.yaml'), 'name: default\n');
+  await fsp.writeFile(path.join(agentHome, '.env'), '');
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
   fs.rmSync(tmpDir, { recursive: true, force: true });
 });
+
+function makeReq(url: string, init?: ConstructorParameters<typeof NextRequest>[1]) {
+  return new NextRequest(url, init);
+}
 
 describe('GET /api/env', () => {
   it('returns 400 if agent param missing', async () => {
@@ -83,12 +42,18 @@ describe('GET /api/env', () => {
   });
 
   it('masks only secure values and keeps plain values visible', async () => {
-    const agentEnvPath = path.join(tmpDir, 'runtime', 'agents', 'alpha', '.env');
-    await fsp.writeFile(agentEnvPath, 'API_KEY=secret\nBASE_URL=https://example.com\n', 'utf-8');
-    await testDb.insert(schema.envVars).values([
-      { scope: 'alpha', key: 'API_KEY', value: 'secret', visibility: 'secure' },
-      { scope: 'alpha', key: 'BASE_URL', value: 'https://example.com', visibility: 'plain' },
-    ]);
+    const agentHome = path.join(tmpDir, 'runtime', 'agents', 'alpha');
+    await fsp.writeFile(
+      path.join(agentHome, '.env'),
+      'API_KEY=secret\nBASE_URL=https://example.com\n',
+    );
+    await fsp.writeFile(
+      path.join(agentHome, '.env.meta.json'),
+      JSON.stringify({
+        API_KEY: { visibility: 'secure' },
+        BASE_URL: { visibility: 'plain' },
+      }),
+    );
 
     const { GET } = await import('../../app/api/env/route');
     const res = await GET(makeReq('http://localhost/api/env?agent=alpha'));
@@ -107,8 +72,8 @@ describe('GET /api/env', () => {
   });
 
   it('treats variables without metadata as plain', async () => {
-    const agentEnvPath = path.join(tmpDir, 'runtime', 'agents', 'alpha', '.env');
-    await fsp.writeFile(agentEnvPath, 'NEW_VAR=hello\n', 'utf-8');
+    const agentHome = path.join(tmpDir, 'runtime', 'agents', 'alpha');
+    await fsp.writeFile(path.join(agentHome, '.env'), 'NEW_VAR=hello\n');
 
     const { GET } = await import('../../app/api/env/route');
     const res = await GET(makeReq('http://localhost/api/env?agent=alpha'));
@@ -174,6 +139,11 @@ describe('POST /api/env', () => {
     const content = await fsp.readFile(envPath, 'utf-8');
     expect(content).toContain('API_KEY=super-secret');
 
+    // Verify .env.meta.json was created
+    const metaPath = path.join(tmpDir, 'runtime', 'agents', 'alpha', '.env.meta.json');
+    const meta = JSON.parse(await fsp.readFile(metaPath, 'utf-8'));
+    expect(meta.API_KEY.visibility).toBe('secure');
+
     const readRes = await GET(makeReq('http://localhost/api/env?agent=alpha'));
     expect(await readRes.json()).toEqual([
       { key: 'API_KEY', value: '***', masked: true, visibility: 'secure' },
@@ -203,15 +173,13 @@ describe('POST /api/env', () => {
     ]);
   });
 
-  it('keeps secure runtime value when only visibility is updated without value', async () => {
-    const envPath = path.join(tmpDir, 'runtime', 'agents', 'alpha', '.env');
-    await fsp.writeFile(envPath, 'API_KEY=super-secret\n', 'utf-8');
-    await testDb.insert(schema.envVars).values({
-      scope: 'alpha',
-      key: 'API_KEY',
-      value: 'super-secret',
-      visibility: 'secure',
-    });
+  it('keeps existing value when only visibility is updated without value', async () => {
+    const agentHome = path.join(tmpDir, 'runtime', 'agents', 'alpha');
+    await fsp.writeFile(path.join(agentHome, '.env'), 'API_KEY=super-secret\n');
+    await fsp.writeFile(
+      path.join(agentHome, '.env.meta.json'),
+      JSON.stringify({ API_KEY: { visibility: 'secure' } }),
+    );
 
     const { POST, GET } = await import('../../app/api/env/route');
     const req = makeReq('http://localhost/api/env', {
@@ -224,7 +192,7 @@ describe('POST /api/env', () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true, visibility: 'plain' });
 
-    const updatedEnv = await fsp.readFile(envPath, 'utf-8');
+    const updatedEnv = await fsp.readFile(path.join(agentHome, '.env'), 'utf-8');
     expect(updatedEnv).toContain('API_KEY=super-secret');
 
     const readRes = await GET(makeReq('http://localhost/api/env?agent=alpha'));
@@ -261,14 +229,12 @@ describe('DELETE /api/env', () => {
   });
 
   it('removes key from agent env and metadata', async () => {
-    const envPath = path.join(tmpDir, 'runtime', 'agents', 'alpha', '.env');
-    await fsp.writeFile(envPath, 'REMOVE_ME=yes\nKEEP=ok\n', 'utf-8');
-    await testDb.insert(schema.envVars).values({
-      scope: 'alpha',
-      key: 'REMOVE_ME',
-      value: 'yes',
-      visibility: 'secure',
-    });
+    const agentHome = path.join(tmpDir, 'runtime', 'agents', 'alpha');
+    await fsp.writeFile(path.join(agentHome, '.env'), 'REMOVE_ME=yes\nKEEP=ok\n');
+    await fsp.writeFile(
+      path.join(agentHome, '.env.meta.json'),
+      JSON.stringify({ REMOVE_ME: { visibility: 'secure' } }),
+    );
 
     const { DELETE, GET } = await import('../../app/api/env/route');
     const res = await DELETE(
@@ -277,7 +243,7 @@ describe('DELETE /api/env', () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
 
-    const content = await fsp.readFile(envPath, 'utf-8');
+    const content = await fsp.readFile(path.join(agentHome, '.env'), 'utf-8');
     expect(content).not.toContain('REMOVE_ME');
     expect(content).toContain('KEEP=ok');
 
@@ -304,23 +270,24 @@ describe('GET /api/env/resolved', () => {
   it('returns merged runtime values with source and visibility', async () => {
     const globalsDir = path.join(tmpDir, 'runtime', 'globals');
     await fsp.mkdir(globalsDir, { recursive: true });
-    await fsp.writeFile(path.join(globalsDir, '.env'), 'BASE_URL=https://example.com\n', 'utf-8');
+    await fsp.writeFile(path.join(globalsDir, '.env'), 'BASE_URL=https://example.com\n');
     await fsp.writeFile(
-      path.join(tmpDir, 'runtime', 'agents', 'alpha', '.env'),
-      'API_KEY=secret\nBASE_URL=https://override.example.com\n',
-      'utf-8',
+      path.join(globalsDir, '.env.meta.json'),
+      JSON.stringify({ BASE_URL: { visibility: 'plain' } }),
     );
 
-    await testDb.insert(schema.envVars).values([
-      { scope: 'global', key: 'BASE_URL', value: 'https://example.com', visibility: 'plain' },
-      { scope: 'alpha', key: 'API_KEY', value: 'secret', visibility: 'secure' },
-      {
-        scope: 'alpha',
-        key: 'BASE_URL',
-        value: 'https://override.example.com',
-        visibility: 'plain',
-      },
-    ]);
+    const agentHome = path.join(tmpDir, 'runtime', 'agents', 'alpha');
+    await fsp.writeFile(
+      path.join(agentHome, '.env'),
+      'API_KEY=secret\nBASE_URL=https://override.example.com\n',
+    );
+    await fsp.writeFile(
+      path.join(agentHome, '.env.meta.json'),
+      JSON.stringify({
+        API_KEY: { visibility: 'secure' },
+        BASE_URL: { visibility: 'plain' },
+      }),
+    );
 
     const { GET } = await import('../../app/api/env/resolved/route');
     const res = await GET(makeReq('http://localhost/api/env/resolved?agent=alpha'));
@@ -351,8 +318,8 @@ describe('GET /api/env/resolved', () => {
   it('marks global-only keys as source=global with plain fallback visibility', async () => {
     const globalsDir = path.join(tmpDir, 'runtime', 'globals');
     await fsp.mkdir(globalsDir, { recursive: true });
-    await fsp.writeFile(path.join(globalsDir, '.env'), 'GLOBAL_VAR=gval\n', 'utf-8');
-    await fsp.writeFile(path.join(tmpDir, 'runtime', 'agents', 'alpha', '.env'), '', 'utf-8');
+    await fsp.writeFile(path.join(globalsDir, '.env'), 'GLOBAL_VAR=gval\n');
+    await fsp.writeFile(path.join(tmpDir, 'runtime', 'agents', 'alpha', '.env'), '');
 
     const { GET } = await import('../../app/api/env/resolved/route');
     const res = await GET(makeReq('http://localhost/api/env/resolved?agent=alpha'));

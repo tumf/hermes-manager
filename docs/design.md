@@ -6,7 +6,7 @@
 
 - Next.js App Router（Node ランタイム）
 - UI: Tailwind + shadcn/ui
-- データ: Drizzle ORM + better-sqlite3（./runtime/data/app.db）
+- データ: ファイルシステムベース（runtime/ ディレクトリが唯一のソース・オブ・トゥルース）
 - ファイル/実行: Node.js fs/path と child_process.execFile（launchctl/dotenvx/hermes）
 - 配置: mini ホスト上で直接起動、Caddy 経由で内部公開
 
@@ -33,18 +33,44 @@
   - fileName: 'AGENTS.md' | 'SOUL.md' | 'config.yaml'（各ファイルは任意サブセット）
   - `runtime/templates/default/` は起動時に自動配置（既存ファイルは上書きしない）
 
-## 3. データベース設計
+## 3. データ層設計（ファイルシステムベース）
 
-- agents(id PK, agent_id UNIQUE, home, label, enabled BOOL, created_at, updated_at)
-- env_vars(id PK, scope, key, value, visibility DEFAULT 'plain')
-- skill_links(id PK, agent, source_path, target_path)
-- ~~templates~~ — 削除済み。テンプレートは `runtime/templates/` にファイルとして格納
+SQLite は使用しない。`runtime/` ディレクトリ構造が唯一のソース・オブ・トゥルース。
 
-インデックス案:
+### agents → ディレクトリスキャン
 
-- agents.agent_id UNIQUE
-- env_vars(scope, key)
-- skill_links(agent)
+`runtime/agents/` 配下のディレクトリを走査。`config.yaml` が存在するディレクトリをエージェントとして認識。
+
+| フィールド | 導出元                                  |
+| ---------- | --------------------------------------- |
+| agentId    | ディレクトリ名                          |
+| home       | `runtime/agents/{agentId}` の絶対パス   |
+| label      | `ai.hermes.gateway.{agentId}`（規約）   |
+| enabled    | `config.yaml` 内の `enabled` フィールド |
+| createdAt  | `fs.stat().birthtime`                   |
+| updatedAt  | `fs.stat().mtime`                       |
+
+### env_vars → `.env` + `.env.meta.json`
+
+- キー/値ペア: `.env` ファイル（グローバルは `runtime/globals/.env`、エージェント固有は `runtime/agents/{agentId}/.env`）
+- visibility メタデータ: `.env.meta.json` サイドカーファイル
+
+`.env.meta.json` 形式:
+
+```json
+{
+  "API_KEY": { "visibility": "secure" },
+  "APP_NAME": { "visibility": "plain" }
+}
+```
+
+### skill_links → シンボリックリンクスキャン
+
+`runtime/agents/{agentId}/skills/` 配下のシンボリックリンクを再帰走査して一覧構築。
+
+### templates → ファイルシステム
+
+`runtime/templates/{templateName}/` 配下にファイルとして格納
 
 ## 4. ディレクトリ構成
 
@@ -53,8 +79,8 @@
 - /runtime/templates/{templateName}/
   - AGENTS.md, SOUL.md, config.yaml（各ファイルは任意サブセット）
   - `default/` は起動時に自動配置
-- /runtime/globals/.env（DB の global vars から自動生成）
-- /runtime/data/app.db（SQLite）
+- /runtime/globals/.env（グローバル環境変数）
+- /runtime/globals/.env.meta.json（グローバル visibility メタデータ）
 - /runtime/logs/webapp.log, /runtime/logs/webapp.error.log（webapp ログ）
 
 ## 5. API 設計（主要ポイント）
@@ -141,7 +167,7 @@
 
 ## 10. テスト方針
 
-- API: 単体（zod/関数）、一部統合（sqliteをtempコピー）
+- API: 単体（zod/関数）、一部統合（tmpdir ベースのファイルシステムフィクスチャ）
 - UI: コンポーネントテスト（Testing Library）
 - E2E は将来（Playwright）
 
@@ -152,21 +178,12 @@
 - Caddy: hermes-agents.mini.tumf.dev → localhost:18470 ← 確定ポート
 - 監視: runtime/logs/webapp.log, /api/health（簡易）
 
-### 11.1 既存環境の runtime 移行
+### 11.1 Hosting 仕様の運用検証手順
 
-- 実行コマンド: `npm run migrate:runtime -- --dry-run --verbose`（事前確認）
-- 実適用: `npm run migrate:runtime -- --verbose`
-- 移行内容:
-  - `agents/`, `globals/`, `data/`, `logs/` を `runtime/` 配下へコピー＆旧ディレクトリ削除
-  - SQLite `agents.home` の旧パス（`{PROJECT_ROOT}/agents/*`）を `runtime/agents/*` へ更新
-  - launchd は WebUI から uninstall → install → start で plist を再生成
-
-### 11.2 Hosting 仕様の運用検証手順
-
-- 起動手順（マイグレーション込み）
+- 起動手順
   - `npm run build`
   - `npm run start:prod`
-  - 期待結果: `scripts/migrate.js` が先に実行され、`runtime/data/app.db` 内の必須テーブル作成後に Next.js が `PORT=18470` で起動する
+  - 期待結果: Next.js が `PORT=18470` で起動する（データベース不要）
 - launchd ログ出力検証
   - `launchctl list | rg ai.hermes.agents-webapp`
   - `ls runtime/logs`

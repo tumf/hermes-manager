@@ -6,35 +6,17 @@ import path from 'node:path';
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { Agent } from '../../src/lib/agents';
+
 // --- hoisted mock state ---
 const mockState = vi.hoisted(() => ({
-  agentRows: [] as Record<string, unknown>[],
+  agent: null as Agent | null,
 }));
 
-// --- mock @/src/lib/db ---
-vi.mock('@/src/lib/db', async () => {
-  const { agents, envVars, skillLinks } = await import('../../db/schema');
-
-  function makeChain(resolveWith: unknown) {
-    const thenable = {
-      then: (res: (v: unknown) => unknown, rej: (e: unknown) => unknown) =>
-        Promise.resolve(resolveWith).then(res, rej),
-      catch: (cb: (e: unknown) => unknown) => Promise.resolve(resolveWith).catch(cb),
-      finally: (cb: () => void) => Promise.resolve(resolveWith).finally(cb),
-    };
-    return {
-      ...thenable,
-      from: () => ({ ...thenable, where: () => thenable }),
-      where: () => thenable,
-    };
-  }
-
-  const db = {
-    select: () => makeChain(mockState.agentRows),
-  };
-
-  return { db, schema: { agents, envVars, skillLinks } };
-});
+// --- mock @/src/lib/agents ---
+vi.mock('@/src/lib/agents', () => ({
+  getAgent: vi.fn(async () => mockState.agent),
+}));
 
 import { GET } from '../../app/api/logs/route';
 import { readLastNLines, LogQuerySchema } from '@/src/lib/logs';
@@ -131,7 +113,7 @@ describe('LogQuerySchema file enum validation', () => {
 describe('GET /api/logs', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockState.agentRows = [];
+    mockState.agent = null;
   });
 
   it('returns 400 for disallowed file', async () => {
@@ -147,22 +129,21 @@ describe('GET /api/logs', () => {
   });
 
   it('returns 404 when agent is not found', async () => {
-    mockState.agentRows = [];
+    mockState.agent = null;
     const req = makeReq('http://localhost/api/logs?agent=ghost&file=gateway.log');
     const res = await GET(req);
     expect(res.status).toBe(404);
   });
 
   it('returns empty result when log file does not exist', async () => {
-    mockState.agentRows = [
-      {
-        id: 1,
-        name: 'alice',
-        home: '/nonexistent/runtime/agents/alice',
-        label: 'l',
-        enabled: false,
-      },
-    ];
+    mockState.agent = {
+      agentId: 'alice',
+      home: '/nonexistent/runtime/agents/alice',
+      label: 'ai.hermes.gateway.alice',
+      enabled: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
     const req = makeReq('http://localhost/api/logs?agent=alice&file=gateway.log');
     const res = await GET(req);
     expect(res.status).toBe(200);

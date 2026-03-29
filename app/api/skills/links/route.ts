@@ -1,16 +1,16 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { and, eq } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
 
-import { db, schema } from '@/src/lib/db';
-import { CreateLinkSchema, deriveRelativePath } from '@/src/lib/skills';
-
-async function getAgent(agentId: string) {
-  const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.agentId, agentId));
-  return agent ?? null;
-}
+import { getAgent } from '@/src/lib/agents';
+import {
+  createSkillLink,
+  deleteSkillLink,
+  listSkillLinks,
+  skillLinkExists,
+} from '@/src/lib/skill-links';
+import { CreateLinkSchema } from '@/src/lib/skills';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -20,27 +20,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'agent query param required' }, { status: 400 });
   }
 
-  const rows = await db
-    .select()
-    .from(schema.skillLinks)
-    .where(eq(schema.skillLinks.agent, agentName));
+  const agent = await getAgent(agentName);
+  if (!agent) {
+    return NextResponse.json({ error: 'agent not found' }, { status: 404 });
+  }
 
-  const result = rows.map((row) => {
-    let exists = false;
-    try {
-      fs.lstatSync(row.targetPath);
-      exists = true;
-    } catch {
-      exists = false;
-    }
-
-    // Derive relativePath from sourcePath (handles both canonical and legacy roots)
-    const relativePath = deriveRelativePath(row.sourcePath) || path.basename(row.sourcePath);
-
-    return { ...row, exists, relativePath };
-  });
-
-  return NextResponse.json(result);
+  const links = await listSkillLinks(agentName, agent.home);
+  return NextResponse.json(links);
 }
 
 export async function POST(request: NextRequest) {
@@ -101,95 +87,52 @@ export async function POST(request: NextRequest) {
   // Build hierarchical target path
   const targetPath = path.join(agent.home, 'skills', relativePath);
 
-  // Check for duplicate link
-  const [existing] = await db
-    .select()
-    .from(schema.skillLinks)
-    .where(
-      and(eq(schema.skillLinks.agent, agentName), eq(schema.skillLinks.targetPath, targetPath)),
-    );
-
-  if (existing) {
+  // Check for duplicate link (symlink already exists at target)
+  if (await skillLinkExists(targetPath)) {
     return NextResponse.json({ error: 'skill already equipped' }, { status: 409 });
-  }
-
-  // Check for conflicting existing target
-  try {
-    fs.lstatSync(targetPath);
-    // If we reach here, target exists but isn't in DB - conflict
-    return NextResponse.json({ error: 'target path already exists' }, { status: 409 });
-  } catch {
-    // Target doesn't exist yet - this is expected
   }
 
   // Create symlink with parent directories
   try {
-    fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-    fs.symlinkSync(sourcePath, targetPath);
+    await createSkillLink(agent.home, sourcePath, relativePath);
   } catch (err: unknown) {
-    const e = err as { code?: string; message: string };
+    const e = err as { message: string };
     return NextResponse.json({ error: `Failed to create symlink: ${e.message}` }, { status: 500 });
   }
-
-  // Insert DB record
-  await db.insert(schema.skillLinks).values({ agent: agentName, sourcePath, targetPath });
 
   return NextResponse.json({ ok: true, targetPath, relativePath });
 }
 
 export async function DELETE(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const idParam = searchParams.get('id');
+  const agentName = searchParams.get('agent');
+  const relativePath = searchParams.get('path');
 
-  if (!idParam) {
-    return NextResponse.json({ error: 'id query param required' }, { status: 400 });
+  if (!agentName) {
+    return NextResponse.json({ error: 'agent query param required' }, { status: 400 });
+  }
+  if (!relativePath) {
+    return NextResponse.json({ error: 'path query param required' }, { status: 400 });
   }
 
-  const id = parseInt(idParam, 10);
-  if (isNaN(id)) {
-    return NextResponse.json({ error: 'id must be a number' }, { status: 400 });
+  const agent = await getAgent(agentName);
+  if (!agent) {
+    return NextResponse.json({ error: 'agent not found' }, { status: 404 });
   }
 
-  const [row] = await db.select().from(schema.skillLinks).where(eq(schema.skillLinks.id, id));
+  const targetPath = path.join(agent.home, 'skills', relativePath);
 
-  if (!row) {
+  // Verify the symlink exists
+  if (!(await skillLinkExists(targetPath))) {
     return NextResponse.json({ error: 'not found' }, { status: 404 });
   }
 
-  // Remove the symlink
   try {
-    fs.unlinkSync(row.targetPath);
+    await deleteSkillLink(agent.home, targetPath);
   } catch (err: unknown) {
-    const e = err as { code?: string; message: string };
-    if (e.code !== 'ENOENT') {
-      return NextResponse.json(
-        { error: `Failed to remove symlink: ${e.message}` },
-        { status: 500 },
-      );
-    }
+    const e = err as { message: string };
+    return NextResponse.json({ error: `Failed to remove symlink: ${e.message}` }, { status: 500 });
   }
-
-  // Prune empty parent directories up to the agent's skills root
-  const agentSkillsRoot = path.dirname(row.targetPath.split('/').slice(0, -1).join('/'));
-  let current = path.dirname(row.targetPath);
-
-  while (current !== agentSkillsRoot && current !== '/' && current.length > 0) {
-    try {
-      const entries = fs.readdirSync(current);
-      if (entries.length === 0) {
-        fs.rmdirSync(current);
-        current = path.dirname(current);
-      } else {
-        break;
-      }
-    } catch {
-      // Stop trying to prune if we can't read or delete
-      break;
-    }
-  }
-
-  // Delete the DB record
-  await db.delete(schema.skillLinks).where(eq(schema.skillLinks.id, id));
 
   return NextResponse.json({ ok: true });
 }

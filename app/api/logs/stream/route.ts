@@ -1,8 +1,7 @@
-import { eq } from 'drizzle-orm';
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 
-import { db, schema } from '@/src/lib/db';
+import { getAgent } from '@/src/lib/agents';
 import { ALLOWED_LOG_FILES, readLastNLines, resolveLogPath } from '@/src/lib/logs';
 import { pollFileFromOffset } from '@/src/lib/logs-stream';
 
@@ -31,8 +30,7 @@ export async function GET(request: NextRequest) {
 
   const { agent: agentName, file } = result.data;
 
-  const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.agentId, agentName));
-
+  const agent = await getAgent(agentName);
   if (!agent) {
     return new Response(JSON.stringify({ error: 'agent not found' }), {
       status: 404,

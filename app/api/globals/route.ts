@@ -1,33 +1,47 @@
-import { and, eq } from 'drizzle-orm';
+import fs from 'node:fs/promises';
+
 import { NextRequest, NextResponse } from 'next/server';
 
-import { db, schema } from '../../../src/lib/db';
-import { regenerateGlobalsEnv } from '../../../src/lib/globals-env';
-import { upsertGlobalSchema } from '../../../src/lib/validators/globals';
+import { deleteKey, parse, serialize, upsert } from '@/src/lib/dotenv-parser';
+import { readEnvMeta, removeVisibility, setVisibility } from '@/src/lib/env-meta';
+import { getRuntimeGlobalsRootPath } from '@/src/lib/runtime-paths';
+import { upsertGlobalSchema } from '@/src/lib/validators/globals';
 
 const MASKED_VALUE = '***';
 
-function toManagementRow(row: {
-  id: number;
-  scope: string;
-  key: string;
-  value: string;
-  visibility: string;
-}) {
-  const visibility = row.visibility === 'secure' ? 'secure' : 'plain';
-  const masked = visibility === 'secure';
+async function readGlobalsEnv(): Promise<string> {
+  try {
+    return await fs.readFile(getRuntimeGlobalsRootPath('.env'), 'utf-8');
+  } catch {
+    return '';
+  }
+}
 
-  return {
-    ...row,
-    visibility,
-    value: masked ? MASKED_VALUE : row.value,
-    masked,
-  };
+async function writeGlobalsEnv(content: string): Promise<void> {
+  const dir = getRuntimeGlobalsRootPath();
+  await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(getRuntimeGlobalsRootPath('.env'), content, 'utf-8');
 }
 
 export async function GET() {
-  const rows = await db.select().from(schema.envVars).where(eq(schema.envVars.scope, 'global'));
-  return NextResponse.json(rows.map(toManagementRow));
+  const content = await readGlobalsEnv();
+  const entries = parse(content);
+  const globalsDir = getRuntimeGlobalsRootPath();
+  const meta = await readEnvMeta(globalsDir);
+
+  const rows = entries.map((entry) => {
+    const visibility = meta[entry.key]?.visibility === 'secure' ? 'secure' : 'plain';
+    const masked = visibility === 'secure';
+    return {
+      scope: 'global',
+      key: entry.key,
+      value: masked ? MASKED_VALUE : entry.value,
+      visibility,
+      masked,
+    };
+  });
+
+  return NextResponse.json(rows);
 }
 
 export async function POST(request: NextRequest) {
@@ -44,32 +58,28 @@ export async function POST(request: NextRequest) {
   }
 
   const { key, value, visibility } = parsed.data;
-
-  const existing = await db
-    .select()
-    .from(schema.envVars)
-    .where(and(eq(schema.envVars.scope, 'global'), eq(schema.envVars.key, key)));
-
   const safeVisibility = visibility === 'secure' ? 'secure' : 'plain';
 
-  let row;
-  if (existing.length > 0) {
-    const updated = await db
-      .update(schema.envVars)
-      .set({ value, visibility: safeVisibility })
-      .where(and(eq(schema.envVars.scope, 'global'), eq(schema.envVars.key, key)))
-      .returning();
-    row = updated[0];
-  } else {
-    const inserted = await db
-      .insert(schema.envVars)
-      .values({ scope: 'global', key, value, visibility: safeVisibility })
-      .returning();
-    row = inserted[0];
-  }
+  // Read current .env, upsert the key, write back
+  const content = await readGlobalsEnv();
+  const entries = upsert(parse(content), key, value);
+  await writeGlobalsEnv(serialize(entries));
 
-  await regenerateGlobalsEnv();
-  return NextResponse.json(toManagementRow(row), { status: 200 });
+  // Update visibility metadata
+  const globalsDir = getRuntimeGlobalsRootPath();
+  await setVisibility(globalsDir, key, safeVisibility);
+
+  const masked = safeVisibility === 'secure';
+  return NextResponse.json(
+    {
+      scope: 'global',
+      key,
+      value: masked ? MASKED_VALUE : value,
+      visibility: safeVisibility,
+      masked,
+    },
+    { status: 200 },
+  );
 }
 
 export async function DELETE(request: NextRequest) {
@@ -79,10 +89,14 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'key query param required' }, { status: 400 });
   }
 
-  await db
-    .delete(schema.envVars)
-    .where(and(eq(schema.envVars.scope, 'global'), eq(schema.envVars.key, key)));
+  // Remove from .env
+  const content = await readGlobalsEnv();
+  const entries = deleteKey(parse(content), key);
+  await writeGlobalsEnv(serialize(entries));
 
-  await regenerateGlobalsEnv();
+  // Remove visibility metadata
+  const globalsDir = getRuntimeGlobalsRootPath();
+  await removeVisibility(globalsDir, key);
+
   return NextResponse.json({ deleted: key });
 }

@@ -1,8 +1,7 @@
-import { eq } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
 
+import { getAgent } from '@/src/lib/agents';
 import { readJobs, writeJobsAtomic } from '@/src/lib/cron';
-import { db, schema } from '@/src/lib/db';
 import { CronJobActionSchema } from '@/src/lib/validators/cron';
 
 /**
@@ -26,7 +25,7 @@ export async function POST(request: NextRequest) {
   const { agent: agentName, id: jobId, action, reason } = result.data;
 
   // Verify agent exists
-  const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.agentId, agentName));
+  const agent = await getAgent(agentName);
   if (!agent) {
     return NextResponse.json({ error: 'agent not found' }, { status: 404 });
   }
