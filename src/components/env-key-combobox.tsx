@@ -28,7 +28,7 @@ export function EnvKeyCombobox({ value, onChange, className }: EnvKeyComboboxPro
   const [search, setSearch] = React.useState('');
 
   const trimmedSearch = search.trim();
-  const showFreeInputOption =
+  const canUseFreeInput =
     trimmedSearch.length > 0 &&
     !ALL_HERMES_ENV_KEYS.some((envKey) => envKey.toLowerCase() === trimmedSearch.toLowerCase());
 
@@ -36,6 +36,15 @@ export function EnvKeyCombobox({ value, onChange, className }: EnvKeyComboboxPro
     onChange(selectedKey);
     setSearch('');
     setOpen(false);
+  }
+
+  function handleInputKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (!canUseFreeInput || event.key !== 'Enter') {
+      return;
+    }
+
+    event.preventDefault();
+    handleSelect(trimmedSearch);
   }
 
   return (
@@ -63,24 +72,19 @@ export function EnvKeyCombobox({ value, onChange, className }: EnvKeyComboboxPro
             placeholder="Search keys..."
             value={search}
             onValueChange={setSearch}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && showFreeInputOption) {
-                event.preventDefault();
-                handleSelect(trimmedSearch);
-              }
-            }}
+            onKeyDown={handleInputKeyDown}
           />
           <CommandList id={LISTBOX_ID}>
-            {showFreeInputOption ? (
+            <CommandEmpty>No keys found.</CommandEmpty>
+            {canUseFreeInput ? (
               <CommandItem
-                value={`__free__:${trimmedSearch}`}
+                value={`__custom__:${trimmedSearch}`}
                 onSelect={() => handleSelect(trimmedSearch)}
                 className="font-mono text-xs"
               >
                 Use &ldquo;{trimmedSearch}&rdquo;
               </CommandItem>
             ) : null}
-            <CommandEmpty>No keys found.</CommandEmpty>
             {HERMES_ENV_KEY_GROUPS.map((group) => (
               <CommandGroup key={group.category} heading={group.category}>
                 {group.keys.map((envKey) => (
