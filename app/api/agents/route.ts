@@ -26,7 +26,7 @@ export async function GET() {
   return NextResponse.json(rows);
 }
 
-export async function POST(request?: NextRequest) {
+export async function POST(request: NextRequest) {
   // Parse optional body for template selection
   let templateNames: { agentsMd?: string; soulMd?: string; configYaml?: string } | undefined;
   if (request) {

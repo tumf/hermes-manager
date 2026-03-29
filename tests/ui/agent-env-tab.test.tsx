@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import '@testing-library/jest-dom';
 
-import { AgentEnvTab } from '../../app/agents/[id]/page';
+import { AgentEnvTab } from '../../src/components/agent-env-tab';
 
 function mockFetch() {
   return vi.fn().mockImplementation(async (url: string, init?: { method?: string }) => {

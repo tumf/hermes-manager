@@ -140,7 +140,7 @@ describe('POST /api/agents', () => {
     };
     mockState.insertRows = [created];
 
-    const res = await POST();
+    const res = await POST(new NextRequest('http://localhost/api/agents', { method: 'POST' }));
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.agentId).toBe('abc1234');
@@ -159,7 +159,7 @@ describe('POST /api/agents', () => {
       },
     ];
 
-    await POST();
+    await POST(new NextRequest('http://localhost/api/agents', { method: 'POST' }));
     expect(vi.mocked(fs.mkdir)).toHaveBeenCalled();
     expect(vi.mocked(fs.writeFile)).toHaveBeenCalled();
   });
@@ -177,7 +177,7 @@ describe('POST /api/agents', () => {
       },
     ];
 
-    await POST();
+    await POST(new NextRequest('http://localhost/api/agents', { method: 'POST' }));
     // Verify fallback content is used
     const writeFileCalls = vi.mocked(fs.writeFile).mock.calls;
     const agentsMdCall = writeFileCalls.find(
