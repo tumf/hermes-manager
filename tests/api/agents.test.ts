@@ -18,7 +18,7 @@ const mockState = vi.hoisted(() => ({
 // --- mock @/src/lib/db ---
 vi.mock('@/src/lib/db', async () => {
   // Import real schema so drizzle column objects work with eq()
-  const { agents, envVars, skillLinks, templates } = await import('../../db/schema');
+  const { agents, envVars, skillLinks } = await import('../../db/schema');
 
   function makeChain(resolveWith: unknown) {
     const thenable = {
@@ -53,7 +53,7 @@ vi.mock('@/src/lib/db', async () => {
     delete: () => makeChain(undefined),
   };
 
-  return { db, schema: { agents, envVars, skillLinks, templates } };
+  return { db, schema: { agents, envVars, skillLinks } };
 });
 
 // --- mock node:fs/promises ---
@@ -69,6 +69,20 @@ vi.mock('node:fs/promises', () => ({
 // --- mock node:child_process ---
 vi.mock('node:child_process', () => ({
   execFile: vi.fn((_cmd: string, _args: string[], cb: (err: null) => void) => cb(null)),
+}));
+
+// --- mock src/lib/templates ---
+// resolveTemplateContent uses synchronous node:fs (not node:fs/promises),
+// so we must mock the templates module to prevent real filesystem reads.
+vi.mock('@/src/lib/templates', () => ({
+  resolveTemplateContent: vi.fn((fileName: string, agentId: string) => {
+    const fallbacks: Record<string, (id: string) => string> = {
+      'AGENTS.md': (id: string) => `# ${id}\n`,
+      'SOUL.md': (id: string) => `# Soul: ${id}\n`,
+      'config.yaml': (id: string) => `name: ${id}\n`,
+    };
+    return (fallbacks[fileName] ?? (() => ''))(agentId);
+  }),
 }));
 
 // --- mock src/lib/id ---

@@ -1,38 +1,58 @@
-import { and, eq } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
 
-import { db, schema } from '@/src/lib/db';
+import {
+  deleteTemplate,
+  deleteTemplateFile,
+  getTemplateFile,
+  isValidFileName,
+  isValidName,
+  listTemplates,
+  writeTemplateFile,
+} from '@/src/lib/templates';
 import {
   CreateTemplateSchema,
   UpdateTemplateSchema,
-  fileTypeSchema,
+  fileSchema,
+  templateNameSchema,
 } from '@/src/lib/validators/templates';
 
-/** GET /api/templates?fileType=config.yaml (optional filter) */
+/**
+ * GET /api/templates — list all templates
+ * GET /api/templates?name=...&file=... — get a specific template file
+ */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const fileTypeParam = searchParams.get('fileType');
+  const name = searchParams.get('name');
+  const file = searchParams.get('file');
 
-  if (fileTypeParam) {
-    const parsed = fileTypeSchema.safeParse(fileTypeParam);
-    if (!parsed.success) {
+  // If both name and file are provided, return specific file content
+  if (name && file) {
+    if (!isValidName(name)) {
+      return NextResponse.json({ error: 'Invalid template name' }, { status: 400 });
+    }
+    if (!isValidFileName(file)) {
       return NextResponse.json(
-        { error: 'Invalid fileType. Must be one of: agents.md, soul.md, config.yaml' },
+        { error: 'Invalid file. Must be one of: AGENTS.md, SOUL.md, config.yaml' },
         { status: 400 },
       );
     }
-    const rows = await db
-      .select()
-      .from(schema.templates)
-      .where(eq(schema.templates.fileType, parsed.data));
-    return NextResponse.json(rows);
+
+    const result = getTemplateFile(name, file);
+    if (!result) {
+      return NextResponse.json(
+        { error: `Template file "${name}/${file}" not found` },
+        { status: 404 },
+      );
+    }
+    return NextResponse.json(result);
   }
 
-  const rows = await db.select().from(schema.templates);
-  return NextResponse.json(rows);
+  // List all templates
+  const templates = listTemplates();
+  return NextResponse.json(templates);
 }
 
-/** POST /api/templates — create a new template */
+/** POST /api/templates — create a new template file */
 export async function POST(request: NextRequest) {
   let body: unknown;
   try {
@@ -46,26 +66,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: result.error.errors[0].message }, { status: 400 });
   }
 
-  const { fileType, name, content } = result.data;
+  const { file, name, content } = result.data;
 
-  // Check for duplicate (fileType + name unique)
-  const existing = await db
-    .select()
-    .from(schema.templates)
-    .where(and(eq(schema.templates.fileType, fileType), eq(schema.templates.name, name)));
-
-  if (existing.length > 0) {
+  // Check if file already exists (409 for duplicate)
+  const existing = getTemplateFile(name, file);
+  if (existing) {
     return NextResponse.json(
-      { error: `Template "${name}" already exists for fileType "${fileType}"` },
+      { error: `Template "${name}/${file}" already exists` },
       { status: 409 },
     );
   }
 
-  const [row] = await db.insert(schema.templates).values({ fileType, name, content }).returning();
-  return NextResponse.json(row, { status: 201 });
+  const written = writeTemplateFile(name, file, content);
+  return NextResponse.json(written, { status: 201 });
 }
 
-/** PUT /api/templates — update an existing template */
+/** PUT /api/templates — update an existing template file */
 export async function PUT(request: NextRequest) {
   let body: unknown;
   try {
@@ -79,65 +95,59 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: result.error.errors[0].message }, { status: 400 });
   }
 
-  const { fileType, name, content } = result.data;
+  const { file, name, content } = result.data;
 
-  const existing = await db
-    .select()
-    .from(schema.templates)
-    .where(and(eq(schema.templates.fileType, fileType), eq(schema.templates.name, name)));
-
-  if (existing.length === 0) {
-    return NextResponse.json(
-      { error: `Template "${name}" not found for fileType "${fileType}"` },
-      { status: 404 },
-    );
+  const existing = getTemplateFile(name, file);
+  if (!existing) {
+    return NextResponse.json({ error: `Template "${name}/${file}" not found` }, { status: 404 });
   }
 
-  const [row] = await db
-    .update(schema.templates)
-    .set({ content, updatedAt: new Date() })
-    .where(and(eq(schema.templates.fileType, fileType), eq(schema.templates.name, name)))
-    .returning();
-  return NextResponse.json(row);
+  const written = writeTemplateFile(name, file, content);
+  return NextResponse.json(written);
 }
 
-/** DELETE /api/templates?fileType=...&name=... */
+/**
+ * DELETE /api/templates?name=...&file=... — delete a single file
+ * DELETE /api/templates?name=... — delete entire template directory
+ */
 export async function DELETE(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const fileTypeParam = searchParams.get('fileType');
   const name = searchParams.get('name');
+  const file = searchParams.get('file');
 
-  if (!fileTypeParam || !name) {
-    return NextResponse.json({ error: 'fileType and name query params required' }, { status: 400 });
+  if (!name) {
+    return NextResponse.json({ error: 'name query param required' }, { status: 400 });
   }
 
-  const parsedFileType = fileTypeSchema.safeParse(fileTypeParam);
-  if (!parsedFileType.success) {
-    return NextResponse.json(
-      { error: 'Invalid fileType. Must be one of: agents.md, soul.md, config.yaml' },
-      { status: 400 },
-    );
+  const parsedName = templateNameSchema.safeParse(name);
+  if (!parsedName.success) {
+    return NextResponse.json({ error: 'Invalid template name' }, { status: 400 });
   }
 
-  const existing = await db
-    .select()
-    .from(schema.templates)
-    .where(
-      and(eq(schema.templates.fileType, parsedFileType.data), eq(schema.templates.name, name)),
-    );
+  if (file) {
+    // Delete a single file
+    const parsedFile = fileSchema.safeParse(file);
+    if (!parsedFile.success) {
+      return NextResponse.json(
+        { error: 'Invalid file. Must be one of: AGENTS.md, SOUL.md, config.yaml' },
+        { status: 400 },
+      );
+    }
 
-  if (existing.length === 0) {
-    return NextResponse.json(
-      { error: `Template "${name}" not found for fileType "${parsedFileType.data}"` },
-      { status: 404 },
-    );
+    const deleted = deleteTemplateFile(parsedName.data, parsedFile.data);
+    if (!deleted) {
+      return NextResponse.json(
+        { error: `Template file "${name}/${file}" not found` },
+        { status: 404 },
+      );
+    }
+    return NextResponse.json({ ok: true });
   }
 
-  await db
-    .delete(schema.templates)
-    .where(
-      and(eq(schema.templates.fileType, parsedFileType.data), eq(schema.templates.name, name)),
-    );
-
+  // Delete entire template directory
+  const deleted = deleteTemplate(parsedName.data);
+  if (!deleted) {
+    return NextResponse.json({ error: `Template "${name}" not found` }, { status: 404 });
+  }
   return NextResponse.json({ ok: true });
 }
