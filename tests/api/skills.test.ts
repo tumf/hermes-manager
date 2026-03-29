@@ -14,7 +14,9 @@ const mockState = vi.hoisted(() => ({
   skillLinks: [] as SkillLink[],
   createdTargetPath: null as string | null,
   deletedTargetPath: null as string | null,
+  deleteMode: 'post' as 'post' | 'delete',
   linkExists: false,
+  deletedTargetPathOnPost: null as string | null,
   fsEntries: {} as Record<string, { isDirectory: () => boolean; name: string }[]>,
   fsStat: {} as Record<string, { isDirectory: () => boolean }>,
   fsLstat: {} as Record<string, boolean>,
@@ -37,7 +39,11 @@ vi.mock('@/src/lib/skill-links', () => ({
     return targetPath;
   }),
   deleteSkillLink: vi.fn(async (_home: string, targetPath: string) => {
-    mockState.deletedTargetPath = targetPath;
+    if (mockState.deleteMode === 'post') {
+      mockState.deletedTargetPathOnPost = targetPath;
+    } else {
+      mockState.deletedTargetPath = targetPath;
+    }
   }),
   skillLinkExists: vi.fn(async () => mockState.linkExists),
 }));
@@ -241,6 +247,9 @@ describe('POST /api/skills/links', () => {
     mockState.agent = null;
     mockState.skillLinks = [];
     mockState.createdTargetPath = null;
+    mockState.deletedTargetPath = null;
+    mockState.deletedTargetPathOnPost = null;
+    mockState.deleteMode = 'post';
     mockState.linkExists = false;
     mockState.fsStat = {};
     mockState.symlinkCalls = [];
@@ -311,6 +320,15 @@ describe('POST /api/skills/links', () => {
   it('returns 409 on duplicate target path', async () => {
     mockState.agent = ALPHA;
     mockState.linkExists = true;
+    mockState.skillLinks = [
+      {
+        agent: 'alpha',
+        sourcePath: '/Users/tumf/.agents/skills/coding',
+        targetPath: '/runtime/agents/alpha/skills/coding',
+        relativePath: 'coding',
+        exists: true,
+      },
+    ];
     const home = process.env.HOME || '/home/user';
     const skillsRoot = `${home}/.agents/skills`;
     mockState.fsStat[`${skillsRoot}/coding`] = { isDirectory: () => true };
@@ -325,6 +343,70 @@ describe('POST /api/skills/links', () => {
     );
     expect(res.status).toBe(409);
   });
+
+  it('replaces broken target path before creating link', async () => {
+    mockState.agent = ALPHA;
+    mockState.linkExists = true;
+    mockState.skillLinks = [
+      {
+        agent: 'alpha',
+        sourcePath: '/nonexistent/path',
+        targetPath: '/runtime/agents/alpha/skills/dogfood',
+        relativePath: 'dogfood',
+        exists: false,
+      },
+    ];
+    const home = process.env.HOME || '/home/user';
+    const skillsRoot = `${home}/.agents/skills`;
+    mockState.fsStat[`${skillsRoot}/dogfood`] = { isDirectory: () => true };
+    mockState.fsStat[`${skillsRoot}/dogfood/SKILL.md`] = { isDirectory: () => false };
+
+    const res = await POST(
+      makeReq('http://localhost/api/skills/links', {
+        method: 'POST',
+        body: JSON.stringify({ agent: 'alpha', relativePath: 'dogfood' }),
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(mockState.deletedTargetPathOnPost).toBe('/runtime/agents/alpha/skills/dogfood');
+    expect(mockState.createdTargetPath).toBe('/runtime/agents/alpha/skills/dogfood');
+  });
+
+  it('returns 500 when replacing stale link fails', async () => {
+    mockState.agent = ALPHA;
+    mockState.linkExists = true;
+    mockState.skillLinks = [
+      {
+        agent: 'alpha',
+        sourcePath: '/nonexistent/path',
+        targetPath: '/runtime/agents/alpha/skills/dogfood',
+        relativePath: 'dogfood',
+        exists: false,
+      },
+    ];
+    const home = process.env.HOME || '/home/user';
+    const skillsRoot = `${home}/.agents/skills`;
+    mockState.fsStat[`${skillsRoot}/dogfood`] = { isDirectory: () => true };
+    mockState.fsStat[`${skillsRoot}/dogfood/SKILL.md`] = { isDirectory: () => false };
+
+    const { deleteSkillLink } = await import('@/src/lib/skill-links');
+    vi.mocked(deleteSkillLink).mockRejectedValueOnce(
+      new Error('target path is a non-empty directory'),
+    );
+
+    const res = await POST(
+      makeReq('http://localhost/api/skills/links', {
+        method: 'POST',
+        body: JSON.stringify({ agent: 'alpha', relativePath: 'dogfood' }),
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    expect(res.status).toBe(500);
+    await expect(res.json()).resolves.toMatchObject({
+      error: expect.stringContaining('target path is a non-empty directory'),
+    });
+  });
 });
 
 // ---- DELETE /api/skills/links ----
@@ -334,6 +416,7 @@ describe('DELETE /api/skills/links', () => {
     vi.clearAllMocks();
     mockState.agent = null;
     mockState.deletedTargetPath = null;
+    mockState.deleteMode = 'delete';
     mockState.linkExists = false;
   });
 

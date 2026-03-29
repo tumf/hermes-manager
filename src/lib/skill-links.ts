@@ -4,6 +4,8 @@ import path from 'node:path';
 
 import { deriveRelativePath } from './skills';
 
+const HYBRID_LINK_NAME = '.skill-link';
+
 export interface SkillLink {
   agent: string;
   sourcePath: string;
@@ -28,10 +30,24 @@ async function findSymlinks(dir: string): Promise<string[]> {
     const fullPath = path.join(dir, entry.name);
     if (entry.isSymbolicLink()) {
       result.push(fullPath);
-    } else if (entry.isDirectory()) {
-      const nested = await findSymlinks(fullPath);
-      result.push(...nested);
+      continue;
     }
+    if (!entry.isDirectory()) {
+      continue;
+    }
+
+    const hybridLinkPath = path.join(fullPath, HYBRID_LINK_NAME);
+    try {
+      const hybridStat = await fsp.lstat(hybridLinkPath);
+      if (hybridStat.isSymbolicLink()) {
+        result.push(hybridLinkPath);
+      }
+    } catch {
+      undefined;
+    }
+
+    const nested = await findSymlinks(fullPath);
+    result.push(...nested.filter((nestedPath) => nestedPath !== hybridLinkPath));
   }
   return result;
 }
@@ -60,7 +76,12 @@ export async function listSkillLinks(agentId: string, agentHome: string): Promis
       continue;
     }
 
-    const relativePath = deriveRelativePath(sourcePath) || path.basename(sourcePath);
+    const derivedRelativePath = deriveRelativePath(sourcePath);
+    const relativePath =
+      derivedRelativePath ||
+      (path.basename(targetPath) === HYBRID_LINK_NAME
+        ? path.relative(skillsDir, path.dirname(targetPath)).replace(/\\/g, '/')
+        : path.basename(sourcePath));
     links.push({
       agent: agentId,
       sourcePath,
@@ -81,27 +102,78 @@ export async function createSkillLink(
   sourcePath: string,
   relativePath: string,
 ): Promise<string> {
-  const targetPath = path.join(agentHome, 'skills', relativePath);
-  await fsp.mkdir(path.dirname(targetPath), { recursive: true });
-  await fsp.symlink(sourcePath, targetPath);
-  return targetPath;
+  const directTargetPath = path.join(agentHome, 'skills', relativePath);
+
+  try {
+    const stat = await fsp.lstat(directTargetPath);
+    if (stat.isDirectory() && !stat.isSymbolicLink()) {
+      const hybridTargetPath = path.join(directTargetPath, HYBRID_LINK_NAME);
+      await fsp.mkdir(directTargetPath, { recursive: true });
+      await fsp.symlink(sourcePath, hybridTargetPath);
+      return hybridTargetPath;
+    }
+  } catch {
+    undefined;
+  }
+
+  await fsp.mkdir(path.dirname(directTargetPath), { recursive: true });
+
+  try {
+    await fsp.symlink(sourcePath, directTargetPath);
+  } catch (err: unknown) {
+    const e = err as { code?: string };
+    if (e.code === 'EEXIST') {
+      const stat = await fsp.lstat(directTargetPath);
+      if (stat.isDirectory() && !stat.isSymbolicLink()) {
+        const hybridTargetPath = path.join(directTargetPath, HYBRID_LINK_NAME);
+        await fsp.symlink(sourcePath, hybridTargetPath);
+        return hybridTargetPath;
+      }
+    }
+    throw err;
+  }
+  return directTargetPath;
 }
 
 /**
  * Delete a skill link (symlink) and prune empty parent directories.
  */
 export async function deleteSkillLink(agentHome: string, targetPath: string): Promise<void> {
-  // Remove the symlink
+  let removedPath = targetPath;
   try {
-    await fsp.unlink(targetPath);
+    const stat = await fsp.lstat(targetPath);
+    if (stat.isDirectory() && !stat.isSymbolicLink()) {
+      const hybridTargetPath = path.join(targetPath, HYBRID_LINK_NAME);
+      try {
+        const hybridStat = await fsp.lstat(hybridTargetPath);
+        if (hybridStat.isSymbolicLink()) {
+          await fsp.unlink(hybridTargetPath);
+          removedPath = hybridTargetPath;
+        } else {
+          throw new Error('target path is a non-empty directory');
+        }
+      } catch (err: unknown) {
+        const e = err as { code?: string };
+        if (e.code === 'ENOENT') {
+          const entries = await fsp.readdir(targetPath);
+          if (entries.length > 0) {
+            throw new Error('target path is a non-empty directory');
+          }
+          await fsp.rmdir(targetPath);
+        } else {
+          throw err;
+        }
+      }
+    } else {
+      await fsp.unlink(targetPath);
+    }
   } catch (err: unknown) {
     const e = err as { code?: string };
     if (e.code !== 'ENOENT') throw err;
   }
 
-  // Prune empty parent directories up to the agent's skills root
   const skillsRoot = path.join(agentHome, 'skills');
-  let current = path.dirname(targetPath);
+  let current = path.dirname(removedPath);
 
   while (current !== skillsRoot && current.startsWith(skillsRoot) && current !== '/') {
     try {
@@ -126,6 +198,12 @@ export async function skillLinkExists(targetPath: string): Promise<boolean> {
     await fsp.lstat(targetPath);
     return true;
   } catch {
-    return false;
+    try {
+      const hybridTargetPath = path.join(targetPath, HYBRID_LINK_NAME);
+      const stat = await fsp.lstat(hybridTargetPath);
+      return stat.isSymbolicLink();
+    } catch {
+      return false;
+    }
   }
 }

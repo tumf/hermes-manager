@@ -84,15 +84,35 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Build hierarchical target path
   const targetPath = path.join(agent.home, 'skills', relativePath);
+  const existingLinks = await listSkillLinks(agentName, agent.home);
+  const existingLink = existingLinks.find((link) => link.relativePath === relativePath);
 
-  // Check for duplicate link (symlink already exists at target)
-  if (await skillLinkExists(targetPath)) {
+  if (existingLink?.exists) {
     return NextResponse.json({ error: 'skill already equipped' }, { status: 409 });
   }
 
-  // Create symlink with parent directories
+  const parentParts = relativePath.split('/');
+  for (let i = 1; i <= parentParts.length - 1; i++) {
+    const ancestorPath = parentParts.slice(0, i).join('/');
+    const ancestorLink = existingLinks.find((link) => link.relativePath === ancestorPath);
+    if (ancestorLink?.exists) {
+      return NextResponse.json({ error: 'skill already equipped' }, { status: 409 });
+    }
+  }
+
+  if (existingLink && !existingLink.exists) {
+    try {
+      await deleteSkillLink(agent.home, existingLink.targetPath);
+    } catch (err: unknown) {
+      const e = err as { message: string };
+      return NextResponse.json(
+        { error: `Failed to replace existing skill path: ${e.message}` },
+        { status: 500 },
+      );
+    }
+  }
+
   try {
     await createSkillLink(agent.home, sourcePath, relativePath);
   } catch (err: unknown) {

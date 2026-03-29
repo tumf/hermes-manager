@@ -98,21 +98,25 @@ function createFetchMock(opts?: { equippedLinks?: LinkEntry[] }) {
       if (url === '/api/skills/links' && method === 'POST') {
         const body = JSON.parse(init?.body ?? '{}');
         const newId = currentLinks.length + 100;
+        const hybridRoots = new Set(['frontend-design', 'shadcn', 'skill-creator']);
+        const targetPath = hybridRoots.has(body.relativePath)
+          ? `/runtime/agents/${body.agent}/skills/${body.relativePath}/.skill-link`
+          : `/runtime/agents/${body.agent}/skills/${body.relativePath}`;
         currentLinks.push({
           id: newId,
           agent: body.agent,
           sourcePath: `/Users/tumf/.agents/skills/${body.relativePath}`,
-          targetPath: `/runtime/agents/${body.agent}/skills/${body.relativePath}`,
+          targetPath,
           exists: true,
           relativePath: body.relativePath,
         });
         return { ok: true, json: async () => ({ ok: true }) };
       }
 
-      if (url.startsWith('/api/skills/links?id=') && method === 'DELETE') {
-        const idStr = new URL(url, 'http://localhost').searchParams.get('id');
-        const id = parseInt(idStr ?? '', 10);
-        currentLinks = currentLinks.filter((l) => l.id !== id);
+      if (url.startsWith('/api/skills/links?') && method === 'DELETE') {
+        const parsed = new URL(url, 'http://localhost');
+        const path = parsed.searchParams.get('path');
+        currentLinks = currentLinks.filter((l) => l.relativePath !== path);
         return { ok: true, json: async () => ({ ok: true }) };
       }
 
@@ -178,12 +182,15 @@ describe('SkillsTab bulk select', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Select all skills' }));
 
     await waitFor(() => {
+      const getCalls = (fetchMock.mock.calls as [string, { method?: string }?][]).filter(
+        ([u, init]) =>
+          u.startsWith('/api/skills/links?agent=') && (init?.method ?? 'GET') === 'GET',
+      );
       const postCalls = (
         fetchMock.mock.calls as [string, { method?: string; body?: string }?][]
       ).filter(([u, init]) => u === '/api/skills/links' && init?.method === 'POST');
 
-      // 'coding' is already equipped, so should equip 3 others:
-      // mini-ops/caddy-recovery, mini-ops/flowise, research/arxiv
+      expect(getCalls.length).toBeGreaterThan(0);
       expect(postCalls.length).toBe(3);
 
       const bodies = postCalls.map(([, init]) => JSON.parse(init?.body ?? '{}'));
@@ -191,7 +198,6 @@ describe('SkillsTab bulk select', () => {
       expect(paths).toContain('mini-ops/caddy-recovery');
       expect(paths).toContain('mini-ops/flowise');
       expect(paths).toContain('research/arxiv');
-      // 'coding' should NOT be in the list (already equipped)
       expect(paths).not.toContain('coding');
     });
   });
@@ -209,11 +215,17 @@ describe('SkillsTab bulk select', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Clear all skills' }));
 
     await waitFor(() => {
+      const getCalls = (fetchMock.mock.calls as [string, { method?: string }?][]).filter(
+        ([u, init]) =>
+          u.startsWith('/api/skills/links?agent=') && (init?.method ?? 'GET') === 'GET',
+      );
       const deleteCalls = (fetchMock.mock.calls as [string, { method?: string }?][]).filter(
-        ([u, init]) => u.startsWith('/api/skills/links?id=') && init?.method === 'DELETE',
+        ([u, init]) => u.startsWith('/api/skills/links?agent=') && init?.method === 'DELETE',
       );
 
+      expect(getCalls.length).toBeGreaterThan(0);
       expect(deleteCalls.length).toBe(1);
+      expect(deleteCalls[0]?.[0]).toContain('path=coding');
     });
   });
 

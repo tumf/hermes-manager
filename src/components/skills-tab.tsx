@@ -42,6 +42,11 @@ export function collectDescendantSkillPaths(nodes: SkillNode[]): string[] {
   return paths;
 }
 
+function hasDescendantSkill(node: SkillNode): boolean {
+  if (node.hasSkill) return true;
+  return node.children.some(hasDescendantSkill);
+}
+
 export function SkillsTab({ name }: { name: string }) {
   const [tree, setTree] = useState<SkillNode[]>([]);
   const [equipped, setEquipped] = useState<Set<string>>(new Set());
@@ -113,22 +118,10 @@ export function SkillsTab({ name }: { name: string }) {
           toast.error(typeof err.error === 'string' ? err.error : 'Failed to equip skill');
         }
       } else {
-        // Find the link ID from equipped list
-        const linksRes = await fetch(`/api/skills/links?agent=${encodeURIComponent(name)}`);
-        if (!linksRes.ok) {
-          toast.error('Failed to fetch links');
-          return;
-        }
-
-        const links = await linksRes.json();
-        const link = links.find((l: EquippedLink) => l.relativePath === relativePath);
-
-        if (!link) {
-          toast.error('Link not found');
-          return;
-        }
-
-        const delRes = await fetch(`/api/skills/links?id=${link.id}`, { method: 'DELETE' });
+        const delRes = await fetch(
+          `/api/skills/links?agent=${encodeURIComponent(name)}&path=${encodeURIComponent(relativePath)}`,
+          { method: 'DELETE' },
+        );
 
         if (delRes.ok) {
           setEquipped((s) => {
@@ -158,10 +151,19 @@ export function SkillsTab({ name }: { name: string }) {
    * Skips no-op operations based on current equipped set.
    */
   async function handleBulkAction(skillPaths: string[], equip: boolean) {
-    // Filter to only paths that need action (skip no-ops)
+    const linksRes = await fetch(`/api/skills/links?agent=${encodeURIComponent(name)}`);
+    if (!linksRes.ok) {
+      toast.error(`Failed to fetch links for bulk ${equip ? 'equip' : 'unequip'}`);
+      return;
+    }
+
+    const links: EquippedLink[] = await linksRes.json();
+    const equippedNow = new Set(
+      links.filter((link) => link.exists).map((link) => link.relativePath),
+    );
     const toAct = equip
-      ? skillPaths.filter((p) => !equipped.has(p))
-      : skillPaths.filter((p) => equipped.has(p));
+      ? skillPaths.filter((p) => !equippedNow.has(p))
+      : skillPaths.filter((p) => equippedNow.has(p));
 
     if (toAct.length === 0) {
       toast.success(equip ? 'All skills already equipped' : 'No skills to unequip');
@@ -184,7 +186,7 @@ export function SkillsTab({ name }: { name: string }) {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ agent: name, relativePath }),
             });
-            if (!res.ok) {
+            if (!res.ok && res.status !== 409) {
               throw new Error(`Failed to equip ${relativePath}`);
             }
           }),
@@ -195,23 +197,13 @@ export function SkillsTab({ name }: { name: string }) {
           else failed++;
         }
       } else {
-        // Unequip: need link IDs, fetch current links first
-        const linksRes = await fetch(`/api/skills/links?agent=${encodeURIComponent(name)}`);
-        if (!linksRes.ok) {
-          toast.error('Failed to fetch links for bulk unequip');
-          return;
-        }
-
-        const links: EquippedLink[] = await linksRes.json();
-        const linkMap = new Map(links.map((l) => [l.relativePath, l]));
-
         const results = await Promise.allSettled(
           toAct.map(async (relativePath) => {
-            const link = linkMap.get(relativePath);
-            if (!link) throw new Error(`Link not found for ${relativePath}`);
-
-            const res = await fetch(`/api/skills/links?id=${link.id}`, { method: 'DELETE' });
-            if (!res.ok) {
+            const res = await fetch(
+              `/api/skills/links?agent=${encodeURIComponent(name)}&path=${encodeURIComponent(relativePath)}`,
+              { method: 'DELETE' },
+            );
+            if (!res.ok && res.status !== 404) {
               throw new Error(`Failed to unequip ${relativePath}`);
             }
           }),
@@ -286,7 +278,7 @@ export function SkillsTab({ name }: { name: string }) {
           <p className="text-sm text-muted-foreground">No skills available in ~/.agents/skills</p>
         ) : (
           <div className="space-y-1">
-            {tree.map((node) => (
+            {tree.filter(hasDescendantSkill).map((node) => (
               <SkillTreeNode
                 key={node.relativePath}
                 node={node}
@@ -326,8 +318,7 @@ function SkillTreeNode({
   // スキルディレクトリは子フォルダを表示しない（再帰的に深掘りしない）
   // 非スキルディレクトリだけ展開可能
   const canExpand = !node.hasSkill && node.children.length > 0;
-  // スキルディレクトリの場合は子を非表示
-  const visibleChildren = node.hasSkill ? [] : node.children;
+  const visibleChildren = node.hasSkill ? [] : node.children.filter(hasDescendantSkill);
 
   // Folder-level bulk: collect all descendant skill paths under this folder
   const folderSkillPaths = canExpand ? collectDescendantSkillPaths(node.children) : [];

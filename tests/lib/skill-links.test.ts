@@ -69,6 +69,18 @@ describe('createSkillLink', () => {
     expect(fs.lstatSync(targetPath).isSymbolicLink()).toBe(true);
     expect(fs.readlinkSync(targetPath)).toBe(sourceDir);
   });
+
+  it('creates a .skill-link inside an existing directory for hybrid skills', async () => {
+    const sourceDir = path.join(tmpDir, 'hybrid-skill');
+    fs.mkdirSync(sourceDir);
+    fs.mkdirSync(path.join(agentHome, 'skills', 'hybrid-skill'), { recursive: true });
+    fs.writeFileSync(path.join(agentHome, 'skills', 'hybrid-skill', 'child.txt'), 'x');
+
+    const targetPath = await createSkillLink(agentHome, sourceDir, 'hybrid-skill');
+    expect(targetPath).toBe(path.join(agentHome, 'skills', 'hybrid-skill', '.skill-link'));
+    expect(fs.lstatSync(targetPath).isSymbolicLink()).toBe(true);
+    expect(fs.readlinkSync(targetPath)).toBe(sourceDir);
+  });
 });
 
 describe('deleteSkillLink', () => {
@@ -86,6 +98,38 @@ describe('deleteSkillLink', () => {
     expect(fs.existsSync(path.join(agentHome, 'skills', 'category'))).toBe(false);
   });
 
+  it('removes a hybrid .skill-link and keeps populated directory', async () => {
+    const sourceDir = path.join(tmpDir, 'hybrid-source');
+    fs.mkdirSync(sourceDir);
+    const targetDir = path.join(agentHome, 'skills', 'hybrid-skill');
+    fs.mkdirSync(targetDir, { recursive: true });
+    fs.writeFileSync(path.join(targetDir, 'child.txt'), 'x');
+    fs.symlinkSync(sourceDir, path.join(targetDir, '.skill-link'));
+
+    await deleteSkillLink(agentHome, targetDir);
+    expect(fs.existsSync(path.join(targetDir, '.skill-link'))).toBe(false);
+    expect(fs.existsSync(targetDir)).toBe(true);
+  });
+
+  it('removes an empty non-symlink directory and prunes empty parents', async () => {
+    const targetPath = path.join(agentHome, 'skills', 'category', 'empty-dir');
+    fs.mkdirSync(targetPath, { recursive: true });
+
+    await deleteSkillLink(agentHome, targetPath);
+    expect(fs.existsSync(targetPath)).toBe(false);
+    expect(fs.existsSync(path.join(agentHome, 'skills', 'category'))).toBe(false);
+  });
+
+  it('throws for a non-empty directory', async () => {
+    const targetPath = path.join(agentHome, 'skills', 'category', 'non-empty');
+    fs.mkdirSync(targetPath, { recursive: true });
+    fs.writeFileSync(path.join(targetPath, 'file.txt'), 'x');
+
+    await expect(deleteSkillLink(agentHome, targetPath)).rejects.toThrow(
+      'target path is a non-empty directory',
+    );
+  });
+
   it('does not error when symlink does not exist', async () => {
     const targetPath = path.join(agentHome, 'skills', 'nonexistent');
     await expect(deleteSkillLink(agentHome, targetPath)).resolves.toBeUndefined();
@@ -100,6 +144,16 @@ describe('skillLinkExists', () => {
     fs.symlinkSync(sourceDir, targetPath);
 
     expect(await skillLinkExists(targetPath)).toBe(true);
+  });
+
+  it('returns true when hybrid .skill-link exists', async () => {
+    const sourceDir = path.join(tmpDir, 'hybrid-source');
+    fs.mkdirSync(sourceDir);
+    const targetDir = path.join(agentHome, 'skills', 'hybrid-skill');
+    fs.mkdirSync(targetDir, { recursive: true });
+    fs.symlinkSync(sourceDir, path.join(targetDir, '.skill-link'));
+
+    expect(await skillLinkExists(targetDir)).toBe(true);
   });
 
   it('returns false when no file exists', async () => {
