@@ -1,6 +1,6 @@
 'use client';
 
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -37,33 +37,32 @@ import {
 import { Skeleton } from '@/src/components/ui/skeleton';
 import { Textarea } from '@/src/components/ui/textarea';
 
-interface Template {
-  id: number;
-  fileType: string;
+interface TemplateEntry {
   name: string;
-  content: string;
-  createdAt: string | number;
-  updatedAt: string | number;
+  files: string[];
 }
 
-const FILE_TYPES = ['agents.md', 'soul.md', 'config.yaml'] as const;
-type FileType = (typeof FILE_TYPES)[number];
+const FILE_NAMES = ['AGENTS.md', 'SOUL.md', 'config.yaml'] as const;
+type FileName = (typeof FILE_NAMES)[number];
 
 export default function TemplatesPage() {
-  const [templates, setTemplates] = useState<Template[]>([]);
+  const [templates, setTemplates] = useState<TemplateEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<Template | null>(null);
-  const [formFileType, setFormFileType] = useState<FileType>('agents.md');
+  const [editing, setEditing] = useState<{ name: string; file: string; content: string } | null>(
+    null,
+  );
+  const [formFile, setFormFile] = useState<FileName>('AGENTS.md');
   const [formName, setFormName] = useState('');
   const [formContent, setFormContent] = useState('');
   const [busy, setBusy] = useState(false);
+  const [expandedTemplates, setExpandedTemplates] = useState<Set<string>>(new Set());
 
   const fetchTemplates = useCallback(async () => {
     try {
       const res = await fetch('/api/templates');
       if (!res.ok) throw new Error('Failed to fetch templates');
-      const data: Template[] = await res.json();
+      const data: TemplateEntry[] = await res.json();
       setTemplates(data);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to load templates');
@@ -76,20 +75,44 @@ export default function TemplatesPage() {
     void fetchTemplates();
   }, [fetchTemplates]);
 
+  function toggleExpanded(name: string) {
+    setExpandedTemplates((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) {
+        next.delete(name);
+      } else {
+        next.add(name);
+      }
+      return next;
+    });
+  }
+
   function openCreateDialog() {
     setEditing(null);
-    setFormFileType('agents.md');
+    setFormFile('AGENTS.md');
     setFormName('');
     setFormContent('');
     setDialogOpen(true);
   }
 
-  function openEditDialog(tpl: Template) {
-    setEditing(tpl);
-    setFormFileType(tpl.fileType as FileType);
-    setFormName(tpl.name);
-    setFormContent(tpl.content);
-    setDialogOpen(true);
+  async function openEditDialog(templateName: string, file: string) {
+    try {
+      const res = await fetch(
+        `/api/templates?name=${encodeURIComponent(templateName)}&file=${encodeURIComponent(file)}`,
+      );
+      if (!res.ok) {
+        toast.error('Failed to load template file');
+        return;
+      }
+      const data = await res.json();
+      setEditing({ name: templateName, file, content: data.content });
+      setFormFile(file as FileName);
+      setFormName(templateName);
+      setFormContent(data.content);
+      setDialogOpen(true);
+    } catch {
+      toast.error('Failed to load template file');
+    }
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -108,7 +131,7 @@ export default function TemplatesPage() {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            fileType: formFileType,
+            file: formFile,
             name: trimmedName,
             content: formContent,
           }),
@@ -118,14 +141,14 @@ export default function TemplatesPage() {
           toast.error(typeof d.error === 'string' ? d.error : 'Failed to update');
           return;
         }
-        toast.success(`Template "${trimmedName}" updated`);
+        toast.success(`Template "${trimmedName}/${formFile}" updated`);
       } else {
         // Create new
         const res = await fetch('/api/templates', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            fileType: formFileType,
+            file: formFile,
             name: trimmedName,
             content: formContent,
           }),
@@ -135,7 +158,7 @@ export default function TemplatesPage() {
           toast.error(typeof d.error === 'string' ? d.error : 'Failed to create');
           return;
         }
-        toast.success(`Template "${trimmedName}" created`);
+        toast.success(`Template "${trimmedName}/${formFile}" created`);
       }
       setDialogOpen(false);
       await fetchTemplates();
@@ -144,10 +167,10 @@ export default function TemplatesPage() {
     }
   }
 
-  async function handleDelete(tpl: Template) {
+  async function handleDeleteFile(templateName: string, file: string) {
     try {
       const res = await fetch(
-        `/api/templates?fileType=${encodeURIComponent(tpl.fileType)}&name=${encodeURIComponent(tpl.name)}`,
+        `/api/templates?name=${encodeURIComponent(templateName)}&file=${encodeURIComponent(file)}`,
         { method: 'DELETE' },
       );
       if (!res.ok) {
@@ -155,28 +178,43 @@ export default function TemplatesPage() {
         toast.error(typeof d.error === 'string' ? d.error : 'Failed to delete');
         return;
       }
-      toast.success(`Template "${tpl.name}" deleted`);
+      toast.success(`Template file "${templateName}/${file}" deleted`);
+      await fetchTemplates();
+    } catch {
+      toast.error('Failed to delete template file');
+    }
+  }
+
+  async function handleDeleteTemplate(templateName: string) {
+    try {
+      const res = await fetch(`/api/templates?name=${encodeURIComponent(templateName)}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        toast.error(typeof d.error === 'string' ? d.error : 'Failed to delete');
+        return;
+      }
+      toast.success(`Template "${templateName}" deleted`);
       await fetchTemplates();
     } catch {
       toast.error('Failed to delete template');
     }
   }
 
-  const groupedByFileType = FILE_TYPES.map((ft) => ({
-    fileType: ft,
-    items: templates.filter((t) => t.fileType === ft),
-  }));
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Templates</h1>
-          <p className="text-sm text-muted-foreground">Manage file templates for agent creation.</p>
+          <p className="text-sm text-muted-foreground">
+            Manage file templates for agent creation. Templates are stored in{' '}
+            <code className="text-xs">runtime/templates/</code>.
+          </p>
         </div>
         <Button onClick={openCreateDialog} className="gap-2">
           <Plus className="size-4" />
-          Add Template
+          Add Template File
         </Button>
       </div>
 
@@ -195,53 +233,101 @@ export default function TemplatesPage() {
         </div>
       )}
 
+      {!loading && templates.length === 0 && (
+        <p className="text-sm text-muted-foreground">No templates found.</p>
+      )}
+
       {!loading &&
-        groupedByFileType.map(({ fileType, items }) => (
-          <div key={fileType} className="space-y-3">
-            <h2 className="text-lg font-medium">{fileType}</h2>
-            {items.length === 0 && (
-              <p className="text-sm text-muted-foreground">No templates for {fileType}</p>
-            )}
-            <div className="grid gap-3 sm:grid-cols-2">
-              {items.map((tpl) => (
-                <Card key={tpl.id}>
-                  <CardHeader className="flex-row items-center justify-between gap-2">
-                    <CardTitle className="text-base">{tpl.name}</CardTitle>
+        templates.map((tpl) => (
+          <Card key={tpl.name}>
+            <CardHeader className="flex-row items-center justify-between gap-2">
+              <button
+                className="flex items-center gap-2 text-left"
+                onClick={() => toggleExpanded(tpl.name)}
+              >
+                {expandedTemplates.has(tpl.name) ? (
+                  <ChevronDown className="size-4" />
+                ) : (
+                  <ChevronRight className="size-4" />
+                )}
+                <CardTitle className="text-base">{tpl.name}</CardTitle>
+                <span className="text-xs text-muted-foreground">
+                  ({tpl.files.length} file{tpl.files.length !== 1 ? 's' : ''})
+                </span>
+              </button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 text-destructive hover:text-destructive"
+                    aria-label={`Delete template ${tpl.name}`}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete &quot;{tpl.name}&quot; template?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete all files in this template.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={() => void handleDeleteTemplate(tpl.name)}
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </CardHeader>
+            {expandedTemplates.has(tpl.name) && (
+              <CardContent className="space-y-2">
+                {tpl.files.map((file) => (
+                  <div
+                    key={file}
+                    className="flex items-center justify-between rounded border px-3 py-2"
+                  >
+                    <span className="font-mono text-sm">{file}</span>
                     <div className="flex gap-1">
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="size-8"
-                        onClick={() => openEditDialog(tpl)}
-                        aria-label={`Edit ${tpl.name}`}
+                        className="size-7"
+                        onClick={() => void openEditDialog(tpl.name, file)}
+                        aria-label={`Edit ${tpl.name}/${file}`}
                       >
-                        <Pencil className="size-3.5" />
+                        <Pencil className="size-3" />
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="size-8 text-destructive hover:text-destructive"
-                            aria-label={`Delete ${tpl.name}`}
+                            className="size-7 text-destructive hover:text-destructive"
+                            aria-label={`Delete ${tpl.name}/${file}`}
                           >
-                            <Trash2 className="size-3.5" />
+                            <Trash2 className="size-3" />
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
                             <AlertDialogTitle>
-                              Delete &quot;{tpl.name}&quot; template?
+                              Delete &quot;{tpl.name}/{file}&quot;?
                             </AlertDialogTitle>
                             <AlertDialogDescription>
-                              This will permanently delete the template.
+                              This will permanently delete this template file.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                             <AlertDialogAction
                               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              onClick={() => void handleDelete(tpl)}
+                              onClick={() => void handleDeleteFile(tpl.name, file)}
                             >
                               Delete
                             </AlertDialogAction>
@@ -249,16 +335,11 @@ export default function TemplatesPage() {
                         </AlertDialogContent>
                       </AlertDialog>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <pre className="max-h-32 overflow-auto rounded bg-muted p-2 text-xs">
-                      {tpl.content}
-                    </pre>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
+                  </div>
+                ))}
+              </CardContent>
+            )}
+          </Card>
         ))}
 
       {/* Create / Edit Dialog */}
@@ -266,30 +347,30 @@ export default function TemplatesPage() {
         <DialogContent>
           <form onSubmit={handleSave}>
             <DialogHeader>
-              <DialogTitle>{editing ? 'Edit Template' : 'Add Template'}</DialogTitle>
+              <DialogTitle>{editing ? 'Edit Template File' : 'Add Template File'}</DialogTitle>
               <DialogDescription>
                 {editing
-                  ? `Editing template "${editing.name}" for ${editing.fileType}.`
+                  ? `Editing "${editing.name}/${editing.file}".`
                   : 'Create a new file template for agent creation.'}
               </DialogDescription>
             </DialogHeader>
             <div className="mt-4 space-y-4">
               <div>
-                <label htmlFor="tpl-file-type" className="mb-1.5 block text-sm font-medium">
-                  File Type
+                <label htmlFor="tpl-file" className="mb-1.5 block text-sm font-medium">
+                  File
                 </label>
                 <Select
-                  value={formFileType}
-                  onValueChange={(v) => setFormFileType(v as FileType)}
+                  value={formFile}
+                  onValueChange={(v) => setFormFile(v as FileName)}
                   disabled={!!editing}
                 >
-                  <SelectTrigger id="tpl-file-type">
+                  <SelectTrigger id="tpl-file">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {FILE_TYPES.map((ft) => (
-                      <SelectItem key={ft} value={ft}>
-                        {ft}
+                    {FILE_NAMES.map((fn) => (
+                      <SelectItem key={fn} value={fn}>
+                        {fn}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -297,7 +378,7 @@ export default function TemplatesPage() {
               </div>
               <div>
                 <label htmlFor="tpl-name" className="mb-1.5 block text-sm font-medium">
-                  Name
+                  Template Name
                 </label>
                 <Input
                   id="tpl-name"

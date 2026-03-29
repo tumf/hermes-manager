@@ -2,12 +2,13 @@ import { execFile } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
 
 import { db, schema } from '@/src/lib/db';
 import { generateAgentId } from '@/src/lib/id';
 import { getRuntimeAgentsRootPath } from '@/src/lib/runtime-paths';
+import { resolveTemplateContent } from '@/src/lib/templates';
 import { CreateAgentSchema } from '@/src/lib/validators/agents';
 
 const MAX_ID_RETRIES = 5;
@@ -64,36 +65,13 @@ export async function POST(request: NextRequest) {
 
   const home = getRuntimeAgentsRootPath(agentId);
 
-  // Resolve template content for each file type
-  const resolveTemplateContent = async (
-    fileType: string,
-    templateName: string | undefined,
-    fallback: string,
-  ): Promise<string> => {
-    const nameToLookup = templateName ?? 'default';
-    const rows = await db
-      .select()
-      .from(schema.templates)
-      .where(and(eq(schema.templates.fileType, fileType), eq(schema.templates.name, nameToLookup)));
-    if (rows.length > 0) return rows[0].content;
-    // If a specific template name was requested (not default) and not found, still fallback
-    return fallback;
-  };
-
-  const agentsMdContent = await resolveTemplateContent(
-    'agents.md',
-    templateNames?.agentsMd,
-    `# ${agentId}\n`,
-  );
-  const soulMdContent = await resolveTemplateContent(
-    'soul.md',
-    templateNames?.soulMd,
-    `# Soul: ${agentId}\n`,
-  );
-  const configYamlContent = await resolveTemplateContent(
+  // Resolve template content from filesystem
+  const agentsMdContent = resolveTemplateContent('AGENTS.md', agentId, templateNames?.agentsMd);
+  const soulMdContent = resolveTemplateContent('SOUL.md', agentId, templateNames?.soulMd);
+  const configYamlContent = resolveTemplateContent(
     'config.yaml',
+    agentId,
     templateNames?.configYaml,
-    `name: ${agentId}\n`,
   );
 
   await fs.mkdir(path.join(home, 'logs'), { recursive: true });

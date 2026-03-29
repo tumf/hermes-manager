@@ -245,9 +245,10 @@ export default function AgentPage({ params }: AgentPageProps) {
   );
 }
 
-const FILE_PATH_TO_FILE_TYPE: Record<string, string> = {
-  'AGENTS.md': 'agents.md',
-  'SOUL.md': 'soul.md',
+/** Maps file paths to the file names used in the templates API */
+const FILE_PATH_TO_TEMPLATE_FILE: Record<string, string> = {
+  'AGENTS.md': 'AGENTS.md',
+  'SOUL.md': 'SOUL.md',
   'config.yaml': 'config.yaml',
 };
 
@@ -368,15 +369,15 @@ const FileEditor = forwardRef<FileEditorHandle, { name: string; filePath: string
         toast.error('Template name is required');
         return;
       }
-      const fileType = FILE_PATH_TO_FILE_TYPE[filePath];
-      if (!fileType) return;
+      const file = FILE_PATH_TO_TEMPLATE_FILE[filePath];
+      if (!file) return;
 
       setSavingTemplate(true);
       try {
         const res = await fetch('/api/templates', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fileType, name: trimmed, content }),
+          body: JSON.stringify({ file, name: trimmed, content }),
         });
         if (!res.ok) {
           const d = await res.json().catch(() => ({}));

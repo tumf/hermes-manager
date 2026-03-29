@@ -58,11 +58,9 @@ interface AgentWithStatus extends Agent {
   running?: boolean;
 }
 
-interface Template {
-  id: number;
-  fileType: string;
+interface TemplateEntry {
   name: string;
-  content: string;
+  files: string[];
 }
 
 export default function Home() {
@@ -73,7 +71,7 @@ export default function Home() {
   const [addTemplateAgentsMd, setAddTemplateAgentsMd] = useState('default');
   const [addTemplateSoulMd, setAddTemplateSoulMd] = useState('default');
   const [addTemplateConfigYaml, setAddTemplateConfigYaml] = useState('default');
-  const [allTemplates, setAllTemplates] = useState<Template[]>([]);
+  const [allTemplates, setAllTemplates] = useState<TemplateEntry[]>([]);
 
   const fetchAgents = useCallback(async () => {
     try {
@@ -110,7 +108,7 @@ export default function Home() {
     try {
       const res = await fetch('/api/templates');
       if (res.ok) {
-        const data: Template[] = await res.json();
+        const data: TemplateEntry[] = await res.json();
         setAllTemplates(data);
       }
     } catch {
@@ -119,15 +117,15 @@ export default function Home() {
   }, []);
 
   const agentsMdTemplates = useMemo(
-    () => allTemplates.filter((t) => t.fileType === 'agents.md'),
+    () => allTemplates.filter((t) => t.files.includes('AGENTS.md')),
     [allTemplates],
   );
   const soulMdTemplates = useMemo(
-    () => allTemplates.filter((t) => t.fileType === 'soul.md'),
+    () => allTemplates.filter((t) => t.files.includes('SOUL.md')),
     [allTemplates],
   );
   const configYamlTemplates = useMemo(
-    () => allTemplates.filter((t) => t.fileType === 'config.yaml'),
+    () => allTemplates.filter((t) => t.files.includes('config.yaml')),
     [allTemplates],
   );
 
@@ -548,7 +546,7 @@ function TemplateSelect({
   id: string;
   value: string;
   onValueChange: (v: string) => void;
-  templates: Template[];
+  templates: TemplateEntry[];
 }) {
   return (
     <div>
@@ -564,7 +562,7 @@ function TemplateSelect({
           {templates
             .filter((t) => t.name !== 'default')
             .map((t) => (
-              <SelectItem key={t.id} value={t.name}>
+              <SelectItem key={t.name} value={t.name}>
                 {t.name}
               </SelectItem>
             ))}

@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { sqliteTable, text, integer, unique } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 
 export const agents = sqliteTable('agents', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -29,20 +29,3 @@ export const skillLinks = sqliteTable('skill_links', {
   sourcePath: text('source_path').notNull(),
   targetPath: text('target_path').notNull(),
 });
-
-export const templates = sqliteTable(
-  'templates',
-  {
-    id: integer('id').primaryKey({ autoIncrement: true }),
-    fileType: text('file_type').notNull(), // 'agents.md' | 'soul.md' | 'config.yaml'
-    name: text('name').notNull(),
-    content: text('content').notNull(),
-    createdAt: integer('created_at', { mode: 'timestamp_ms' })
-      .notNull()
-      .default(sql`(strftime('%s','now')*1000)`),
-    updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
-      .notNull()
-      .default(sql`(strftime('%s','now')*1000)`),
-  },
-  (table) => [unique().on(table.fileType, table.name)],
-);

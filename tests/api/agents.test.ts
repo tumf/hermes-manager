@@ -18,7 +18,7 @@ const mockState = vi.hoisted(() => ({
 // --- mock @/src/lib/db ---
 vi.mock('@/src/lib/db', async () => {
   // Import real schema so drizzle column objects work with eq()
-  const { agents, envVars, skillLinks, templates } = await import('../../db/schema');
+  const { agents, envVars, skillLinks } = await import('../../db/schema');
 
   function makeChain(resolveWith: unknown) {
     const thenable = {
@@ -53,7 +53,7 @@ vi.mock('@/src/lib/db', async () => {
     delete: () => makeChain(undefined),
   };
 
-  return { db, schema: { agents, envVars, skillLinks, templates } };
+  return { db, schema: { agents, envVars, skillLinks } };
 });
 
 // --- mock node:fs/promises ---

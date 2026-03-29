@@ -27,30 +27,32 @@
   - agent: string
   - sourcePath: string（~/.agents/skills 配下、カノニカルまたは互換レガシー）
   - targetPath: string（{HERMES_HOME}/skills/{relativePath}、階層構造保持）
-- Template
-  - fileType: 'agents.md' | 'soul.md' | 'config.yaml'
-  - name: string（fileType + name で UNIQUE）
-  - content: string（テンプレート内容）
-  - createdAt/updatedAt: number(ms)
+- Template（ファイルシステムベース）
+  - ストレージ: `runtime/templates/{templateName}/{fileName}`
+  - templateName: string（ディレクトリ名、[a-zA-Z0-9_-]+）
+  - fileName: 'AGENTS.md' | 'SOUL.md' | 'config.yaml'（各ファイルは任意サブセット）
+  - `runtime/templates/default/` は起動時に自動配置（既存ファイルは上書きしない）
 
 ## 3. データベース設計
 
 - agents(id PK, agent_id UNIQUE, home, label, enabled BOOL, created_at, updated_at)
 - env_vars(id PK, scope, key, value, visibility DEFAULT 'plain')
 - skill_links(id PK, agent, source_path, target_path)
-- templates(id PK, file_type, name, content, created_at, updated_at) — UNIQUE(file_type, name)
+- ~~templates~~ — 削除済み。テンプレートは `runtime/templates/` にファイルとして格納
 
 インデックス案:
 
 - agents.agent_id UNIQUE
 - env_vars(scope, key)
 - skill_links(agent)
-- templates(file_type, name) UNIQUE
 
 ## 4. ディレクトリ構成
 
 - /runtime/agents/{agentId}/
   - AGENTS.md, SOUL.md, config.yaml, .env, logs/
+- /runtime/templates/{templateName}/
+  - AGENTS.md, SOUL.md, config.yaml（各ファイルは任意サブセット）
+  - `default/` は起動時に自動配置
 - /runtime/globals/.env（DB の global vars から自動生成）
 - /runtime/data/app.db（SQLite）
 - /runtime/logs/webapp.log, /runtime/logs/webapp.error.log（webapp ログ）
@@ -84,11 +86,17 @@
 - /api/cron/output: GET {agent, id, [file]}
   - ファイル一覧: {agent.home}/cron/output/{id}/\*.md をリスト（newest-first）
   - ファイル内容: 指定した .md ファイル の raw text 返却
-- /api/templates: GET（全件 or fileType フィルタ）/POST（作成、409 on duplicate）/PUT（更新）/DELETE（?fileType=...&name=...）
-  - fileType: 'agents.md' | 'soul.md' | 'config.yaml'
+- /api/templates: ファイルシステムベース（runtime/templates/ を直接操作）
+  - GET /api/templates → `[{ name, files }]` テンプレート一覧
+  - GET /api/templates?name=...&file=... → `{ name, file, content }` 個別ファイル取得
+  - POST /api/templates `{ name, file, content }` → ファイル作成（409 on duplicate）
+  - PUT /api/templates `{ name, file, content }` → ファイル更新（404 if not found）
+  - DELETE /api/templates?name=...&file=... → ファイル削除
+  - DELETE /api/templates?name=... → テンプレートディレクトリ一括削除
+  - file: 'AGENTS.md' | 'SOUL.md' | 'config.yaml'
   - name: テンプレート名（[a-zA-Z0-9_-]+）
   - POST /api/agents に templates パラメータ追加: { templates?: { agentsMd?, soulMd?, configYaml? } }
-  - 未指定時は default テンプレートをフォールバック、default 不在時は固定 scaffold 内容
+  - テンプレート解決順序: 指定テンプレート → default → ハードコードフォールバック
 
 ## 6. Launchd 実行モデル
 
@@ -114,7 +122,7 @@
     - ジョブリスト: 名前、スケジュール式、ステート（active/paused/completed）、次回実行予定、最後実行予定
     - ジョブアクション: 作成フォーム（name/schedule/prompt/deliver）、pause/resume/run-now/削除（確認あり）
     - 出力ビューア: ジョブをクリック → `/api/cron/output` で最新実行ファイル一覧表示 → ファイル選択で raw text 内容表示（<pre>）
-- Templates 管理: fileType 別グループ表示、追加/編集/削除ダイアログ
+- Templates 管理: テンプレート名（ディレクトリ）別グループ表示、ファイル一覧展開、追加/編集/削除ダイアログ
 - 各 FileEditor に "Save as Template" ボタン（Memory タブの AGENTS.md/SOUL.md、Config タブの config.yaml）
 - Globals: テーブルで inline 追加/編集/削除、再生成プレビュー
 - コンポーネント: StatusBadge, ConfirmDialog, EnvTable, LogViewer, CronTab, CronJobDialog, TemplateSelect
