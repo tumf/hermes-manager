@@ -1,11 +1,11 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { eq } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
 
-import { db, schema } from '@/src/lib/db';
+import { getAgent } from '@/src/lib/agents';
 import { parse } from '@/src/lib/dotenv-parser';
+import { readEnvMeta } from '@/src/lib/env-meta';
 import { getRuntimeGlobalsRootPath } from '@/src/lib/runtime-paths';
 
 type EnvSource = 'global' | 'agent' | 'agent-override';
@@ -33,19 +33,20 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'agent query param required' }, { status: 400 });
   }
 
-  const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.agentId, agentName));
+  const agent = await getAgent(agentName);
   if (!agent) {
     return NextResponse.json({ error: 'agent not found' }, { status: 404 });
   }
 
   const globalEnvPath = getRuntimeGlobalsRootPath('.env');
   const agentEnvPath = path.join(agent.home, '.env');
+  const globalsDir = getRuntimeGlobalsRootPath();
 
-  const [globalContent, agentContent, globalMetadata, agentMetadata] = await Promise.all([
+  const [globalContent, agentContent, globalMeta, agentMeta] = await Promise.all([
     readEnvFile(globalEnvPath),
     readEnvFile(agentEnvPath),
-    db.select().from(schema.envVars).where(eq(schema.envVars.scope, 'global')),
-    db.select().from(schema.envVars).where(eq(schema.envVars.scope, agentName)),
+    readEnvMeta(globalsDir),
+    readEnvMeta(agent.home),
   ]);
 
   const globalEntries = parse(globalContent);
@@ -54,11 +55,11 @@ export async function GET(request: NextRequest) {
   const globalMap = new Map(globalEntries.map((e) => [e.key, e.value]));
 
   const visibilityMap = new Map<string, 'plain' | 'secure'>();
-  for (const row of globalMetadata) {
-    visibilityMap.set(row.key, row.visibility === 'secure' ? 'secure' : 'plain');
+  for (const [key, val] of Object.entries(globalMeta)) {
+    visibilityMap.set(key, val.visibility === 'secure' ? 'secure' : 'plain');
   }
-  for (const row of agentMetadata) {
-    visibilityMap.set(row.key, row.visibility === 'secure' ? 'secure' : 'plain');
+  for (const [key, val] of Object.entries(agentMeta)) {
+    visibilityMap.set(key, val.visibility === 'secure' ? 'secure' : 'plain');
   }
 
   const result: ResolvedEntry[] = [];

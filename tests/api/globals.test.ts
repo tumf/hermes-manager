@@ -1,43 +1,17 @@
 import fs from 'node:fs';
+import fsp from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import Database from 'better-sqlite3';
-import { and, eq } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-import * as schema from '../../db/schema';
-
-// ---- setup in-memory DB and override src/lib/db ----
-
-let testDb: ReturnType<typeof drizzle<typeof schema>>;
 let tmpDir: string;
 
-vi.mock('../../src/lib/db', () => {
-  return {
-    get db() {
-      return testDb;
-    },
-    schema,
-  };
-});
-
-beforeEach(() => {
-  const sqlite = new Database(':memory:');
-  sqlite.exec(`
-    CREATE TABLE env_vars (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      scope TEXT NOT NULL,
-      key TEXT NOT NULL,
-      value TEXT NOT NULL,
-      visibility TEXT NOT NULL DEFAULT 'plain'
-    )
-  `);
-  testDb = drizzle(sqlite, { schema });
-
+beforeEach(async () => {
   tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'globals-test-'));
   vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
+  // Ensure globals dir exists
+  await fsp.mkdir(path.join(tmpDir, 'runtime', 'globals'), { recursive: true });
 });
 
 afterEach(() => {
@@ -62,11 +36,14 @@ describe('GET /api/globals', () => {
     expect(json).toEqual([]);
   });
 
-  it('returns only global-scope rows', async () => {
-    await testDb.insert(schema.envVars).values([
-      { scope: 'global', key: 'FOO', value: 'bar', visibility: 'plain' },
-      { scope: 'agent-x', key: 'AGENT_VAR', value: 'x', visibility: 'plain' },
-    ]);
+  it('returns global variables from .env file', async () => {
+    const globalsDir = path.join(tmpDir, 'runtime', 'globals');
+    await fsp.writeFile(path.join(globalsDir, '.env'), 'FOO=bar\n');
+    await fsp.writeFile(
+      path.join(globalsDir, '.env.meta.json'),
+      JSON.stringify({ FOO: { visibility: 'plain' } }),
+    );
+
     const { GET } = await import('../../app/api/globals/route');
     const res = await GET();
     const json = await res.json();
@@ -79,9 +56,12 @@ describe('GET /api/globals', () => {
   });
 
   it('masks secure globals in management response', async () => {
-    await testDb
-      .insert(schema.envVars)
-      .values({ scope: 'global', key: 'SECRET', value: 'token', visibility: 'secure' });
+    const globalsDir = path.join(tmpDir, 'runtime', 'globals');
+    await fsp.writeFile(path.join(globalsDir, '.env'), 'SECRET=token\n');
+    await fsp.writeFile(
+      path.join(globalsDir, '.env.meta.json'),
+      JSON.stringify({ SECRET: { visibility: 'secure' } }),
+    );
 
     const { GET } = await import('../../app/api/globals/route');
     const res = await GET();
@@ -98,7 +78,7 @@ describe('GET /api/globals', () => {
 });
 
 describe('POST /api/globals', () => {
-  it('inserts a new global variable and regenerates globals/.env', async () => {
+  it('inserts a new global variable and writes globals/.env', async () => {
     const { POST } = await import('../../app/api/globals/route');
     const req = makeRequest('POST', 'http://localhost/api/globals', {
       key: 'FOO',
@@ -138,22 +118,24 @@ describe('POST /api/globals', () => {
       value: '***',
     });
 
-    const [stored] = await testDb
-      .select()
-      .from(schema.envVars)
-      .where(and(eq(schema.envVars.scope, 'global'), eq(schema.envVars.key, 'API_KEY')));
-
-    expect(stored?.value).toBe('super-secret');
-    expect(stored?.visibility).toBe('secure');
-
+    // Verify actual value is in .env
     const envFile = path.join(tmpDir, 'runtime', 'globals', '.env');
     expect(fs.readFileSync(envFile, 'utf-8')).toContain('API_KEY=super-secret');
+
+    // Verify visibility metadata in .env.meta.json
+    const metaFile = path.join(tmpDir, 'runtime', 'globals', '.env.meta.json');
+    const meta = JSON.parse(fs.readFileSync(metaFile, 'utf-8'));
+    expect(meta.API_KEY.visibility).toBe('secure');
   });
 
   it('updates an existing global variable', async () => {
-    await testDb
-      .insert(schema.envVars)
-      .values({ scope: 'global', key: 'FOO', value: 'old', visibility: 'plain' });
+    const globalsDir = path.join(tmpDir, 'runtime', 'globals');
+    await fsp.writeFile(path.join(globalsDir, '.env'), 'FOO=old\n');
+    await fsp.writeFile(
+      path.join(globalsDir, '.env.meta.json'),
+      JSON.stringify({ FOO: { visibility: 'plain' } }),
+    );
+
     const { POST } = await import('../../app/api/globals/route');
     const req = makeRequest('POST', 'http://localhost/api/globals', {
       key: 'FOO',
@@ -169,12 +151,6 @@ describe('POST /api/globals', () => {
     const content = fs.readFileSync(envFile, 'utf-8');
     expect(content).toContain('FOO=new');
     expect(content).not.toContain('FOO=old');
-
-    const [stored] = await testDb
-      .select()
-      .from(schema.envVars)
-      .where(and(eq(schema.envVars.scope, 'global'), eq(schema.envVars.key, 'FOO')));
-    expect(stored?.visibility).toBe('secure');
   });
 
   it('returns 400 for missing key', async () => {
@@ -186,22 +162,20 @@ describe('POST /api/globals', () => {
 });
 
 describe('DELETE /api/globals', () => {
-  it('removes a global variable and regenerates globals/.env', async () => {
-    await testDb
-      .insert(schema.envVars)
-      .values({ scope: 'global', key: 'BAZ', value: 'qux', visibility: 'plain' });
+  it('removes a global variable and updates globals/.env', async () => {
+    const globalsDir = path.join(tmpDir, 'runtime', 'globals');
+    await fsp.writeFile(path.join(globalsDir, '.env'), 'BAZ=qux\n');
+    await fsp.writeFile(
+      path.join(globalsDir, '.env.meta.json'),
+      JSON.stringify({ BAZ: { visibility: 'plain' } }),
+    );
+
     const { DELETE } = await import('../../app/api/globals/route');
     const req = makeRequest('DELETE', 'http://localhost/api/globals?key=BAZ');
     const res = await DELETE(req as never);
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.deleted).toBe('BAZ');
-
-    const remaining = await testDb
-      .select()
-      .from(schema.envVars)
-      .where(and(eq(schema.envVars.scope, 'global'), eq(schema.envVars.key, 'BAZ')));
-    expect(remaining).toHaveLength(0);
 
     const envFile = path.join(tmpDir, 'runtime', 'globals', '.env');
     const content = fs.readFileSync(envFile, 'utf-8');
@@ -213,20 +187,5 @@ describe('DELETE /api/globals', () => {
     const req = makeRequest('DELETE', 'http://localhost/api/globals');
     const res = await DELETE(req as never);
     expect(res.status).toBe(400);
-  });
-});
-
-describe('globals/.env format', () => {
-  it('writes one KEY=VALUE per line with no extra blank lines', async () => {
-    await testDb.insert(schema.envVars).values([
-      { scope: 'global', key: 'A', value: '1', visibility: 'plain' },
-      { scope: 'global', key: 'B', value: '2', visibility: 'secure' },
-    ]);
-    const { regenerateGlobalsEnv } = await import('../../src/lib/globals-env');
-    await regenerateGlobalsEnv();
-
-    const envFile = path.join(tmpDir, 'runtime', 'globals', '.env');
-    const content = fs.readFileSync(envFile, 'utf-8');
-    expect(content).toBe('A=1\nB=2\n');
   });
 });

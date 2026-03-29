@@ -68,7 +68,6 @@ function ensureDefaultTemplates(): void {
 export function ensureRuntimeDirectories(): void {
   fs.mkdirSync(getRuntimeAgentsRootPath(), { recursive: true });
   fs.mkdirSync(getRuntimeGlobalsRootPath(), { recursive: true });
-  fs.mkdirSync(getRuntimeDataRootPath(), { recursive: true });
   fs.mkdirSync(getRuntimeLogsRootPath(), { recursive: true });
   fs.mkdirSync(getRuntimeTemplatesRootPath(), { recursive: true });
   ensureDefaultTemplates();

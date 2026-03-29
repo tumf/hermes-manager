@@ -1,9 +1,8 @@
 import fs from 'node:fs/promises';
 
-import { eq } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
 
-import { db, schema } from '@/src/lib/db';
+import { agentExists, getAgent } from '@/src/lib/agents';
 import { generateAgentId } from '@/src/lib/id';
 import { getRuntimeAgentsRootPath } from '@/src/lib/runtime-paths';
 import { CopyAgentSchema } from '@/src/lib/validators/agents';
@@ -25,10 +24,7 @@ export async function POST(request: NextRequest) {
 
   const { from } = result.data;
 
-  const [sourceAgent] = await db
-    .select()
-    .from(schema.agents)
-    .where(eq(schema.agents.agentId, from));
+  const sourceAgent = await getAgent(from);
   if (!sourceAgent) {
     return NextResponse.json({ error: 'source agent not found' }, { status: 404 });
   }
@@ -37,11 +33,7 @@ export async function POST(request: NextRequest) {
   let newAgentId: string | null = null;
   for (let attempt = 0; attempt < MAX_ID_RETRIES; attempt++) {
     const candidate = generateAgentId();
-    const [existing] = await db
-      .select({ id: schema.agents.id })
-      .from(schema.agents)
-      .where(eq(schema.agents.agentId, candidate));
-    if (!existing) {
+    if (!(await agentExists(candidate))) {
       newAgentId = candidate;
       break;
     }
@@ -57,10 +49,7 @@ export async function POST(request: NextRequest) {
   const toHome = getRuntimeAgentsRootPath(newAgentId);
   await fs.cp(sourceAgent.home, toHome, { recursive: true });
 
-  const label = `ai.hermes.gateway.${newAgentId}`;
-  const [row] = await db
-    .insert(schema.agents)
-    .values({ agentId: newAgentId, home: toHome, label })
-    .returning();
-  return NextResponse.json(row, { status: 201 });
+  // Re-read the newly created agent from filesystem
+  const newAgent = await getAgent(newAgentId);
+  return NextResponse.json(newAgent, { status: 201 });
 }

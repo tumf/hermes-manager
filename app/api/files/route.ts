@@ -1,12 +1,11 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { eq } from 'drizzle-orm';
 import * as yaml from 'js-yaml';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { db, schema } from '@/src/lib/db';
+import { getAgent } from '@/src/lib/agents';
 
 const AllowedPathEnum = z.enum(['AGENTS.md', 'SOUL.md', 'config.yaml']);
 
@@ -42,8 +41,7 @@ export async function GET(request: NextRequest) {
 
   const { agent: agentName, path: filePath } = parseResult.data;
 
-  const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.agentId, agentName));
-
+  const agent = await getAgent(agentName);
   if (!agent) {
     return NextResponse.json({ error: 'agent not found' }, { status: 404 });
   }
@@ -72,8 +70,7 @@ export async function PUT(request: NextRequest) {
 
   const { agent: agentName, path: filePath, content } = parseResult.data;
 
-  const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.agentId, agentName));
-
+  const agent = await getAgent(agentName);
   if (!agent) {
     return NextResponse.json({ error: 'agent not found' }, { status: 404 });
   }

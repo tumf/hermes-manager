@@ -1,11 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { eq } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
 
+import { getAgent } from '@/src/lib/agents';
 import { getCronHome } from '@/src/lib/cron';
-import { db, schema } from '@/src/lib/db';
 import { CronOutputSchema } from '@/src/lib/validators/cron';
 
 /**
@@ -28,7 +27,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Verify agent exists
-  const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.agentId, agentName));
+  const agent = await getAgent(agentName);
   if (!agent) {
     return NextResponse.json({ error: 'agent not found' }, { status: 404 });
   }

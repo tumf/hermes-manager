@@ -3,11 +3,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
-import { eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { db, schema } from '../../../src/lib/db';
+import { getAgent } from '@/src/lib/agents';
 import {
   generatePlist,
   getPlistPath,
@@ -71,13 +70,8 @@ export async function POST(request: Request) {
 
   const { agent: agentName, action } = parsed.data;
 
-  // Look up agent from database
-  const agentRow = await db
-    .select()
-    .from(schema.agents)
-    .where(eq(schema.agents.agentId, agentName))
-    .get();
-
+  // Look up agent from filesystem
+  const agentRow = await getAgent(agentName);
   if (!agentRow) {
     return NextResponse.json({ error: `Agent "${agentName}" not found` }, { status: 404 });
   }

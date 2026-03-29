@@ -1,12 +1,12 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { and, eq } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { db, schema } from '@/src/lib/db';
+import { getAgent } from '@/src/lib/agents';
 import { deleteKey, parse, serialize, upsert } from '@/src/lib/dotenv-parser';
+import { readEnvMeta, removeVisibility, setVisibility } from '@/src/lib/env-meta';
 
 const MASKED_VALUE = '***';
 const visibilitySchema = z.enum(['plain', 'secure']);
@@ -17,11 +17,6 @@ const UpsertEnvSchema = z.object({
   value: z.string().optional(),
   visibility: visibilitySchema.default('plain'),
 });
-
-async function getAgent(agentId: string) {
-  const [agent] = await db.select().from(schema.agents).where(eq(schema.agents.agentId, agentId));
-  return agent ?? null;
-}
 
 async function readEnvFile(filePath: string): Promise<string> {
   try {
@@ -48,12 +43,12 @@ export async function GET(request: NextRequest) {
   const content = await readEnvFile(envPath);
   const entries = parse(content);
 
-  const metadata = await db
-    .select()
-    .from(schema.envVars)
-    .where(eq(schema.envVars.scope, agentName));
+  const meta = await readEnvMeta(agent.home);
   const visibilityMap = new Map(
-    metadata.map((item) => [item.key, item.visibility === 'secure' ? 'secure' : 'plain']),
+    Object.entries(meta).map(([key, val]) => [
+      key,
+      val.visibility === 'secure' ? 'secure' : 'plain',
+    ]),
   );
 
   const result = entries.map((entry) => {
@@ -96,32 +91,16 @@ export async function POST(request: NextRequest) {
   const parsedEntries = parse(content);
   const existingEntry = parsedEntries.find((entry) => entry.key === key);
 
-  const existingMetadata = await db
-    .select()
-    .from(schema.envVars)
-    .where(and(eq(schema.envVars.scope, agentName), eq(schema.envVars.key, key)));
-
-  const nextValue = value ?? existingEntry?.value ?? existingMetadata[0]?.value;
+  const nextValue = value ?? existingEntry?.value;
   if (nextValue === undefined) {
     return NextResponse.json({ error: 'value is required for new key' }, { status: 400 });
   }
 
-  const entries = await upsert(parsedEntries, key, nextValue);
-  await fs.writeFile(envPath, await serialize(entries), 'utf-8');
+  const entries = upsert(parsedEntries, key, nextValue);
+  await fs.writeFile(envPath, serialize(entries), 'utf-8');
 
-  if (existingMetadata.length > 0) {
-    await db
-      .update(schema.envVars)
-      .set({ visibility: safeVisibility, value: nextValue })
-      .where(and(eq(schema.envVars.scope, agentName), eq(schema.envVars.key, key)));
-  } else {
-    await db.insert(schema.envVars).values({
-      scope: agentName,
-      key,
-      value: nextValue,
-      visibility: safeVisibility,
-    });
-  }
+  // Update visibility metadata in .env.meta.json
+  await setVisibility(agent.home, key, safeVisibility);
 
   return NextResponse.json({ ok: true, visibility: safeVisibility });
 }
@@ -145,12 +124,11 @@ export async function DELETE(request: NextRequest) {
 
   const envPath = path.join(agent.home, '.env');
   const content = await readEnvFile(envPath);
-  const entries = await deleteKey(parse(content), key);
-  await fs.writeFile(envPath, await serialize(entries), 'utf-8');
+  const entries = deleteKey(parse(content), key);
+  await fs.writeFile(envPath, serialize(entries), 'utf-8');
 
-  await db
-    .delete(schema.envVars)
-    .where(and(eq(schema.envVars.scope, agentName), eq(schema.envVars.key, key)));
+  // Remove visibility metadata
+  await removeVisibility(agent.home, key);
 
   return NextResponse.json({ ok: true });
 }
