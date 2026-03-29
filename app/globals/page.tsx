@@ -4,6 +4,7 @@ import { Edit, Plus, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
+import { EnvKeyCombobox } from '@/src/components/env-key-combobox';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -290,13 +291,9 @@ function AddRowForm({
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-2 sm:flex-row sm:items-center">
-      <Input
-        value={key}
-        onChange={(e) => setKey(e.target.value)}
-        placeholder="KEY_NAME"
-        aria-label="Variable key"
-        className="h-11 font-mono sm:max-w-48"
-      />
+      <div className="sm:max-w-48">
+        <EnvKeyCombobox value={key} onChange={setKey} className="h-11 w-full" />
+      </div>
       <Input
         value={value}
         onChange={(e) => setValue(e.target.value)}
