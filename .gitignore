@@ -6,6 +6,7 @@ coverage
 .env.local
 .env.*.local
 .DS_Store
+tsconfig.tsbuildinfo
 /.wt/setup.local
 /.wt/worktrees/
 /data/
