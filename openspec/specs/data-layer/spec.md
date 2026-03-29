@@ -1,0 +1,103 @@
+## Requirements
+
+### Requirement: sqlite-database
+
+SQLite database (`runtime/data/app.db`) is no longer used for agent, environment variable, or skill link data storage.
+
+#### Scenario: no-database-at-startup
+
+**Given**: The application starts without any `runtime/data/app.db` file
+**When**: The application initializes
+**Then**: The application starts successfully without creating or requiring a SQLite database
+
+## Requirements
+
+### Requirement: filesystem-agent-registry
+
+Agent registration and discovery is based on the `runtime/agents/` directory structure.
+
+#### Scenario: list-agents
+
+**Given**: `runtime/agents/` contains directories `agent-a/` and `agent-b/`, each with a `config.yaml`
+**When**: `GET /api/agents` is called
+**Then**: Both agents are returned with `agentId`, `home`, `label`, `enabled`, `createdAt`, `updatedAt` derived from the filesystem
+
+#### Scenario: get-agent
+
+**Given**: `runtime/agents/my-agent/` exists with a `config.yaml`
+**When**: Any API route resolves agent `my-agent`
+**Then**: The agent's `home` is `<RUNTIME_DIR>/agents/my-agent` and `label` is `ai.hermes.gateway.my-agent`
+
+#### Scenario: agent-not-found
+
+**Given**: `runtime/agents/nonexistent/` does not exist
+**When**: Any API route resolves agent `nonexistent`
+**Then**: A 404 response is returned
+
+#### Scenario: create-agent
+
+**Given**: `runtime/agents/new-agent/` does not exist
+**When**: `POST /api/agents` is called
+**Then**: The directory `runtime/agents/new-agent/` is created with `AGENTS.md`, `SOUL.md`, `config.yaml`, `.env`, and `logs/`
+
+#### Scenario: delete-agent
+
+**Given**: `runtime/agents/old-agent/` exists
+**When**: `DELETE /api/agents?id=old-agent&purge=true` is called
+**Then**: The directory `runtime/agents/old-agent/` is recursively removed
+
+### Requirement: env-meta-json-visibility
+
+Environment variable visibility metadata is stored in `.env.meta.json` sidecar files instead of a database table.
+
+#### Scenario: read-env-with-visibility
+
+**Given**: `runtime/agents/my-agent/.env` contains `SECRET_KEY=abc` and `.env.meta.json` contains `{"SECRET_KEY": {"visibility": "secure"}}`
+**When**: `GET /api/env?agent=my-agent` is called
+**Then**: The response includes `SECRET_KEY` with value `"***"` and `visibility: "secure"`
+
+#### Scenario: write-env-with-visibility
+
+**Given**: `runtime/agents/my-agent/` exists
+**When**: `POST /api/env` is called with `{agent: "my-agent", key: "API_KEY", value: "xyz", visibility: "secure"}`
+**Then**: `runtime/agents/my-agent/.env` contains `API_KEY=xyz` and `.env.meta.json` contains `{"API_KEY": {"visibility": "secure"}}`
+
+#### Scenario: global-env-meta
+
+**Given**: `runtime/globals/.env` contains `GLOBAL_KEY=val` and `runtime/globals/.env.meta.json` contains `{"GLOBAL_KEY": {"visibility": "plain"}}`
+**When**: `GET /api/globals` is called
+**Then**: The response includes `GLOBAL_KEY` with `visibility: "plain"` and the actual value
+
+### Requirement: symlink-based-skill-links
+
+Skill links are managed entirely through filesystem symlinks without a database table.
+
+#### Scenario: list-skill-links
+
+**Given**: `runtime/agents/my-agent/skills/research/arxiv` is a symlink pointing to `~/.agents/skills/research/arxiv`
+**When**: `GET /api/skills/links?agent=my-agent` is called
+**Then**: The response includes the link with `sourcePath`, `targetPath`, `relativePath`, and `exists: true`
+
+#### Scenario: create-skill-link
+
+**Given**: `~/.agents/skills/research/arxiv/SKILL.md` exists and `runtime/agents/my-agent/skills/research/arxiv` does not exist
+**When**: `POST /api/skills/links` is called with `{agent: "my-agent", relativePath: "research/arxiv"}`
+**Then**: A symlink is created at `runtime/agents/my-agent/skills/research/arxiv` pointing to `~/.agents/skills/research/arxiv`
+
+#### Scenario: delete-skill-link
+
+**Given**: `runtime/agents/my-agent/skills/research/arxiv` is a symlink
+**When**: `DELETE /api/skills/links?agent=my-agent&path=research/arxiv` is called
+**Then**: The symlink is removed and empty parent directories are cleaned up
+
+## Requirements
+
+### Requirement: agent-enabled-flag
+
+The `enabled` flag for agents is stored in `config.yaml` instead of a database column.
+
+#### Scenario: read-enabled-from-config
+
+**Given**: `runtime/agents/my-agent/config.yaml` contains `enabled: true`
+**When**: `GET /api/agents` is called
+**Then**: The agent `my-agent` has `enabled: true` in the response
