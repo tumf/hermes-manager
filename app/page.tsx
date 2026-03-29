@@ -207,7 +207,7 @@ export default function Home() {
 
   async function handleDelete(agentId: string) {
     try {
-      await fetch(`/api/agents?id=${encodeURIComponent(agentId)}`, {
+      await fetch(`/api/agents?id=${encodeURIComponent(agentId)}&purge=true`, {
         method: 'DELETE',
       });
       toast.success(`Agent "${agentId}" deleted`);
