@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -112,6 +112,64 @@ describe('EnvKeyCombobox', () => {
     fireEvent.click(screen.getByText('OPENROUTER_API_KEY'));
 
     expect(onChange).toHaveBeenCalledWith('OPENROUTER_API_KEY');
+  });
+
+  it('shows a free-input option even when partial matches remain', async () => {
+    render(<EnvKeyCombobox value="" onChange={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('combobox', { name: /env key/i }));
+    const input = screen.getByPlaceholderText('Search keys...');
+    fireEvent.change(input, { target: { value: 'OPEN' } });
+
+    const listbox = screen.getByRole('listbox');
+    expect(within(listbox).getByText('Use “OPEN”')).toBeInTheDocument();
+    expect(within(listbox).getByText('OPENROUTER_API_KEY')).toBeInTheDocument();
+  });
+
+  it('hides the free-input option for exact known-key matches', async () => {
+    render(<EnvKeyCombobox value="" onChange={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('combobox', { name: /env key/i }));
+    const input = screen.getByPlaceholderText('Search keys...');
+    fireEvent.change(input, { target: { value: 'OPENROUTER_API_KEY' } });
+
+    const listbox = screen.getByRole('listbox');
+    expect(within(listbox).queryByText('Use “OPENROUTER_API_KEY”')).not.toBeInTheDocument();
+    expect(within(listbox).getByText('OPENROUTER_API_KEY')).toBeInTheDocument();
+  });
+
+  it('confirms the free-input text when pressing Enter', async () => {
+    const onChange = vi.fn();
+    render(<EnvKeyCombobox value="" onChange={onChange} />);
+
+    fireEvent.click(screen.getByRole('combobox', { name: /env key/i }));
+    const input = screen.getByPlaceholderText('Search keys...');
+    fireEvent.change(input, { target: { value: 'OPEN' } });
+    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
+
+    expect(onChange).toHaveBeenCalledWith('OPEN');
+  });
+
+  it('selects the free-input option when clicked', async () => {
+    const onChange = vi.fn();
+    render(<EnvKeyCombobox value="" onChange={onChange} />);
+
+    fireEvent.click(screen.getByRole('combobox', { name: /env key/i }));
+    const input = screen.getByPlaceholderText('Search keys...');
+    fireEvent.change(input, { target: { value: 'TELEGRAM' } });
+
+    fireEvent.click(await screen.findByText('Use “TELEGRAM”'));
+
+    expect(onChange).toHaveBeenCalledWith('TELEGRAM');
+  });
+
+  it('does not show the free-input option for blank input', async () => {
+    render(<EnvKeyCombobox value="" onChange={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('combobox', { name: /env key/i }));
+
+    const listbox = screen.getByRole('listbox');
+    expect(within(listbox).queryByText(/Use “/)).not.toBeInTheDocument();
   });
 
   it('has aria-controls attribute referencing the listbox', () => {
