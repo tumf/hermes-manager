@@ -12,7 +12,7 @@ import {
   CommandList,
 } from '@/src/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/src/components/ui/popover';
-import { HERMES_ENV_KEY_GROUPS } from '@/src/lib/hermes-env-keys';
+import { ALL_HERMES_ENV_KEYS, HERMES_ENV_KEY_GROUPS } from '@/src/lib/hermes-env-keys';
 import { cn } from '@/src/lib/utils';
 
 interface EnvKeyComboboxProps {
@@ -26,6 +26,11 @@ const LISTBOX_ID = 'env-key-suggestions';
 export function EnvKeyCombobox({ value, onChange, className }: EnvKeyComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
+
+  const trimmedSearch = search.trim();
+  const showFreeInputOption =
+    trimmedSearch.length > 0 &&
+    !ALL_HERMES_ENV_KEYS.some((envKey) => envKey.toLowerCase() === trimmedSearch.toLowerCase());
 
   function handleSelect(selectedKey: string) {
     onChange(selectedKey);
@@ -54,25 +59,28 @@ export function EnvKeyCombobox({ value, onChange, className }: EnvKeyComboboxPro
       </PopoverTrigger>
       <PopoverContent className="w-72 p-0" align="start">
         <Command shouldFilter={true}>
-          <CommandInput placeholder="Search keys..." value={search} onValueChange={setSearch} />
+          <CommandInput
+            placeholder="Search keys..."
+            value={search}
+            onValueChange={setSearch}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && showFreeInputOption) {
+                event.preventDefault();
+                handleSelect(trimmedSearch);
+              }
+            }}
+          />
           <CommandList id={LISTBOX_ID}>
-            <CommandEmpty>
-              {search.trim() ? (
-                <button
-                  type="button"
-                  className="w-full cursor-pointer rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
-                  onMouseDown={(e) => {
-                    // Use mousedown to fire before popover closes
-                    e.preventDefault();
-                    handleSelect(search.trim());
-                  }}
-                >
-                  Use &ldquo;{search.trim()}&rdquo;
-                </button>
-              ) : (
-                'No keys found.'
-              )}
-            </CommandEmpty>
+            {showFreeInputOption ? (
+              <CommandItem
+                value={`__free__:${trimmedSearch}`}
+                onSelect={() => handleSelect(trimmedSearch)}
+                className="font-mono text-xs"
+              >
+                Use &ldquo;{trimmedSearch}&rdquo;
+              </CommandItem>
+            ) : null}
+            <CommandEmpty>No keys found.</CommandEmpty>
             {HERMES_ENV_KEY_GROUPS.map((group) => (
               <CommandGroup key={group.category} heading={group.category}>
                 {group.keys.map((envKey) => (

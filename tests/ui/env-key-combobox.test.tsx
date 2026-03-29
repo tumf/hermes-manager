@@ -114,6 +114,33 @@ describe('EnvKeyCombobox', () => {
     expect(onChange).toHaveBeenCalledWith('OPENROUTER_API_KEY');
   });
 
+  it('supports free-form key input from the search field', async () => {
+    const onChange = vi.fn();
+    render(<EnvKeyCombobox value="" onChange={onChange} />);
+
+    fireEvent.click(screen.getByRole('combobox', { name: /env key/i }));
+    const searchInput = await screen.findByPlaceholderText('Search keys...');
+
+    fireEvent.change(searchInput, { target: { value: 'CUSTOM_GLOBAL_KEY' } });
+
+    expect(await screen.findByText('Use “CUSTOM_GLOBAL_KEY”')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Use “CUSTOM_GLOBAL_KEY”'));
+
+    expect(onChange).toHaveBeenCalledWith('CUSTOM_GLOBAL_KEY');
+  });
+
+  it('supports free-form key input that partially matches known keys', async () => {
+    const onChange = vi.fn();
+    render(<EnvKeyCombobox value="" onChange={onChange} />);
+
+    fireEvent.click(screen.getByRole('combobox', { name: /env key/i }));
+    const searchInput = await screen.findByPlaceholderText('Search keys...');
+
+    fireEvent.change(searchInput, { target: { value: 'OPENROUTER_API_KEY_CUSTOM' } });
+
+    expect(await screen.findByText('Use “OPENROUTER_API_KEY_CUSTOM”')).toBeInTheDocument();
+  });
+
   it('has aria-controls attribute referencing the listbox', () => {
     render(<EnvKeyCombobox value="" onChange={vi.fn()} />);
 
