@@ -71,6 +71,20 @@ vi.mock('node:child_process', () => ({
   execFile: vi.fn((_cmd: string, _args: string[], cb: (err: null) => void) => cb(null)),
 }));
 
+// --- mock src/lib/templates ---
+// resolveTemplateContent uses synchronous node:fs (not node:fs/promises),
+// so we must mock the templates module to prevent real filesystem reads.
+vi.mock('@/src/lib/templates', () => ({
+  resolveTemplateContent: vi.fn((fileName: string, agentId: string) => {
+    const fallbacks: Record<string, (id: string) => string> = {
+      'AGENTS.md': (id: string) => `# ${id}\n`,
+      'SOUL.md': (id: string) => `# Soul: ${id}\n`,
+      'config.yaml': (id: string) => `name: ${id}\n`,
+    };
+    return (fallbacks[fileName] ?? (() => ''))(agentId);
+  }),
+}));
+
 // --- mock src/lib/id ---
 vi.mock('../../src/lib/id', () => ({
   generateAgentId: vi.fn(() => 'abc1234'),

@@ -10,6 +10,10 @@
 - [x] Task 8: `docs/design.md` のテンプレート関連セクションを更新（verification: ドキュメント内容が実装と一致）
 - [x] Task 9: `npm run test && npm run typecheck && npm run lint` 全パス確認
 
+## Acceptance #1 Failure Follow-up
+
+- [x] Fix `tests/api/agents.test.ts` — `@/src/lib/templates` の `resolveTemplateContent` をモックし、テストが実際のファイルシステムではなくフォールバックコンテンツを使うように修正
+
 ## Future Work
 
 - default テンプレートの内容をユーザが UI からリセットする機能
