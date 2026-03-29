@@ -73,7 +73,7 @@ export const HERMES_ENV_KEY_GROUPS: HermesEnvKeyGroup[] = [
     ],
   },
   {
-    category: 'Gateway',
+    category: 'Gateway: General',
     keys: [
       'SLACK_BOT_TOKEN',
       'SLACK_APP_TOKEN',
@@ -93,6 +93,34 @@ export const HERMES_ENV_KEY_GROUPS: HermesEnvKeyGroup[] = [
       'HERMES_HUMAN_DELAY_MODE',
       'HERMES_HUMAN_DELAY_MIN_MS',
       'HERMES_HUMAN_DELAY_MAX_MS',
+    ],
+  },
+  {
+    category: 'Gateway: Telegram',
+    keys: [
+      'TELEGRAM_BOT_TOKEN',
+      'TELEGRAM_ALLOWED_USERS',
+      'TELEGRAM_ALLOW_ALL_USERS',
+      'TELEGRAM_HOME_CHANNEL',
+      'TELEGRAM_HOME_CHANNEL_NAME',
+      'TELEGRAM_REPLY_TO_MODE',
+      'TELEGRAM_TOPIC_TARGET_RE',
+      'TELEGRAM_TEXT_BATCH_DELAY_SECONDS',
+      'TELEGRAM_MEDIA_BATCH_DELAY_SECONDS',
+    ],
+  },
+  {
+    category: 'Gateway: Discord',
+    keys: [
+      'DISCORD_BOT_TOKEN',
+      'DISCORD_ALLOWED_USERS',
+      'DISCORD_ALLOW_ALL_USERS',
+      'DISCORD_HOME_CHANNEL',
+      'DISCORD_HOME_CHANNEL_NAME',
+      'DISCORD_REQUIRE_MENTION',
+      'DISCORD_FREE_RESPONSE_CHANNELS',
+      'DISCORD_AUTO_THREAD',
+      'DISCORD_ALLOW_BOTS',
     ],
   },
   {

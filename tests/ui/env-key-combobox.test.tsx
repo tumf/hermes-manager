@@ -57,6 +57,48 @@ describe('EnvKeyCombobox', () => {
     expect(screen.getByText('OPENROUTER_API_KEY')).toBeInTheDocument();
     expect(screen.getByText('FIRECRAWL_API_KEY')).toBeInTheDocument();
     expect(screen.getByText('BROWSERBASE_API_KEY')).toBeInTheDocument();
+    expect(screen.getByText('Gateway: General')).toBeInTheDocument();
+  });
+
+  it('suggests Telegram keys when searching for TELEGRAM', async () => {
+    render(<EnvKeyCombobox value="" onChange={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('combobox', { name: /env key/i }));
+    const searchInput = await screen.findByPlaceholderText('Search keys...');
+
+    fireEvent.change(searchInput, { target: { value: 'TELEGRAM' } });
+
+    expect(await screen.findByText('Gateway: Telegram')).toBeInTheDocument();
+    expect(screen.getByText('TELEGRAM_BOT_TOKEN')).toBeInTheDocument();
+    expect(screen.getByText('TELEGRAM_ALLOWED_USERS')).toBeInTheDocument();
+    expect(screen.getByText('TELEGRAM_HOME_CHANNEL')).toBeInTheDocument();
+  });
+
+  it('suggests Discord keys when searching for DISCORD', async () => {
+    render(<EnvKeyCombobox value="" onChange={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('combobox', { name: /env key/i }));
+    const searchInput = await screen.findByPlaceholderText('Search keys...');
+
+    fireEvent.change(searchInput, { target: { value: 'DISCORD' } });
+
+    expect(await screen.findByText('Gateway: Discord')).toBeInTheDocument();
+    expect(screen.getByText('DISCORD_BOT_TOKEN')).toBeInTheDocument();
+    expect(screen.getByText('DISCORD_ALLOWED_USERS')).toBeInTheDocument();
+    expect(screen.getByText('DISCORD_HOME_CHANNEL')).toBeInTheDocument();
+  });
+
+  it('keeps existing gateway keys available under Gateway: General', async () => {
+    render(<EnvKeyCombobox value="" onChange={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('combobox', { name: /env key/i }));
+    const searchInput = await screen.findByPlaceholderText('Search keys...');
+
+    fireEvent.change(searchInput, { target: { value: 'SLACK' } });
+
+    expect(await screen.findByText('Gateway: General')).toBeInTheDocument();
+    expect(screen.getByText('SLACK_BOT_TOKEN')).toBeInTheDocument();
+    expect(screen.getByText('SLACK_APP_TOKEN')).toBeInTheDocument();
   });
 
   it('calls onChange when a suggestion is selected', async () => {
