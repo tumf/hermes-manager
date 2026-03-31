@@ -66,7 +66,7 @@ export function AgentMetadataCard({
             onChange={(e) =>
               onMetaDraftChange((prev) => ({ ...prev, description: e.target.value }))
             }
-            placeholder="用途やメモ"
+            placeholder="Purpose or notes"
             rows={3}
           />
         </div>
