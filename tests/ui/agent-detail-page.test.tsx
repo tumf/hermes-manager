@@ -71,6 +71,33 @@ function createFetchMock() {
         return { ok: true, json: async () => ({}) };
       }
 
+      if (url === '/api/agents' && method === 'GET') {
+        return {
+          ok: true,
+          json: async () => [
+            {
+              agentId: 'alpha',
+              name: 'alpha',
+              description: 'test agent',
+              tags: ['test'],
+              home: '/runtime/agents/alpha',
+            },
+          ],
+        };
+      }
+
+      if (url === '/api/agents/alpha/meta' && method === 'PUT') {
+        const body = JSON.parse(init?.body ?? '{}');
+        return {
+          ok: true,
+          json: async () => ({
+            name: body.name ?? '',
+            description: body.description ?? '',
+            tags: body.tags ?? [],
+          }),
+        };
+      }
+
       if (url.startsWith('/api/env?agent=') && !url.includes('/resolved') && method === 'GET') {
         return {
           ok: true,
@@ -82,6 +109,33 @@ function createFetchMock() {
         return {
           ok: true,
           json: async () => [{ key: 'BASE_URL', value: 'https://example.com', source: 'global' }],
+        };
+      }
+
+      if (url === '/api/agents' && method === 'GET') {
+        return {
+          ok: true,
+          json: async () => [
+            {
+              agentId: 'alpha',
+              name: 'Alpha Agent',
+              description: 'test agent',
+              tags: ['test'],
+              home: '/runtime/agents/alpha',
+            },
+          ],
+        };
+      }
+
+      if (url === '/api/agents/alpha/meta' && method === 'PUT') {
+        const body = JSON.parse(init?.body ?? '{}');
+        return {
+          ok: true,
+          json: async () => ({
+            name: body.name ?? '',
+            description: body.description ?? '',
+            tags: body.tags ?? [],
+          }),
         };
       }
 
@@ -375,5 +429,50 @@ describe('Agent detail memory tab', () => {
     const skillsTab = screen.getByRole('tab', { name: 'Skills' });
     expect(envTab).not.toBeDisabled();
     expect(skillsTab).not.toBeDisabled();
+  });
+
+  it('shows toast after start action', async () => {
+    global.fetch = createFetchMock();
+
+    await act(async () => {
+      renderPage('alpha');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Start' })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+
+    await waitFor(() => {
+      expect(toast.success).toHaveBeenCalledWith('alpha started');
+    });
+  });
+
+  it('saves metadata and shows success toast', async () => {
+    const fetchMock = createFetchMock();
+    global.fetch = fetchMock;
+
+    await act(async () => {
+      renderPage('alpha');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Display Name')).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText('Display Name'), {
+      target: { value: 'Alpha Agent' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Metadata' }));
+
+    await waitFor(() => {
+      const putMetaCalls = (fetchMock.mock.calls as [string, { method?: string }?][]).filter(
+        ([url, init]) =>
+          url === '/api/agents/alpha/meta' && (init?.method ?? '').toUpperCase() === 'PUT',
+      );
+      expect(putMetaCalls.length).toBeGreaterThan(0);
+      expect(toast.success).toHaveBeenCalledWith('Agent metadata updated');
+    });
   });
 });
