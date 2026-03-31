@@ -66,10 +66,17 @@ vi.mock('../../src/lib/id', () => ({
   generateAgentId: vi.fn(() => 'abc1234'),
 }));
 
+// --- mock src/lib/dotenv-parser ---
+vi.mock('@/src/lib/dotenv-parser', () => ({
+  clearTokenValues: vi.fn(async () => undefined),
+}));
+
 // Import handlers after mocks are set up
 import { POST as COPY_POST } from '../../app/api/agents/copy/route';
 import { DELETE, GET, POST } from '../../app/api/agents/route';
 import type { Agent } from '../../src/lib/agents';
+import { PLATFORM_TOKEN_KEYS } from '../../src/lib/constants';
+import { clearTokenValues } from '../../src/lib/dotenv-parser';
 
 function makeReq(url: string, init?: ConstructorParameters<typeof NextRequest>[1]) {
   return new NextRequest(url, init);
@@ -250,6 +257,32 @@ describe('POST /api/agents/copy', () => {
     expect(vi.mocked(fs.cp)).toHaveBeenCalledWith('/runtime/agents/delta11', expect.any(String), {
       recursive: true,
     });
+  });
+
+  it('sanitizes copied env platform token values', async () => {
+    mockState.agents = [
+      {
+        agentId: 'delta11',
+        home: '/runtime/agents/delta11',
+        label: 'ai.hermes.gateway.delta11',
+        enabled: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ];
+
+    const req = makeReq('http://localhost/api/agents/copy', {
+      method: 'POST',
+      body: JSON.stringify({ from: 'delta11' }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    await COPY_POST(req);
+
+    expect(vi.mocked(clearTokenValues)).toHaveBeenCalledWith(
+      expect.stringContaining('/runtime/agents/abc1234/.env'),
+      PLATFORM_TOKEN_KEYS,
+    );
   });
 
   it('returns 404 if source agent not found', async () => {

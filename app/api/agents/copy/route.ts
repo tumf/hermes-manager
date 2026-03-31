@@ -3,6 +3,8 @@ import fs from 'node:fs/promises';
 import { NextRequest, NextResponse } from 'next/server';
 
 import { agentExists, getAgent } from '@/src/lib/agents';
+import { PLATFORM_TOKEN_KEYS } from '@/src/lib/constants';
+import { clearTokenValues } from '@/src/lib/dotenv-parser';
 import { generateAgentId } from '@/src/lib/id';
 import { getRuntimeAgentsRootPath } from '@/src/lib/runtime-paths';
 import { CopyAgentSchema } from '@/src/lib/validators/agents';
@@ -48,6 +50,9 @@ export async function POST(request: NextRequest) {
 
   const toHome = getRuntimeAgentsRootPath(newAgentId);
   await fs.cp(sourceAgent.home, toHome, { recursive: true });
+
+  const copiedEnvPath = `${toHome}/.env`;
+  await clearTokenValues(copiedEnvPath, PLATFORM_TOKEN_KEYS);
 
   // Re-read the newly created agent from filesystem
   const newAgent = await getAgent(newAgentId);

@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 
-import { deleteKey, parse, serialize, upsert } from '@/src/lib/dotenv-parser';
+import { afterEach, describe, expect, it } from 'vitest';
+
+import { clearTokenValues, deleteKey, parse, serialize, upsert } from '@/src/lib/dotenv-parser';
 
 describe('parse', () => {
   it('parses basic KEY=VALUE lines', () => {
@@ -81,5 +85,61 @@ describe('deleteKey', () => {
 
   it('handles empty list', () => {
     expect(deleteKey([], 'KEY')).toEqual([]);
+  });
+});
+
+describe('clearTokenValues', () => {
+  const tmpPaths: string[] = [];
+
+  afterEach(async () => {
+    await Promise.all(
+      tmpPaths.splice(0).map((tmpPath) => fs.rm(tmpPath, { recursive: true, force: true })),
+    );
+  });
+
+  async function createEnvFile(content: string): Promise<string> {
+    const tmpPath = await fs.mkdtemp(path.join(os.tmpdir(), 'dotenv-parser-test-'));
+    tmpPaths.push(tmpPath);
+    const envPath = path.join(tmpPath, '.env');
+    await fs.writeFile(envPath, content, 'utf-8');
+    return envPath;
+  }
+
+  it('clears only specified token keys when present', async () => {
+    const envPath = await createEnvFile('TELEGRAM_BOT_TOKEN=abc123\nOPENAI_API_KEY=sk-xxx\n');
+
+    await clearTokenValues(envPath, ['TELEGRAM_BOT_TOKEN', 'DISCORD_BOT_TOKEN']);
+
+    await expect(fs.readFile(envPath, 'utf-8')).resolves.toBe(
+      'TELEGRAM_BOT_TOKEN=\nOPENAI_API_KEY=sk-xxx\n',
+    );
+  });
+
+  it('keeps file unchanged when keys are absent', async () => {
+    const envPath = await createEnvFile('OPENAI_API_KEY=sk-xxx\n');
+
+    await clearTokenValues(envPath, ['TELEGRAM_BOT_TOKEN']);
+
+    await expect(fs.readFile(envPath, 'utf-8')).resolves.toBe('OPENAI_API_KEY=sk-xxx\n');
+  });
+
+  it('clears matching keys and keeps non-matching mixed keys intact', async () => {
+    const envPath = await createEnvFile(
+      'SLACK_BOT_TOKEN=bot-token\nBASE_URL=https://example.com\n',
+    );
+
+    await clearTokenValues(envPath, ['SLACK_BOT_TOKEN', 'TELEGRAM_BOT_TOKEN']);
+
+    await expect(fs.readFile(envPath, 'utf-8')).resolves.toBe(
+      'SLACK_BOT_TOKEN=\nBASE_URL="https://example.com"\n',
+    );
+  });
+
+  it('handles empty env file', async () => {
+    const envPath = await createEnvFile('');
+
+    await clearTokenValues(envPath, ['SLACK_BOT_TOKEN']);
+
+    await expect(fs.readFile(envPath, 'utf-8')).resolves.toBe('');
   });
 });
