@@ -1,0 +1,260 @@
+'use client';
+
+import { Plus } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { toast } from 'sonner';
+
+import { Button } from '@/src/components/ui/button';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/src/components/ui/dialog';
+import { Input } from '@/src/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/src/components/ui/select';
+
+export interface TemplateEntry {
+  name: string;
+  files: string[];
+}
+
+interface AddAgentDialogProps {
+  templates: TemplateEntry[];
+  onOpen: () => void;
+  onCreated: () => Promise<void>;
+}
+
+export function AddAgentDialog({ templates, onOpen, onCreated }: AddAgentDialogProps) {
+  const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [templateAgentsMd, setTemplateAgentsMd] = useState('default');
+  const [templateSoulMd, setTemplateSoulMd] = useState('default');
+  const [templateConfigYaml, setTemplateConfigYaml] = useState('default');
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [tags, setTags] = useState('');
+
+  const agentsMdTemplates = useMemo(
+    () => templates.filter((template) => template.files.includes('AGENTS.md')),
+    [templates],
+  );
+  const soulMdTemplates = useMemo(
+    () => templates.filter((template) => template.files.includes('SOUL.md')),
+    [templates],
+  );
+  const configYamlTemplates = useMemo(
+    () => templates.filter((template) => template.files.includes('config.yaml')),
+    [templates],
+  );
+
+  function resetForm() {
+    setTemplateAgentsMd('default');
+    setTemplateSoulMd('default');
+    setTemplateConfigYaml('default');
+    setName('');
+    setDescription('');
+    setTags('');
+  }
+
+  async function handleAdd() {
+    setBusy(true);
+    try {
+      const selectedTemplates: Record<string, string> = {};
+      if (templateAgentsMd !== 'default') selectedTemplates.agentsMd = templateAgentsMd;
+      if (templateSoulMd !== 'default') selectedTemplates.soulMd = templateSoulMd;
+      if (templateConfigYaml !== 'default') selectedTemplates.configYaml = templateConfigYaml;
+
+      const body: Record<string, unknown> = {};
+      if (Object.keys(selectedTemplates).length > 0) body.templates = selectedTemplates;
+
+      const parsedTags = tags
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter((tag) => tag.length > 0);
+      if (name.trim() || description.trim() || parsedTags.length > 0) {
+        body.meta = { name: name.trim(), description: description.trim(), tags: parsedTags };
+      }
+
+      const res = await fetch('/api/agents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(typeof data.error === 'string' ? data.error : 'Failed to create');
+        return;
+      }
+
+      const created = await res.json();
+      resetForm();
+      setOpen(false);
+      toast.success(`Agent "${created.agentId}" created`);
+      await onCreated();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (nextOpen) onOpen();
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button className="h-11 gap-2">
+          <Plus className="size-4" />
+          Add Agent
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void handleAdd();
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Add Agent</DialogTitle>
+            <DialogDescription>
+              Create a new agent with an auto-generated ID and optional template selection.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4 space-y-4">
+            <LabeledInput
+              id="agent-name"
+              label="Display Name"
+              value={name}
+              onChange={setName}
+              placeholder="My Bot"
+            />
+            <LabeledInput
+              id="agent-description"
+              label="Description"
+              value={description}
+              onChange={setDescription}
+              placeholder="用途やメモ"
+            />
+            <LabeledInput
+              id="agent-tags"
+              label="Tags (comma separated)"
+              value={tags}
+              onChange={setTags}
+              placeholder="prod, monitor"
+            />
+            <TemplateSelect
+              label="AGENTS.md Template"
+              id="tpl-agents-md"
+              value={templateAgentsMd}
+              onValueChange={setTemplateAgentsMd}
+              templates={agentsMdTemplates}
+            />
+            <TemplateSelect
+              label="SOUL.md Template"
+              id="tpl-soul-md"
+              value={templateSoulMd}
+              onValueChange={setTemplateSoulMd}
+              templates={soulMdTemplates}
+            />
+            <TemplateSelect
+              label="config.yaml Template"
+              id="tpl-config-yaml"
+              value={templateConfigYaml}
+              onValueChange={setTemplateConfigYaml}
+              templates={configYamlTemplates}
+            />
+          </div>
+          <DialogFooter className="mt-6">
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button type="submit" disabled={busy}>
+              {busy ? 'Creating...' : 'Create'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function LabeledInput({
+  id,
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor={id} className="text-sm font-medium">
+        {label}
+      </label>
+      <Input
+        id={id}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+      />
+    </div>
+  );
+}
+
+function TemplateSelect({
+  label,
+  id,
+  value,
+  onValueChange,
+  templates,
+}: {
+  label: string;
+  id: string;
+  value: string;
+  onValueChange: (value: string) => void;
+  templates: TemplateEntry[];
+}) {
+  return (
+    <div>
+      <label htmlFor={id} className="mb-1.5 block text-sm font-medium">
+        {label}
+      </label>
+      <Select value={value} onValueChange={onValueChange}>
+        <SelectTrigger id={id}>
+          <SelectValue placeholder="default" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="default">default</SelectItem>
+          {templates
+            .filter((template) => template.name !== 'default')
+            .map((template) => (
+              <SelectItem key={template.name} value={template.name}>
+                {template.name}
+              </SelectItem>
+            ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
