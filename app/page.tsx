@@ -369,7 +369,7 @@ export default function Home() {
                       href={`/agents/${encodeURIComponent(a.agentId)}`}
                       className="hover:underline"
                     >
-                      {a.agentId}
+                      <span className="font-mono">{a.agentId}</span>
                     </Link>
                   </CardTitle>
                   {a.label && (
@@ -414,7 +414,7 @@ export default function Home() {
                       href={`/agents/${encodeURIComponent(a.agentId)}`}
                       className="hover:underline"
                     >
-                      {a.agentId}
+                      <span className="font-mono">{a.agentId}</span>
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{a.label || '--'}</td>
