@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <!-- Background circle -->
   <circle cx="32" cy="32" r="30" fill="#0f172a" stroke="#3b82f6" stroke-width="2"/>
-  
+
   <!-- Central agent circle (blue gradient) -->
   <defs>
     <linearGradient id="agentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -10,21 +10,21 @@
     </linearGradient>
   </defs>
   <circle cx="32" cy="32" r="16" fill="url(#agentGradient)"/>
-  
+
   <!-- Left wing (communication in) -->
   <path d="M 16 28 Q 10 32 16 36" stroke="#60a5fa" stroke-width="2.5" fill="none" stroke-linecap="round"/>
   <path d="M 14 30 Q 8 32 14 34" stroke="#60a5fa" stroke-width="1.5" fill="none" stroke-linecap="round" opacity="0.7"/>
-  
+
   <!-- Right wing (communication out) -->
   <path d="M 48 28 Q 54 32 48 36" stroke="#60a5fa" stroke-width="2.5" fill="none" stroke-linecap="round"/>
   <path d="M 50 30 Q 56 32 50 34" stroke="#60a5fa" stroke-width="1.5" fill="none" stroke-linecap="round" opacity="0.7"/>
-  
+
   <!-- Top lightning (speed/energy) -->
   <path d="M 32 8 L 35 18 L 31 18 L 34 28" stroke="#fbbf24" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-  
+
   <!-- Center dot (core agent) -->
   <circle cx="32" cy="32" r="3" fill="#fbbf24" opacity="0.9"/>
-  
+
   <!-- Message dots (data flow) -->
   <circle cx="24" cy="24" r="2" fill="#60a5fa" opacity="0.6"/>
   <circle cx="40" cy="40" r="2" fill="#60a5fa" opacity="0.6"/>

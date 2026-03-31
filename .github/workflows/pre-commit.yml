@@ -14,5 +14,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - run: npm ci
       - run: pip install pre-commit
       - run: pre-commit run --all-files
