@@ -105,7 +105,16 @@ export function AgentEnvTab({ name }: { name: string }) {
                 >
                   <div className="min-w-0 flex-1">
                     <div className="truncate font-mono text-sm font-medium">{row.key}</div>
-                    <div className="truncate font-mono text-xs text-muted-foreground">
+                    <div
+                      className="cursor-pointer truncate font-mono text-xs text-muted-foreground hover:text-foreground"
+                      onClick={() => {
+                        if (!row.masked) {
+                          void navigator.clipboard.writeText(row.value);
+                          toast.success(`Copied ${row.key}`);
+                        }
+                      }}
+                      title={row.masked ? undefined : 'Click to copy'}
+                    >
                       {row.masked ? '***' : row.value}
                     </div>
                     <Badge variant={row.visibility === 'secure' ? 'secondary' : 'muted'}>
