@@ -41,6 +41,8 @@ export function generatePlist(_agentId: string, home: string, label: string): st
   <string>${logDir}/gateway.log</string>
   <key>StandardErrorPath</key>
   <string>${logDir}/gateway.error.log</string>
+  <key>WorkingDirectory</key>
+  <string>${home}</string>
   <key>RunAtLoad</key>
   <false/>
 </dict>

@@ -39,6 +39,11 @@ describe('generatePlist', () => {
     expect(plist).toContain(`<string>${home}</string>`);
   });
 
+  it('sets WorkingDirectory to HERMES_HOME', () => {
+    expect(plist).toContain('<key>WorkingDirectory</key>');
+    expect(plist).toContain(`<string>${home}</string>`);
+  });
+
   it('includes stdout log path', () => {
     expect(plist).toContain(`${home}/logs/gateway.log`);
   });

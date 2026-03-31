@@ -161,14 +161,16 @@ export async function POST(request: Request) {
   if (action === 'restart') {
     const currentStatus = await runExecFile('launchctl', ['print', `gui/${uid}/${label}`]);
 
-    if (isServiceMissing(currentStatus)) {
-      const bootstrapResult = await ensureServiceBootstrapped(agentName, home, label, uid);
-      if (bootstrapResult.code !== 0) {
-        return NextResponse.json(bootstrapResult, { status: 500 });
-      }
+    if (!isServiceMissing(currentStatus)) {
+      await runExecFile('launchctl', ['bootout', `gui/${uid}/${label}`]);
     }
 
-    const result = await runExecFile('launchctl', ['kickstart', '-k', `gui/${uid}/${label}`]);
+    const bootstrapResult = await ensureServiceBootstrapped(agentName, home, label, uid);
+    if (bootstrapResult.code !== 0) {
+      return NextResponse.json(bootstrapResult, { status: 500 });
+    }
+
+    const result = await runExecFile('launchctl', ['kickstart', `gui/${uid}/${label}`]);
     if (result.code !== 0) {
       return NextResponse.json({ ...result, running: false }, { status: 500 });
     }
