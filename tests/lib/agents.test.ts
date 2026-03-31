@@ -36,6 +36,26 @@ describe('listAgents', () => {
     expect(agents[0].agentId).toBe('test-agent');
     expect(agents[0].label).toBe('ai.hermes.gateway.test-agent');
     expect(agents[0].enabled).toBe(true);
+    expect(agents[0].name).toBe('');
+    expect(agents[0].description).toBe('');
+    expect(agents[0].tags).toEqual([]);
+  });
+
+  it('reads metadata from meta.json when present', async () => {
+    const agentDir = path.join(tmpDir, 'runtime', 'agents', 'meta-agent');
+    await fsp.mkdir(agentDir, { recursive: true });
+    await fsp.writeFile(path.join(agentDir, 'config.yaml'), 'enabled: false\n');
+    await fsp.writeFile(
+      path.join(agentDir, 'meta.json'),
+      JSON.stringify({ name: 'Bot A', description: 'テスト用', tags: ['dev'] }),
+    );
+
+    const { getAgent } = await import('../../src/lib/agents');
+    const agent = await getAgent('meta-agent');
+    expect(agent).not.toBeNull();
+    expect(agent!.name).toBe('Bot A');
+    expect(agent!.description).toBe('テスト用');
+    expect(agent!.tags).toEqual(['dev']);
   });
 
   it('skips directories without config.yaml', async () => {

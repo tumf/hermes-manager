@@ -18,6 +18,9 @@ const mockAgents = [
     label: 'ai.hermes.gateway.alpha11',
     enabled: true,
     createdAt: 0,
+    name: 'Alpha Bot',
+    description: 'alpha desc',
+    tags: ['prod', 'ops'],
   },
   {
     id: 2,
@@ -26,6 +29,9 @@ const mockAgents = [
     label: 'ai.hermes.gateway.beta222',
     enabled: false,
     createdAt: 0,
+    name: '',
+    description: '',
+    tags: [],
   },
 ];
 
@@ -124,8 +130,19 @@ describe('AgentsPage', () => {
     render(<Home />);
 
     await waitFor(() => {
-      expect(screen.getAllByText('alpha11').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Alpha Bot').length).toBeGreaterThan(0);
       expect(screen.getAllByText('beta222').length).toBeGreaterThan(0);
+    });
+  });
+
+  it('shows metadata tags when present', async () => {
+    global.fetch = mockFetch();
+
+    render(<Home />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('prod').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('ops').length).toBeGreaterThan(0);
     });
   });
 
@@ -135,7 +152,7 @@ describe('AgentsPage', () => {
     render(<Home />);
 
     await waitFor(() => {
-      expect(screen.getAllByText('alpha11').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Alpha Bot').length).toBeGreaterThan(0);
     });
 
     expect(screen.getAllByText('Running').length).toBeGreaterThan(0);
@@ -148,7 +165,7 @@ describe('AgentsPage', () => {
     render(<Home />);
 
     await waitFor(() => {
-      expect(screen.getAllByText('alpha11').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Alpha Bot').length).toBeGreaterThan(0);
     });
 
     expect(screen.getAllByRole('button', { name: /^stop$/i }).length).toBeGreaterThan(0);
@@ -186,7 +203,7 @@ describe('AgentsPage', () => {
     render(<Home />);
 
     await waitFor(() => {
-      expect(screen.getAllByText('alpha11').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Alpha Bot').length).toBeGreaterThan(0);
     });
 
     expect(screen.getAllByRole('button', { name: /more actions/i }).length).toBeGreaterThan(0);

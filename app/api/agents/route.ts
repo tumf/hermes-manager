@@ -18,26 +18,33 @@ export async function GET() {
     label: a.label,
     enabled: a.enabled,
     createdAt: a.createdAt,
+    name: a.name,
+    description: a.description,
+    tags: a.tags,
   }));
   return NextResponse.json(rows);
 }
 
 export async function POST(request: NextRequest) {
-  // Parse optional body for template selection
   let templateNames: { agentsMd?: string; soulMd?: string; configYaml?: string } | undefined;
+  let meta: { name?: string; description?: string; tags?: string[] } | undefined;
   if (request) {
     try {
       const body = await request.json();
       const result = CreateAgentSchema.safeParse(body);
-      if (result.success && result.data?.templates) {
-        templateNames = result.data.templates;
+      if (result.success) {
+        if (result.data?.templates) {
+          templateNames = result.data.templates;
+        }
+        if (result.data?.meta) {
+          meta = result.data.meta;
+        }
       }
     } catch {
-      // No body or invalid JSON — that's fine, templates are optional
+      // No body or invalid JSON — that's fine, templates/meta are optional
     }
   }
 
-  // Auto-generate a unique agent ID with collision retry
   let agentId: string | null = null;
   for (let attempt = 0; attempt < MAX_ID_RETRIES; attempt++) {
     const candidate = generateAgentId();
@@ -54,7 +61,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Resolve template content from filesystem
   const agentsMdContent = resolveTemplateContent('AGENTS.md', agentId, templateNames?.agentsMd);
   const soulMdContent = resolveTemplateContent('SOUL.md', agentId, templateNames?.soulMd);
   const configYamlContent = resolveTemplateContent(
@@ -63,11 +69,19 @@ export async function POST(request: NextRequest) {
     templateNames?.configYaml,
   );
 
-  const agent = await createAgent(agentId, {
-    agentsMd: agentsMdContent,
-    soulMd: soulMdContent,
-    configYaml: configYamlContent,
-  });
+  const agent = await createAgent(
+    agentId,
+    {
+      agentsMd: agentsMdContent,
+      soulMd: soulMdContent,
+      configYaml: configYamlContent,
+    },
+    {
+      name: meta?.name,
+      description: meta?.description,
+      tags: meta?.tags,
+    },
+  );
 
   return NextResponse.json(agent, { status: 201 });
 }
@@ -86,7 +100,6 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'agent not found' }, { status: 404 });
   }
 
-  // Best-effort stop launchd service
   const label = `ai.hermes.gateway.${agentId}`;
   const plistPath = path.join(
     process.env.HOME ?? '/tmp',

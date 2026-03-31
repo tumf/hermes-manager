@@ -55,6 +55,7 @@ import {
 import { Input } from '@/src/components/ui/input';
 import { Skeleton } from '@/src/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/src/components/ui/tabs';
+import { Textarea } from '@/src/components/ui/textarea';
 
 interface AgentPageProps {
   params: Promise<{ id: string }>;
@@ -68,6 +69,19 @@ export default function AgentPage({ params }: AgentPageProps) {
     label?: string;
     pid?: number | null;
   } | null>(null);
+  const [meta, setMeta] = useState<{ name: string; description: string; tags: string[] } | null>(
+    null,
+  );
+  const [metaDraft, setMetaDraft] = useState<{
+    name: string;
+    description: string;
+    tagsInput: string;
+  }>({
+    name: '',
+    description: '',
+    tagsInput: '',
+  });
+  const [metaSaving, setMetaSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [actionBusy, setActionBusy] = useState<'start' | 'stop' | 'restart' | null>(null);
 
@@ -86,9 +100,72 @@ export default function AgentPage({ params }: AgentPageProps) {
     }
   }, [name]);
 
+  const fetchMeta = useCallback(async () => {
+    try {
+      const res = await fetch('/api/agents');
+      if (!res.ok) return;
+      const agents = (await res.json()) as Array<{
+        agentId: string;
+        name?: string;
+        description?: string;
+        tags?: string[];
+      }>;
+      const current = agents.find((agent) => agent.agentId === name);
+      const nextMeta = {
+        name: current?.name ?? '',
+        description: current?.description ?? '',
+        tags: current?.tags ?? [],
+      };
+      setMeta(nextMeta);
+      setMetaDraft({
+        name: nextMeta.name,
+        description: nextMeta.description,
+        tagsInput: nextMeta.tags.join(', '),
+      });
+    } catch {
+      // noop
+    }
+  }, [name]);
+
   useEffect(() => {
-    void fetchStatus();
-  }, [fetchStatus]);
+    void Promise.all([fetchStatus(), fetchMeta()]);
+  }, [fetchStatus, fetchMeta]);
+
+  async function saveMeta() {
+    setMetaSaving(true);
+    try {
+      const tags = metaDraft.tagsInput
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter((tag) => tag.length > 0);
+      const res = await fetch(`/api/agents/${encodeURIComponent(name)}/meta`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: metaDraft.name.trim(),
+          description: metaDraft.description.trim(),
+          tags,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(typeof data.error === 'string' ? data.error : 'Failed to update metadata');
+        return;
+      }
+      const updated = (await res.json()) as { name: string; description: string; tags: string[] };
+      setMeta(updated);
+      setMetaDraft({
+        name: updated.name,
+        description: updated.description,
+        tagsInput: updated.tags.join(', '),
+      });
+      toast.success('Agent metadata updated');
+    } catch {
+      toast.error('Failed to update metadata');
+    } finally {
+      setMetaSaving(false);
+    }
+  }
 
   async function handleStartStop(action: 'start' | 'stop' | 'restart') {
     setActionBusy(action);
@@ -137,82 +214,133 @@ export default function AgentPage({ params }: AgentPageProps) {
       </div>
 
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            <span className="font-mono">{name}</span>
-          </h1>
-          {status?.label && <p className="text-sm text-muted-foreground">{status.label}</p>}
-        </div>
-        <div className="flex items-center gap-3">
-          {loading ? (
-            <Skeleton className="h-9 w-24" />
-          ) : (
-            <>
-              <Badge variant={actionBusy ? 'outline' : status?.running ? 'success' : 'muted'}>
-                {actionBusy ? (
-                  <Loader2 className="mr-1.5 size-3 animate-spin" />
-                ) : (
-                  <span
-                    className={`mr-1.5 inline-block size-1.5 rounded-full ${status?.running ? 'bg-green-600 dark:bg-green-400' : 'bg-muted-foreground/50'}`}
-                  />
-                )}
-                {actionBusy === 'start'
-                  ? 'Starting…'
-                  : actionBusy === 'stop'
-                    ? 'Stopping…'
-                    : actionBusy === 'restart'
-                      ? 'Restarting…'
-                      : status?.running
-                        ? 'Running'
-                        : 'Stopped'}
-              </Badge>
-              {status?.running ? (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void handleStartStop('stop')}
-                    disabled={actionBusy !== null}
-                  >
-                    {actionBusy === 'stop' ? (
-                      <Loader2 className="size-3.5 animate-spin" />
-                    ) : (
-                      <Square className="size-3.5" />
-                    )}
-                    Stop
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void handleStartStop('restart')}
-                    disabled={actionBusy !== null}
-                  >
-                    {actionBusy === 'restart' ? (
-                      <Loader2 className="size-3.5 animate-spin" />
-                    ) : (
-                      <RotateCcw className="size-3.5" />
-                    )}
-                    Restart
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  size="sm"
-                  onClick={() => void handleStartStop('start')}
-                  disabled={actionBusy !== null}
-                >
-                  {actionBusy === 'start' ? (
-                    <Loader2 className="size-3.5 animate-spin" />
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {meta?.name?.trim() ? meta.name : <span className="font-mono">{name}</span>}
+            </h1>
+            {status?.label && <p className="text-sm text-muted-foreground">{status.label}</p>}
+          </div>
+          <div className="flex items-center gap-3">
+            {loading ? (
+              <Skeleton className="h-9 w-24" />
+            ) : (
+              <>
+                <Badge variant={actionBusy ? 'outline' : status?.running ? 'success' : 'muted'}>
+                  {actionBusy ? (
+                    <Loader2 className="mr-1.5 size-3 animate-spin" />
                   ) : (
-                    <Play className="size-3.5" />
+                    <span
+                      className={`mr-1.5 inline-block size-1.5 rounded-full ${status?.running ? 'bg-green-600 dark:bg-green-400' : 'bg-muted-foreground/50'}`}
+                    />
                   )}
-                  Start
-                </Button>
-              )}
-            </>
-          )}
+                  {actionBusy === 'start'
+                    ? 'Starting…'
+                    : actionBusy === 'stop'
+                      ? 'Stopping…'
+                      : actionBusy === 'restart'
+                        ? 'Restarting…'
+                        : status?.running
+                          ? 'Running'
+                          : 'Stopped'}
+                </Badge>
+                {status?.running ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void handleStartStop('stop')}
+                      disabled={actionBusy !== null}
+                    >
+                      {actionBusy === 'stop' ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : (
+                        <Square className="size-3.5" />
+                      )}
+                      Stop
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void handleStartStop('restart')}
+                      disabled={actionBusy !== null}
+                    >
+                      {actionBusy === 'restart' ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : (
+                        <RotateCcw className="size-3.5" />
+                      )}
+                      Restart
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    size="sm"
+                    onClick={() => void handleStartStop('start')}
+                    disabled={actionBusy !== null}
+                  >
+                    {actionBusy === 'start' ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <Play className="size-3.5" />
+                    )}
+                    Start
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Metadata</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-1.5">
+                <label htmlFor="meta-name" className="text-sm font-medium">
+                  Display Name
+                </label>
+                <Input
+                  id="meta-name"
+                  value={metaDraft.name}
+                  onChange={(e) => setMetaDraft((prev) => ({ ...prev, name: e.target.value }))}
+                  placeholder="My Bot"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="meta-tags" className="text-sm font-medium">
+                  Tags (comma separated)
+                </label>
+                <Input
+                  id="meta-tags"
+                  value={metaDraft.tagsInput}
+                  onChange={(e) => setMetaDraft((prev) => ({ ...prev, tagsInput: e.target.value }))}
+                  placeholder="prod, monitor"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="meta-description" className="text-sm font-medium">
+                Description
+              </label>
+              <Textarea
+                id="meta-description"
+                value={metaDraft.description}
+                onChange={(e) => setMetaDraft((prev) => ({ ...prev, description: e.target.value }))}
+                placeholder="用途やメモ"
+                rows={3}
+              />
+            </div>
+            <div className="flex justify-end">
+              <Button onClick={() => void saveMeta()} disabled={metaSaving}>
+                {metaSaving ? 'Saving…' : 'Save Metadata'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Tabs */}

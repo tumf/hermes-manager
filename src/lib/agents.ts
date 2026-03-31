@@ -6,7 +6,13 @@ import * as yaml from 'js-yaml';
 
 import { getRuntimeAgentsRootPath } from './runtime-paths';
 
-export interface Agent {
+export interface AgentMeta {
+  name: string;
+  description: string;
+  tags: string[];
+}
+
+export interface Agent extends AgentMeta {
   agentId: string;
   home: string;
   label: string;
@@ -14,6 +20,12 @@ export interface Agent {
   createdAt: Date;
   updatedAt: Date;
 }
+
+const DEFAULT_AGENT_META: AgentMeta = {
+  name: '',
+  description: '',
+  tags: [],
+};
 
 /**
  * Parse config.yaml from an agent directory.
@@ -28,6 +40,32 @@ function readConfigYaml(agentHome: string): Record<string, unknown> {
   } catch {
     return {};
   }
+}
+
+/**
+ * Parse meta.json from an agent directory.
+ * Returns default values if missing/invalid.
+ */
+function readMetaJson(agentHome: string): AgentMeta {
+  const metaPath = path.join(agentHome, 'meta.json');
+  try {
+    const content = fs.readFileSync(metaPath, 'utf-8');
+    const parsed = JSON.parse(content) as Partial<AgentMeta>;
+    return {
+      name: typeof parsed.name === 'string' ? parsed.name : '',
+      description: typeof parsed.description === 'string' ? parsed.description : '',
+      tags: Array.isArray(parsed.tags)
+        ? parsed.tags.filter((tag): tag is string => typeof tag === 'string')
+        : [],
+    };
+  } catch {
+    return { ...DEFAULT_AGENT_META };
+  }
+}
+
+async function writeMetaJson(agentHome: string, meta: AgentMeta): Promise<void> {
+  const metaPath = path.join(agentHome, 'meta.json');
+  await fsp.writeFile(metaPath, JSON.stringify(meta, null, 2), 'utf-8');
 }
 
 /**
@@ -58,6 +96,7 @@ export async function listAgents(): Promise<Agent[]> {
     }
 
     const config = readConfigYaml(agentHome);
+    const meta = readMetaJson(agentHome);
     agents.push({
       agentId: name,
       home: agentHome,
@@ -65,6 +104,7 @@ export async function listAgents(): Promise<Agent[]> {
       enabled: config.enabled === true,
       createdAt: stat.birthtime,
       updatedAt: stat.mtime,
+      ...meta,
     });
   }
 
@@ -85,6 +125,7 @@ export async function getAgent(agentId: string): Promise<Agent | null> {
     await fsp.access(path.join(agentHome, 'config.yaml'));
 
     const config = readConfigYaml(agentHome);
+    const meta = readMetaJson(agentHome);
     return {
       agentId,
       home: agentHome,
@@ -92,6 +133,7 @@ export async function getAgent(agentId: string): Promise<Agent | null> {
       enabled: config.enabled === true,
       createdAt: stat.birthtime,
       updatedAt: stat.mtime,
+      ...meta,
     };
   } catch {
     return null;
@@ -118,6 +160,7 @@ export async function agentExists(agentId: string): Promise<boolean> {
 export async function createAgent(
   agentId: string,
   files: { agentsMd: string; soulMd: string; configYaml: string },
+  meta: Partial<AgentMeta> = {},
 ): Promise<Agent> {
   const home = getRuntimeAgentsRootPath(agentId);
   await fsp.mkdir(path.join(home, 'logs'), { recursive: true });
@@ -125,6 +168,16 @@ export async function createAgent(
   await fsp.writeFile(path.join(home, 'SOUL.md'), files.soulMd);
   await fsp.writeFile(path.join(home, 'config.yaml'), files.configYaml);
   await fsp.writeFile(path.join(home, '.env'), '');
+
+  const normalizedMeta: AgentMeta = {
+    name: meta.name ?? '',
+    description: meta.description ?? '',
+    tags: Array.isArray(meta.tags) ? meta.tags : [],
+  };
+
+  if (normalizedMeta.name || normalizedMeta.description || normalizedMeta.tags.length > 0) {
+    await writeMetaJson(home, normalizedMeta);
+  }
 
   const stat = await fsp.stat(home);
   const config = readConfigYaml(home);
@@ -135,6 +188,36 @@ export async function createAgent(
     enabled: config.enabled === true,
     createdAt: stat.birthtime,
     updatedAt: stat.mtime,
+    ...normalizedMeta,
+  };
+}
+
+export async function updateAgentMeta(agentId: string, meta: AgentMeta): Promise<AgentMeta | null> {
+  const agentHome = getRuntimeAgentsRootPath(agentId);
+  try {
+    const stat = await fsp.stat(agentHome);
+    if (!stat.isDirectory()) {
+      return null;
+    }
+
+    await fsp.access(path.join(agentHome, 'config.yaml'));
+    await writeMetaJson(agentHome, meta);
+    return meta;
+  } catch {
+    return null;
+  }
+}
+
+export async function readAgentMeta(agentId: string): Promise<AgentMeta | null> {
+  const agent = await getAgent(agentId);
+  if (!agent) {
+    return null;
+  }
+
+  return {
+    name: agent.name,
+    description: agent.description,
+    tags: agent.tags,
   };
 }
 
