@@ -1,7 +1,7 @@
 'use client';
 
 import { ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import {
@@ -56,7 +56,19 @@ export default function TemplatesPage() {
   const [formName, setFormName] = useState('');
   const [formContent, setFormContent] = useState('');
   const [busy, setBusy] = useState(false);
-  const [expandedTemplates, setExpandedTemplates] = useState<Set<string>>(new Set());
+  const [expandedTemplates, setExpandedTemplates] = useState<Set<string>>(
+    () => new Set(FILE_NAMES),
+  );
+
+  const templatesByFile = useMemo(() => {
+    return FILE_NAMES.map((file) => {
+      const variants = templates
+        .filter((template) => template.files.includes(file))
+        .map((template) => template.name)
+        .sort((a, b) => a.localeCompare(b));
+      return { file, variants };
+    }).filter((entry) => entry.variants.length > 0);
+  }, [templates]);
 
   const fetchTemplates = useCallback(async () => {
     try {
@@ -185,23 +197,6 @@ export default function TemplatesPage() {
     }
   }
 
-  async function handleDeleteTemplate(templateName: string) {
-    try {
-      const res = await fetch(`/api/templates?name=${encodeURIComponent(templateName)}`, {
-        method: 'DELETE',
-      });
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        toast.error(typeof d.error === 'string' ? d.error : 'Failed to delete');
-        return;
-      }
-      toast.success(`Template "${templateName}" deleted`);
-      await fetchTemplates();
-    } catch {
-      toast.error('Failed to delete template');
-    }
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -238,68 +233,39 @@ export default function TemplatesPage() {
       )}
 
       {!loading &&
-        templates.map((tpl) => (
-          <Card key={tpl.name}>
+        templatesByFile.map((group) => (
+          <Card key={group.file}>
             <CardHeader className="flex-row items-center justify-between gap-2">
               <button
                 className="flex items-center gap-2 text-left"
-                onClick={() => toggleExpanded(tpl.name)}
+                onClick={() => toggleExpanded(group.file)}
               >
-                {expandedTemplates.has(tpl.name) ? (
+                {expandedTemplates.has(group.file) ? (
                   <ChevronDown className="size-4" />
                 ) : (
                   <ChevronRight className="size-4" />
                 )}
-                <CardTitle className="text-base">{tpl.name}</CardTitle>
+                <CardTitle className="font-mono text-base">{group.file}</CardTitle>
                 <span className="text-xs text-muted-foreground">
-                  ({tpl.files.length} file{tpl.files.length !== 1 ? 's' : ''})
+                  ({group.variants.length} template{group.variants.length !== 1 ? 's' : ''})
                 </span>
               </button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-8 text-destructive hover:text-destructive"
-                    aria-label={`Delete template ${tpl.name}`}
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete &quot;{tpl.name}&quot; template?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will permanently delete all files in this template.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      onClick={() => void handleDeleteTemplate(tpl.name)}
-                    >
-                      Delete
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
             </CardHeader>
-            {expandedTemplates.has(tpl.name) && (
+            {expandedTemplates.has(group.file) && (
               <CardContent className="space-y-2">
-                {tpl.files.map((file) => (
+                {group.variants.map((templateName) => (
                   <div
-                    key={file}
+                    key={templateName}
                     className="flex items-center justify-between rounded border px-3 py-2"
                   >
-                    <span className="font-mono text-sm">{file}</span>
+                    <span className="text-sm">{templateName}</span>
                     <div className="flex gap-1">
                       <Button
                         variant="ghost"
                         size="icon"
                         className="size-7"
-                        onClick={() => void openEditDialog(tpl.name, file)}
-                        aria-label={`Edit ${tpl.name}/${file}`}
+                        onClick={() => void openEditDialog(templateName, group.file)}
+                        aria-label={`Edit ${templateName}/${group.file}`}
                       >
                         <Pencil className="size-3" />
                       </Button>
@@ -309,7 +275,7 @@ export default function TemplatesPage() {
                             variant="ghost"
                             size="icon"
                             className="size-7 text-destructive hover:text-destructive"
-                            aria-label={`Delete ${tpl.name}/${file}`}
+                            aria-label={`Delete ${templateName}/${group.file}`}
                           >
                             <Trash2 className="size-3" />
                           </Button>
@@ -317,7 +283,7 @@ export default function TemplatesPage() {
                         <AlertDialogContent>
                           <AlertDialogHeader>
                             <AlertDialogTitle>
-                              Delete &quot;{tpl.name}/{file}&quot;?
+                              Delete &quot;{templateName}/{group.file}&quot;?
                             </AlertDialogTitle>
                             <AlertDialogDescription>
                               This will permanently delete this template file.
@@ -327,7 +293,7 @@ export default function TemplatesPage() {
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                             <AlertDialogAction
                               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              onClick={() => void handleDeleteFile(tpl.name, file)}
+                              onClick={() => void handleDeleteFile(templateName, group.file)}
                             >
                               Delete
                             </AlertDialogAction>
