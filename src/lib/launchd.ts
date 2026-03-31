@@ -53,6 +53,11 @@ export function parseRunning(stdout: string): boolean {
   return stateMatch ? stateMatch[1] === 'running' : false;
 }
 
+export function parsePid(stdout: string): number | null {
+  const m = stdout.match(/^\s*pid\s*=\s*(\d+)/m);
+  return m ? Number(m[1]) : null;
+}
+
 export function isServiceMissing(result: ExecResult): boolean {
   if (result.code === 0) {
     return false;

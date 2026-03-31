@@ -66,9 +66,10 @@ export default function AgentPage({ params }: AgentPageProps) {
   const [status, setStatus] = useState<{
     running: boolean;
     label?: string;
+    pid?: number | null;
   } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [actionBusy, setActionBusy] = useState(false);
+  const [actionBusy, setActionBusy] = useState<'start' | 'stop' | 'restart' | null>(null);
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -90,7 +91,7 @@ export default function AgentPage({ params }: AgentPageProps) {
   }, [fetchStatus]);
 
   async function handleStartStop(action: 'start' | 'stop' | 'restart') {
-    setActionBusy(true);
+    setActionBusy(action);
     try {
       const res = await fetch('/api/launchd', {
         method: 'POST',
@@ -118,7 +119,7 @@ export default function AgentPage({ params }: AgentPageProps) {
     } catch {
       toast.error(`Failed to ${action}`);
     } finally {
-      setActionBusy(false);
+      setActionBusy(null);
     }
   }
 
@@ -146,11 +147,23 @@ export default function AgentPage({ params }: AgentPageProps) {
             <Skeleton className="h-9 w-24" />
           ) : (
             <>
-              <Badge variant={status?.running ? 'success' : 'muted'}>
-                <span
-                  className={`mr-1.5 inline-block size-1.5 rounded-full ${status?.running ? 'bg-green-600 dark:bg-green-400' : 'bg-muted-foreground/50'}`}
-                />
-                {status?.running ? 'Running' : 'Stopped'}
+              <Badge variant={actionBusy ? 'outline' : status?.running ? 'success' : 'muted'}>
+                {actionBusy ? (
+                  <Loader2 className="mr-1.5 size-3 animate-spin" />
+                ) : (
+                  <span
+                    className={`mr-1.5 inline-block size-1.5 rounded-full ${status?.running ? 'bg-green-600 dark:bg-green-400' : 'bg-muted-foreground/50'}`}
+                  />
+                )}
+                {actionBusy === 'start'
+                  ? 'Starting…'
+                  : actionBusy === 'stop'
+                    ? 'Stopping…'
+                    : actionBusy === 'restart'
+                      ? 'Restarting…'
+                      : status?.running
+                        ? 'Running'
+                        : 'Stopped'}
               </Badge>
               {status?.running ? (
                 <>
@@ -158,9 +171,9 @@ export default function AgentPage({ params }: AgentPageProps) {
                     variant="outline"
                     size="sm"
                     onClick={() => void handleStartStop('stop')}
-                    disabled={actionBusy}
+                    disabled={actionBusy !== null}
                   >
-                    {actionBusy ? (
+                    {actionBusy === 'stop' ? (
                       <Loader2 className="size-3.5 animate-spin" />
                     ) : (
                       <Square className="size-3.5" />
@@ -171,9 +184,9 @@ export default function AgentPage({ params }: AgentPageProps) {
                     variant="outline"
                     size="sm"
                     onClick={() => void handleStartStop('restart')}
-                    disabled={actionBusy}
+                    disabled={actionBusy !== null}
                   >
-                    {actionBusy ? (
+                    {actionBusy === 'restart' ? (
                       <Loader2 className="size-3.5 animate-spin" />
                     ) : (
                       <RotateCcw className="size-3.5" />
@@ -185,9 +198,9 @@ export default function AgentPage({ params }: AgentPageProps) {
                 <Button
                   size="sm"
                   onClick={() => void handleStartStop('start')}
-                  disabled={actionBusy}
+                  disabled={actionBusy !== null}
                 >
-                  {actionBusy ? (
+                  {actionBusy === 'start' ? (
                     <Loader2 className="size-3.5 animate-spin" />
                   ) : (
                     <Play className="size-3.5" />

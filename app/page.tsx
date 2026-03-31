@@ -1,6 +1,15 @@
 'use client';
 
-import { Copy, EllipsisVertical, Play, Plus, RotateCcw, Square, Trash2 } from 'lucide-react';
+import {
+  Copy,
+  EllipsisVertical,
+  Loader2,
+  Play,
+  Plus,
+  RotateCcw,
+  Square,
+  Trash2,
+} from 'lucide-react';
 import Link from 'next/link';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -72,6 +81,7 @@ export default function Home() {
   const [addTemplateSoulMd, setAddTemplateSoulMd] = useState('default');
   const [addTemplateConfigYaml, setAddTemplateConfigYaml] = useState('default');
   const [allTemplates, setAllTemplates] = useState<TemplateEntry[]>([]);
+  const [busyMap, setBusyMap] = useState<Record<string, 'start' | 'stop' | 'restart'>>({});
 
   const fetchAgents = useCallback(async () => {
     try {
@@ -176,6 +186,7 @@ export default function Home() {
   }
 
   async function handleStartStop(agent: AgentWithStatus, action: 'start' | 'stop' | 'restart') {
+    setBusyMap((prev) => ({ ...prev, [agent.agentId]: action }));
     try {
       const res = await fetch('/api/launchd', {
         method: 'POST',
@@ -202,6 +213,12 @@ export default function Home() {
       await fetchAgents();
     } catch {
       toast.error(`Failed to ${action} ${agent.agentId}`);
+    } finally {
+      setBusyMap((prev) => {
+        const next = { ...prev };
+        delete next[agent.agentId];
+        return next;
+      });
     }
   }
 
@@ -359,39 +376,14 @@ export default function Home() {
                     <p className="mt-1 truncate text-xs text-muted-foreground">{a.label}</p>
                   )}
                 </div>
-                <Badge variant={a.running ? 'success' : 'muted'}>
-                  <span
-                    className={`mr-1.5 inline-block size-1.5 rounded-full ${a.running ? 'bg-green-600 dark:bg-green-400' : 'bg-muted-foreground/50'}`}
-                  />
-                  {a.running ? 'Running' : 'Stopped'}
-                </Badge>
+                <AgentStatusBadge running={a.running} busy={busyMap[a.agentId] ?? null} />
               </CardHeader>
               <CardFooter className="flex-wrap gap-2">
-                {a.running ? (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => void handleStartStop(a, 'stop')}
-                    >
-                      <Square className="size-3.5" />
-                      Stop
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => void handleStartStop(a, 'restart')}
-                    >
-                      <RotateCcw className="size-3.5" />
-                      Restart
-                    </Button>
-                  </>
-                ) : (
-                  <Button size="sm" onClick={() => void handleStartStop(a, 'start')}>
-                    <Play className="size-3.5" />
-                    Start
-                  </Button>
-                )}
+                <AgentActionButtons
+                  agent={a}
+                  busy={busyMap[a.agentId] ?? null}
+                  onAction={handleStartStop}
+                />
                 <Button variant="outline" size="sm" asChild>
                   <Link href={`/agents/${encodeURIComponent(a.agentId)}`}>Manage</Link>
                 </Button>
@@ -427,40 +419,15 @@ export default function Home() {
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{a.label || '--'}</td>
                   <td className="px-4 py-3">
-                    <Badge variant={a.running ? 'success' : 'muted'}>
-                      <span
-                        className={`mr-1.5 inline-block size-1.5 rounded-full ${a.running ? 'bg-green-600 dark:bg-green-400' : 'bg-muted-foreground/50'}`}
-                      />
-                      {a.running ? 'Running' : 'Stopped'}
-                    </Badge>
+                    <AgentStatusBadge running={a.running} busy={busyMap[a.agentId] ?? null} />
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-2">
-                      {a.running ? (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => void handleStartStop(a, 'stop')}
-                          >
-                            <Square className="size-3.5" />
-                            Stop
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => void handleStartStop(a, 'restart')}
-                          >
-                            <RotateCcw className="size-3.5" />
-                            Restart
-                          </Button>
-                        </>
-                      ) : (
-                        <Button size="sm" onClick={() => void handleStartStop(a, 'start')}>
-                          <Play className="size-3.5" />
-                          Start
-                        </Button>
-                      )}
+                      <AgentActionButtons
+                        agent={a}
+                        busy={busyMap[a.agentId] ?? null}
+                        onAction={handleStartStop}
+                      />
                       <AgentActionsMenu agent={a} onDelete={handleDelete} onCopy={handleCopy} />
                     </div>
                   </td>
@@ -532,6 +499,83 @@ function AgentActionsMenu({
         </AlertDialog>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+type ActionType = 'start' | 'stop' | 'restart';
+
+function AgentStatusBadge({ running, busy }: { running?: boolean; busy: ActionType | null }) {
+  const transitioning = busy !== null;
+  return (
+    <Badge variant={transitioning ? 'outline' : running ? 'success' : 'muted'}>
+      {transitioning ? (
+        <Loader2 className="mr-1.5 size-3 animate-spin" />
+      ) : (
+        <span
+          className={`mr-1.5 inline-block size-1.5 rounded-full ${running ? 'bg-green-600 dark:bg-green-400' : 'bg-muted-foreground/50'}`}
+        />
+      )}
+      {busy === 'start'
+        ? 'Starting…'
+        : busy === 'stop'
+          ? 'Stopping…'
+          : busy === 'restart'
+            ? 'Restarting…'
+            : running
+              ? 'Running'
+              : 'Stopped'}
+    </Badge>
+  );
+}
+
+function AgentActionButtons({
+  agent,
+  busy,
+  onAction,
+}: {
+  agent: AgentWithStatus;
+  busy: ActionType | null;
+  onAction: (agent: AgentWithStatus, action: ActionType) => void;
+}) {
+  const disabled = busy !== null;
+  return agent.running ? (
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => void onAction(agent, 'stop')}
+        disabled={disabled}
+      >
+        {busy === 'stop' ? (
+          <Loader2 className="size-3.5 animate-spin" />
+        ) : (
+          <Square className="size-3.5" />
+        )}
+        Stop
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => void onAction(agent, 'restart')}
+        disabled={disabled}
+      >
+        {busy === 'restart' ? (
+          <Loader2 className="size-3.5 animate-spin" />
+        ) : (
+          <RotateCcw className="size-3.5" />
+        )}
+        Restart
+      </Button>
+    </>
+  ) : (
+    <Button size="sm" onClick={() => void onAction(agent, 'start')} disabled={disabled}>
+      {busy === 'start' ? (
+        <Loader2 className="size-3.5 animate-spin" />
+      ) : (
+        <Play className="size-3.5" />
+      )}
+      Start
+    </Button>
   );
 }
 
