@@ -1,12 +1,15 @@
 'use client';
 
-import { CheckSquare, ChevronDown, ChevronRight, Loader2, XSquare } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { CheckSquare, ChevronDown, ChevronRight, Loader2, Search, XSquare } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
+import { Badge } from '@/src/components/ui/badge';
 import { Button } from '@/src/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
 import { Checkbox } from '@/src/components/ui/checkbox';
+import { Input } from '@/src/components/ui/input';
+import { Label } from '@/src/components/ui/label';
 import { Skeleton } from '@/src/components/ui/skeleton';
 
 export interface SkillNode {
@@ -25,10 +28,6 @@ export interface EquippedLink {
   relativePath: string;
 }
 
-/**
- * Collect all descendant skill relative paths from a list of tree nodes.
- * Recursively walks children; only includes nodes with hasSkill=true.
- */
 export function collectDescendantSkillPaths(nodes: SkillNode[]): string[] {
   const paths: string[] = [];
   for (const node of nodes) {
@@ -47,12 +46,57 @@ function hasDescendantSkill(node: SkillNode): boolean {
   return node.children.some(hasDescendantSkill);
 }
 
+function countEquippedInSubtree(
+  node: SkillNode,
+  equipped: Set<string>,
+): { equipped: number; total: number } {
+  let equippedCount = 0;
+  let totalCount = 0;
+
+  if (node.hasSkill) {
+    totalCount = 1;
+    if (equipped.has(node.relativePath)) equippedCount = 1;
+  }
+
+  for (const child of node.children) {
+    const childCounts = countEquippedInSubtree(child, equipped);
+    equippedCount += childCounts.equipped;
+    totalCount += childCounts.total;
+  }
+
+  return { equipped: equippedCount, total: totalCount };
+}
+
+function filterTree(nodes: SkillNode[], query: string): SkillNode[] {
+  if (!query.trim()) return nodes;
+
+  const lowerQuery = query.toLowerCase();
+
+  return nodes
+    .map((node) => {
+      const filteredChildren = filterTree(node.children, query);
+      const matchesQuery = node.name.toLowerCase().includes(lowerQuery);
+      const hasMatchingDescendant = filteredChildren.length > 0;
+
+      if (matchesQuery || hasMatchingDescendant) {
+        return {
+          ...node,
+          children: filteredChildren,
+        };
+      }
+      return null;
+    })
+    .filter((node): node is SkillNode => node !== null)
+    .filter(hasDescendantSkill);
+}
+
 export function SkillsTab({ name }: { name: string }) {
   const [tree, setTree] = useState<SkillNode[]>([]);
   const [equipped, setEquipped] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [actioning, setActioning] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const reloadLinks = useCallback(async () => {
     const linksRes = await fetch(`/api/skills/links?agent=${encodeURIComponent(name)}`);
@@ -146,10 +190,6 @@ export function SkillsTab({ name }: { name: string }) {
     }
   }
 
-  /**
-   * Bulk equip/unequip skills for the given set of skill paths.
-   * Skips no-op operations based on current equipped set.
-   */
   async function handleBulkAction(skillPaths: string[], equip: boolean) {
     const linksRes = await fetch(`/api/skills/links?agent=${encodeURIComponent(name)}`);
     if (!linksRes.ok) {
@@ -179,7 +219,6 @@ export function SkillsTab({ name }: { name: string }) {
 
     try {
       if (equip) {
-        // Equip: POST each skill
         const results = await Promise.allSettled(
           toAct.map(async (relativePath) => {
             const res = await fetch('/api/skills/links', {
@@ -216,7 +255,6 @@ export function SkillsTab({ name }: { name: string }) {
         }
       }
 
-      // Reload current equipped state after bulk action
       await reloadLinks();
 
       if (failed === 0) {
@@ -239,48 +277,93 @@ export function SkillsTab({ name }: { name: string }) {
     }
   }
 
-  const allSkillPaths = collectDescendantSkillPaths(tree);
+  const allSkillPaths = useMemo(() => collectDescendantSkillPaths(tree), [tree]);
+  const filteredTree = useMemo(() => filterTree(tree, searchQuery), [tree, searchQuery]);
+  const equippedCount = useMemo(
+    () => allSkillPaths.filter((p) => equipped.has(p)).length,
+    [allSkillPaths, equipped],
+  );
 
   return (
     <Card>
-      <CardHeader className="flex-row items-center justify-between gap-3">
-        <CardTitle className="text-sm">Skills</CardTitle>
+      <CardHeader className="flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <CardTitle className="text-sm">Skills</CardTitle>
+          {!loading && allSkillPaths.length > 0 && (
+            <Badge variant="secondary" className="text-xs">
+              {equippedCount} / {allSkillPaths.length} equipped
+            </Badge>
+          )}
+        </div>
         {!loading && tree.length > 0 && (
-          <div className="flex items-center gap-2">
-            {bulkBusy && <Loader2 className="size-4 animate-spin" />}
+          <div className="flex flex-wrap items-center gap-2">
+            {bulkBusy && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Filter skills..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-8 w-40 pl-8 text-xs sm:w-48"
+                aria-label="Filter skills"
+              />
+            </div>
             <Button
               variant="outline"
               size="sm"
               onClick={() => void handleBulkAction(allSkillPaths, true)}
               disabled={bulkBusy || actioning.size > 0}
-              className="gap-1.5"
+              className="h-8 gap-1.5 text-xs"
               aria-label="Select all skills"
             >
               <CheckSquare className="size-3.5" />
-              Select All
+              <span className="hidden sm:inline">Select All</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => void handleBulkAction(allSkillPaths, false)}
               disabled={bulkBusy || actioning.size > 0}
-              className="gap-1.5"
+              className="h-8 gap-1.5 text-xs"
               aria-label="Clear all skills"
             >
               <XSquare className="size-3.5" />
-              Clear All
+              <span className="hidden sm:inline">Clear All</span>
             </Button>
           </div>
         )}
       </CardHeader>
       <CardContent>
         {loading ? (
-          <Skeleton className="h-48 w-full" />
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-3/4" />
+          </div>
         ) : tree.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No skills available in ~/.agents/skills</p>
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <p className="text-sm text-muted-foreground">No skills available in ~/.agents/skills</p>
+            <p className="mt-1 text-xs text-muted-foreground/70">
+              Add skills to get started with agent capabilities
+            </p>
+          </div>
+        ) : filteredTree.length === 0 && searchQuery ? (
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <p className="text-sm text-muted-foreground">
+              No skills match &ldquo;{searchQuery}&rdquo;
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSearchQuery('')}
+              className="mt-2 text-xs"
+            >
+              Clear filter
+            </Button>
+          </div>
         ) : (
-          <div className="space-y-1">
-            {tree.filter(hasDescendantSkill).map((node) => (
+          <div className="overflow-y-auto" role="tree" aria-label="Skills tree">
+            {filteredTree.filter(hasDescendantSkill).map((node) => (
               <SkillTreeNode
                 key={node.relativePath}
                 node={node}
@@ -317,32 +400,39 @@ function SkillTreeNode({
   depth: number;
 }) {
   const [expanded, setExpanded] = useState(true);
-  // スキルディレクトリは子フォルダを表示しない（再帰的に深掘りしない）
-  // 非スキルディレクトリだけ展開可能
   const canExpand = !node.hasSkill && node.children.length > 0;
   const visibleChildren = node.hasSkill ? [] : node.children.filter(hasDescendantSkill);
-
-  // Folder-level bulk: collect all descendant skill paths under this folder
   const folderSkillPaths = canExpand ? collectDescendantSkillPaths(node.children) : [];
   const hasFolderSkills = folderSkillPaths.length > 0;
+  const counts = canExpand ? countEquippedInSubtree(node, equipped) : null;
+
+  const isPartiallyEquipped =
+    counts !== null && counts.equipped > 0 && counts.equipped < counts.total;
+  const isFullyEquipped = counts !== null && counts.equipped === counts.total && counts.total > 0;
 
   return (
     <div className="space-y-0.5">
-      <div className="flex items-center gap-2 py-1" style={{ paddingLeft: `${depth * 1.5}rem` }}>
-        {canExpand && (
+      <div
+        className="group flex items-center gap-1.5 py-1 pr-2"
+        style={{ paddingLeft: `${depth * 1.25}rem` }}
+        role={canExpand ? 'treeitem' : undefined}
+        aria-expanded={canExpand ? expanded : undefined}
+      >
+        {canExpand ? (
           <button
             onClick={() => setExpanded(!expanded)}
-            className="inline-flex size-5 items-center justify-center rounded hover:bg-muted"
+            className="inline-flex size-6 min-w-6 items-center justify-center rounded hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label={expanded ? `Collapse ${node.name}` : `Expand ${node.name}`}
           >
             {expanded ? (
-              <ChevronDown className="size-3.5" />
+              <ChevronDown className="size-3.5 text-muted-foreground" />
             ) : (
-              <ChevronRight className="size-3.5" />
+              <ChevronRight className="size-3.5 text-muted-foreground" />
             )}
           </button>
+        ) : (
+          <div className="size-6" />
         )}
-
-        {!canExpand && <div className="size-5" />}
 
         {node.hasSkill ? (
           <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -350,42 +440,60 @@ function SkillTreeNode({
               checked={equipped.has(node.relativePath)}
               onCheckedChange={(checked) => void onToggle(node.relativePath, checked === true)}
               disabled={actioning.has(node.relativePath) || bulkBusy}
-              className="mt-0.5"
+              aria-label={`${node.name} skill`}
             />
-            <label className="flex-1 cursor-pointer select-none truncate text-sm font-medium">
+            <Label
+              htmlFor={node.relativePath}
+              className="flex-1 cursor-pointer truncate text-sm"
+              title={node.relativePath}
+            >
               {node.name}
-            </label>
+            </Label>
             {actioning.has(node.relativePath) && (
-              <Loader2 className="size-3 flex-shrink-0 animate-spin" />
+              <Loader2 className="size-3.5 flex-shrink-0 animate-spin text-muted-foreground" />
             )}
           </div>
         ) : (
-          <div className="flex flex-1 items-center gap-2">
-            <span className="text-xs font-medium text-muted-foreground">{node.name}</span>
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <span className="truncate text-xs font-medium text-muted-foreground transition-colors group-hover:text-foreground">
+              {node.name}
+            </span>
+            {hasFolderSkills && counts && (
+              <span className="ml-auto whitespace-nowrap text-[10px] text-muted-foreground/70">
+                {counts.equipped}/{counts.total}
+              </span>
+            )}
             {hasFolderSkills && (
-              <div className="ml-auto flex items-center gap-1">
+              <div className="ml-auto flex items-center gap-0.5">
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 gap-1 px-1.5 text-xs"
+                  className="h-6 gap-1 px-1.5 text-[10px]"
                   onClick={() => void onBulkAction(folderSkillPaths, true)}
                   disabled={bulkBusy || actioning.size > 0}
                   aria-label={`Select all in ${node.name}`}
                 >
-                  <CheckSquare className="size-3" />
+                  <CheckSquare className="size-2.5" />
                   All
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 gap-1 px-1.5 text-xs"
+                  className="h-6 gap-1 px-1.5 text-[10px]"
                   onClick={() => void onBulkAction(folderSkillPaths, false)}
                   disabled={bulkBusy || actioning.size > 0}
                   aria-label={`Clear all in ${node.name}`}
                 >
-                  <XSquare className="size-3" />
+                  <XSquare className="size-2.5" />
                   None
                 </Button>
+              </div>
+            )}
+            {isFullyEquipped && !isPartiallyEquipped && (
+              <div className="ml-auto">
+                <Badge variant="success" className="h-4 px-1.5 text-[10px]">
+                  Equipped
+                </Badge>
               </div>
             )}
           </div>
@@ -393,7 +501,7 @@ function SkillTreeNode({
       </div>
 
       {expanded && visibleChildren.length > 0 && (
-        <div>
+        <div role="group">
           {visibleChildren.map((child) => (
             <SkillTreeNode
               key={child.relativePath}
