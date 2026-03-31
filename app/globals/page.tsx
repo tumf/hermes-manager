@@ -180,7 +180,16 @@ export default function GlobalsPage() {
                 <CardContent className="flex items-center justify-between gap-3 p-3">
                   <div className="min-w-0 flex-1">
                     <div className="truncate font-mono text-sm font-medium">{r.key}</div>
-                    <div className="truncate font-mono text-xs text-muted-foreground">
+                    <div
+                      className="cursor-pointer truncate font-mono text-xs text-muted-foreground hover:text-foreground"
+                      onClick={() => {
+                        if (!r.masked) {
+                          void navigator.clipboard.writeText(r.value);
+                          toast.success(`Copied ${r.key}`);
+                        }
+                      }}
+                      title={r.masked ? undefined : 'Click to copy'}
+                    >
                       {displayValue(r)}
                     </div>
                     <div className="mt-1">
@@ -219,7 +228,16 @@ export default function GlobalsPage() {
                 {rows.map((r) => (
                   <tr key={r.id} className="border-b transition-colors hover:bg-muted/30">
                     <td className="px-4 py-3 font-mono text-sm font-medium">{r.key}</td>
-                    <td className="px-4 py-3 font-mono text-sm text-muted-foreground">
+                    <td
+                      className="cursor-pointer px-4 py-3 font-mono text-sm text-muted-foreground hover:text-foreground"
+                      onClick={() => {
+                        if (!r.masked) {
+                          void navigator.clipboard.writeText(r.value);
+                          toast.success(`Copied ${r.key}`);
+                        }
+                      }}
+                      title={r.masked ? undefined : 'Click to copy'}
+                    >
                       {displayValue(r)}
                     </td>
                     <td className="px-4 py-3">
