@@ -59,6 +59,7 @@ export default function GlobalsPage() {
         throw new Error('Failed to load globals');
       }
       const nextRows = (await res.json()) as EnvRow[];
+      nextRows.sort((a, b) => a.key.localeCompare(b.key));
       setRows(nextRows);
       setKnownSecureValues((prev) => {
         const next = { ...prev };

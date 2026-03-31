@@ -51,7 +51,9 @@ export function AgentEnvTab({ name }: { name: string }) {
       if (!res.ok) {
         throw new Error('failed to fetch env rows');
       }
-      setRows(await res.json());
+      const data: AgentEnvRow[] = await res.json();
+      data.sort((a, b) => a.key.localeCompare(b.key));
+      setRows(data);
     } catch {
       toast.error('Failed to load env vars');
     } finally {
