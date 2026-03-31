@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronLeft, Clock, FileText, ScrollText, Settings } from 'lucide-react';
+import { ChevronLeft, Clock, FileText, MessageCircle, ScrollText, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { use, useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -11,6 +11,7 @@ import { AgentLogViewer } from '@/src/components/agent-log-viewer';
 import { AgentMemoryTab } from '@/src/components/agent-memory-tab';
 import { AgentMetadataCard } from '@/src/components/agent-metadata-card';
 import { AgentStatusHeader } from '@/src/components/agent-status-header';
+import { ChatTab } from '@/src/components/chat-tab';
 import { CronTab } from '@/src/components/cron-tab';
 import { SkillsTab } from '@/src/components/skills-tab';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/src/components/ui/tabs';
@@ -135,6 +136,10 @@ export default function AgentPage({ params }: AgentPageProps) {
             <Clock className="size-3.5" />
             <span className="hidden sm:inline">Cron</span>
           </TabsTrigger>
+          <TabsTrigger value="chat" className="gap-1.5">
+            <MessageCircle className="size-3.5" />
+            <span className="hidden sm:inline">Chat</span>
+          </TabsTrigger>
           <TabsTrigger value="logs" className="gap-1.5">
             <ScrollText className="size-3.5" />
             <span className="hidden sm:inline">Logs</span>
@@ -159,6 +164,10 @@ export default function AgentPage({ params }: AgentPageProps) {
 
         <TabsContent value="cron">
           <CronTab name={name} />
+        </TabsContent>
+
+        <TabsContent value="chat">
+          <ChatTab name={name} />
         </TabsContent>
 
         <TabsContent value="logs">
