@@ -4,6 +4,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import '@testing-library/jest-dom';
 
+const toastMocks = vi.hoisted(() => ({
+  success: vi.fn(),
+  error: vi.fn(),
+}));
+
+vi.mock('sonner', () => ({
+  toast: toastMocks,
+}));
+
 // Mock next/navigation if needed
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
@@ -121,6 +130,8 @@ beforeEach(async () => {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  toastMocks.success.mockReset();
+  toastMocks.error.mockReset();
 });
 
 describe('AgentsPage', () => {
@@ -194,6 +205,25 @@ describe('AgentsPage', () => {
           JSON.parse(init?.body as string).action === 'start',
       );
       expect(launchdCall).toBeDefined();
+    });
+
+    expect(toastMocks.success).toHaveBeenCalledWith('beta222 started');
+  });
+
+  it('Start失敗時にstderrトーストを表示する', async () => {
+    global.fetch = mockFetch({ launchdStartFail: true });
+
+    render(<Home />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('beta222').length).toBeGreaterThan(0);
+    });
+
+    const startButtons = screen.getAllByRole('button', { name: /^start$/i });
+    fireEvent.click(startButtons[0]);
+
+    await waitFor(() => {
+      expect(toastMocks.error).toHaveBeenCalledWith('Could not find service');
     });
   });
 

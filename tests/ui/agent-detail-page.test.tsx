@@ -186,6 +186,111 @@ afterEach(() => {
 });
 
 describe('Agent detail memory tab', () => {
+  it('Start操作でlaunchd API呼び出しと成功トーストを表示する', async () => {
+    const fetchMock = createFetchMock();
+    global.fetch = fetchMock;
+
+    await act(async () => {
+      renderPage('alpha');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Start' })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+
+    await waitFor(() => {
+      const calls = fetchMock.mock.calls as [string, { method?: string; body?: string }?][];
+      const call = calls.find(
+        ([url, init]) =>
+          url === '/api/launchd' &&
+          init?.method === 'POST' &&
+          JSON.parse(init?.body ?? '{}').action === 'start',
+      );
+      expect(call).toBeDefined();
+    });
+
+    expect(toast.success).toHaveBeenCalledWith('alpha started');
+  });
+
+  it('Start操作失敗時にエラートーストを表示する', async () => {
+    global.fetch = vi
+      .fn()
+      .mockImplementation(async (url: string, init?: { method?: string; body?: string }) => {
+        const method = init?.method ?? 'GET';
+        if (url === '/api/launchd' && method === 'POST') {
+          const body = JSON.parse(init?.body ?? '{}');
+          if (body.action === 'status') {
+            return { ok: true, json: async () => ({ running: false }) };
+          }
+          if (body.action === 'start') {
+            return { ok: false, json: async () => ({ stderr: 'launch failed' }) };
+          }
+          return { ok: true, json: async () => ({}) };
+        }
+        if (url.startsWith('/api/files?') && method === 'GET') {
+          const query = new URLSearchParams(url.split('?')[1] ?? '');
+          const path = query.get('path') ?? '';
+          return { ok: true, json: async () => ({ content: fileContents[path] ?? '' }) };
+        }
+        if (url === '/api/files' && method === 'PUT') {
+          return { ok: true, json: async () => ({}) };
+        }
+        if (url.startsWith('/api/env?agent=') && !url.includes('/resolved') && method === 'GET') {
+          return {
+            ok: true,
+            json: async () => [
+              { key: 'API_KEY', value: '***', masked: true, visibility: 'secure' },
+            ],
+          };
+        }
+        if (url.startsWith('/api/env/resolved?') && method === 'GET') {
+          return {
+            ok: true,
+            json: async () => [{ key: 'BASE_URL', value: 'https://example.com', source: 'global' }],
+          };
+        }
+        if (url === '/api/skills/tree' && method === 'GET') {
+          return {
+            ok: true,
+            json: async () => ({
+              tree: [{ name: 'coding', relativePath: 'coding', hasSkill: true, children: [] }],
+            }),
+          };
+        }
+        if (url.startsWith('/api/skills/links?') && method === 'GET') {
+          return {
+            ok: true,
+            json: async () => [
+              {
+                id: 1,
+                agent: 'alpha',
+                sourcePath: '/Users/tumf/.hermes/skills/coding',
+                targetPath: '/runtime/agents/alpha/skills/coding',
+                exists: true,
+                relativePath: 'coding',
+              },
+            ],
+          };
+        }
+        return { ok: true, json: async () => ({}) };
+      }) as unknown as typeof fetch;
+
+    await act(async () => {
+      renderPage('alpha');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Start' })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('launch failed');
+    });
+  });
   it('renders required tabs including Env and Skills', async () => {
     global.fetch = createFetchMock();
 
