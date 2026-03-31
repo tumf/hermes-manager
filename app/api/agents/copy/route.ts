@@ -79,7 +79,13 @@ export async function POST(request: NextRequest) {
   }
 
   const toHome = getRuntimeAgentsRootPath(newAgentId);
-  await fs.cp(sourceAgent.home, toHome, { recursive: true });
+  await fs.cp(sourceAgent.home, toHome, {
+    recursive: true,
+    filter: (src) => {
+      const rel = path.relative(sourceAgent.home, src);
+      return rel !== 'logs' && !rel.startsWith('logs/') && !rel.startsWith('logs\\');
+    },
+  });
 
   const copiedEnvPath = `${toHome}/.env`;
   await clearTokenValues(copiedEnvPath, PLATFORM_TOKEN_KEYS);

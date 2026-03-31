@@ -345,6 +345,7 @@ describe('POST /api/agents/copy', () => {
     await COPY_POST(req);
     expect(vi.mocked(fs.cp)).toHaveBeenCalledWith('/runtime/agents/delta11', expect.any(String), {
       recursive: true,
+      filter: expect.any(Function),
     });
   });
 
