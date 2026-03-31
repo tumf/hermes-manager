@@ -361,7 +361,7 @@ export default function TemplatesPage() {
                 </label>
                 <Select
                   value={formFile}
-                  onValueChange={(v) => setFormFile(v as FileName)}
+                  onValueChange={(v: string) => setFormFile(v as FileName)}
                   disabled={!!editing}
                 >
                   <SelectTrigger id="tpl-file">
