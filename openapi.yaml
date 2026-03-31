@@ -1,0 +1,988 @@
+openapi: 3.1.0
+info:
+  title: Hermes Agents WebApp API
+  version: 1.0.0
+  description: File-system based Hermes agent management API
+servers:
+  - url: http://localhost:18470
+    description: Local development
+  - url: https://hermes-agents.mini.tumf.dev
+    description: Production (mini)
+
+paths:
+  /api/agents:
+    get:
+      summary: List all agents
+      operationId: listAgents
+      tags: [Agents]
+      responses:
+        '200':
+          description: Agent list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Agent'
+    post:
+      summary: Create a new agent
+      operationId: createAgent
+      tags: [Agents]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                templates:
+                  type: object
+                  properties:
+                    agentsMd:
+                      type: string
+                    soulMd:
+                      type: string
+                    configYaml:
+                      type: string
+                meta:
+                  $ref: '#/components/schemas/AgentMeta'
+      responses:
+        '201':
+          description: Created agent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+    delete:
+      summary: Delete an agent
+      operationId: deleteAgent
+      tags: [Agents]
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: purge
+          in: query
+          schema:
+            type: string
+            enum: ['true']
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  /api/agents/copy:
+    post:
+      summary: Copy an agent
+      operationId: copyAgent
+      tags: [Agents]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [from]
+              properties:
+                from:
+                  type: string
+      responses:
+        '201':
+          description: Copied agent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+
+  /api/agents/{id}/meta:
+    put:
+      summary: Update agent metadata
+      operationId: updateAgentMeta
+      tags: [Agents]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentMeta'
+      responses:
+        '200':
+          description: Updated metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+        '404':
+          description: Agent not found
+
+  /api/launchd:
+    post:
+      summary: Control agent launchd service
+      operationId: launchdAction
+      tags: [Launchd]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [agent, action]
+              properties:
+                agent:
+                  type: string
+                action:
+                  type: string
+                  enum: [install, uninstall, start, stop, restart, status]
+      responses:
+        '200':
+          description: Action result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stdout:
+                    type: string
+                  stderr:
+                    type: string
+                  code:
+                    type: integer
+                  running:
+                    type: boolean
+                  pid:
+                    type: integer
+                    nullable: true
+                  timedOut:
+                    type: boolean
+
+  /api/files:
+    get:
+      summary: Get agent file content
+      operationId: getFile
+      tags: [Files]
+      parameters:
+        - name: agent
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: path
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [AGENTS.md, SOUL.md, config.yaml]
+      responses:
+        '200':
+          description: File content
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: string
+    put:
+      summary: Update agent file content
+      operationId: putFile
+      tags: [Files]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [agent, path, content]
+              properties:
+                agent:
+                  type: string
+                path:
+                  type: string
+                  enum: [AGENTS.md, SOUL.md, config.yaml]
+                content:
+                  type: string
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '422':
+          description: Invalid YAML (config.yaml only)
+
+  /api/env:
+    get:
+      summary: List agent environment variables
+      operationId: listEnvVars
+      tags: [Environment]
+      parameters:
+        - name: agent
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Environment variables
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EnvVar'
+    post:
+      summary: Set an environment variable
+      operationId: setEnvVar
+      tags: [Environment]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [agent, key]
+              properties:
+                agent:
+                  type: string
+                key:
+                  type: string
+                value:
+                  type: string
+                visibility:
+                  type: string
+                  enum: [plain, secure]
+                  default: plain
+      responses:
+        '200':
+          description: Set
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  visibility:
+                    type: string
+                    enum: [plain, secure]
+    delete:
+      summary: Delete an environment variable
+      operationId: deleteEnvVar
+      tags: [Environment]
+      parameters:
+        - name: agent
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: key
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  /api/env/resolved:
+    get:
+      summary: Get resolved (merged) environment variables
+      operationId: getResolvedEnv
+      tags: [Environment]
+      parameters:
+        - name: agent
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Resolved variables
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    key:
+                      type: string
+                    value:
+                      type: string
+                    source:
+                      type: string
+                      enum: [global, agent, agent-override]
+                    visibility:
+                      type: string
+                      enum: [plain, secure]
+
+  /api/globals:
+    get:
+      summary: List global environment variables
+      operationId: listGlobals
+      tags: [Globals]
+      responses:
+        '200':
+          description: Global variables
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EnvVar'
+    post:
+      summary: Set a global environment variable
+      operationId: setGlobal
+      tags: [Globals]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [key]
+              properties:
+                key:
+                  type: string
+                value:
+                  type: string
+                visibility:
+                  type: string
+                  enum: [plain, secure]
+                  default: plain
+      responses:
+        '200':
+          description: Set
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  visibility:
+                    type: string
+                    enum: [plain, secure]
+    delete:
+      summary: Delete a global environment variable
+      operationId: deleteGlobal
+      tags: [Globals]
+      parameters:
+        - name: key
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  /api/skills/tree:
+    get:
+      summary: Get skills directory tree
+      operationId: getSkillsTree
+      tags: [Skills]
+      responses:
+        '200':
+          description: Skills tree
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tree:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SkillTreeNode'
+
+  /api/skills/links:
+    get:
+      summary: List agent skill links
+      operationId: listSkillLinks
+      tags: [Skills]
+      parameters:
+        - name: agent
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Skill links
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SkillLink'
+    post:
+      summary: Create a skill link
+      operationId: createSkillLink
+      tags: [Skills]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [agent, relativePath]
+              properties:
+                agent:
+                  type: string
+                relativePath:
+                  type: string
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  targetPath:
+                    type: string
+                  relativePath:
+                    type: string
+        '400':
+          description: Invalid path or missing SKILL.md
+        '409':
+          description: Link already exists
+    delete:
+      summary: Delete a skill link
+      operationId: deleteSkillLink
+      tags: [Skills]
+      parameters:
+        - name: agent
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: path
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  /api/logs:
+    get:
+      summary: Get agent log tail
+      operationId: getLogs
+      tags: [Logs]
+      parameters:
+        - name: agent
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: file
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: lines
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Log lines
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  lines:
+                    type: array
+                    items:
+                      type: string
+                  totalBytes:
+                    type: integer
+
+  /api/logs/stream:
+    get:
+      summary: Stream agent logs via SSE
+      operationId: streamLogs
+      tags: [Logs]
+      parameters:
+        - name: agent
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: file
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: SSE stream
+          content:
+            text/event-stream: {}
+
+  /api/cron:
+    get:
+      summary: List cron jobs
+      operationId: listCronJobs
+      tags: [Cron]
+      parameters:
+        - name: agent
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Cron jobs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jobs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CronJob'
+    post:
+      summary: Create a cron job
+      operationId: createCronJob
+      tags: [Cron]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [agent, schedule, prompt]
+              properties:
+                agent:
+                  type: string
+                schedule:
+                  type: string
+                prompt:
+                  type: string
+                name:
+                  type: string
+                skills:
+                  type: array
+                  items:
+                    type: string
+                deliver:
+                  type: string
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  id:
+                    type: string
+    put:
+      summary: Update a cron job
+      operationId: updateCronJob
+      tags: [Cron]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [agent, id]
+              properties:
+                agent:
+                  type: string
+                id:
+                  type: string
+                name:
+                  type: string
+                prompt:
+                  type: string
+                schedule:
+                  type: string
+                skills:
+                  type: array
+                  items:
+                    type: string
+                deliver:
+                  type: string
+                repeat:
+                  type: object
+                model:
+                  type: string
+                provider:
+                  type: string
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+    delete:
+      summary: Delete a cron job
+      operationId: deleteCronJob
+      tags: [Cron]
+      parameters:
+        - name: agent
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  /api/cron/action:
+    post:
+      summary: Perform cron job action
+      operationId: cronJobAction
+      tags: [Cron]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [agent, id, action]
+              properties:
+                agent:
+                  type: string
+                id:
+                  type: string
+                action:
+                  type: string
+                  enum: [pause, resume, run]
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Action performed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  /api/cron/output:
+    get:
+      summary: Get cron job output
+      operationId: getCronOutput
+      tags: [Cron]
+      parameters:
+        - name: agent
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: file
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Output files or content
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      files:
+                        type: array
+                        items:
+                          type: string
+                  - type: object
+                    properties:
+                      content:
+                        type: string
+
+  /api/templates:
+    get:
+      summary: List templates or get file content
+      operationId: getTemplates
+      tags: [Templates]
+      parameters:
+        - name: name
+          in: query
+          schema:
+            type: string
+        - name: file
+          in: query
+          schema:
+            type: string
+            enum: [AGENTS.md, SOUL.md, config.yaml]
+      responses:
+        '200':
+          description: Template list or file content
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/Template'
+                  - type: object
+                    properties:
+                      name:
+                        type: string
+                      file:
+                        type: string
+                      content:
+                        type: string
+    post:
+      summary: Create a template file
+      operationId: createTemplate
+      tags: [Templates]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemplateFile'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateFile'
+        '409':
+          description: Already exists
+    put:
+      summary: Update a template file
+      operationId: updateTemplate
+      tags: [Templates]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemplateFile'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateFile'
+        '404':
+          description: Not found
+    delete:
+      summary: Delete a template or template file
+      operationId: deleteTemplate
+      tags: [Templates]
+      parameters:
+        - name: name
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: file
+          in: query
+          schema:
+            type: string
+            enum: [AGENTS.md, SOUL.md, config.yaml]
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+components:
+  schemas:
+    OkResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: true
+
+    Agent:
+      type: object
+      properties:
+        agentId:
+          type: string
+        home:
+          type: string
+        label:
+          type: string
+        enabled:
+          type: boolean
+        createdAt:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+
+    AgentMeta:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+
+    EnvVar:
+      type: object
+      properties:
+        key:
+          type: string
+        value:
+          type: string
+        masked:
+          type: boolean
+        visibility:
+          type: string
+          enum: [plain, secure]
+
+    SkillTreeNode:
+      type: object
+      properties:
+        name:
+          type: string
+        path:
+          type: string
+        hasSkill:
+          type: boolean
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/SkillTreeNode'
+
+    SkillLink:
+      type: object
+      properties:
+        relativePath:
+          type: string
+        sourcePath:
+          type: string
+        targetPath:
+          type: string
+        exists:
+          type: boolean
+
+    CronJob:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        prompt:
+          type: string
+        skills:
+          type: array
+          items:
+            type: string
+        schedule:
+          type: string
+        schedule_display:
+          type: string
+        repeat:
+          type: object
+          properties:
+            times:
+              type: integer
+            completed:
+              type: integer
+        enabled:
+          type: boolean
+        state:
+          type: string
+        created_at:
+          type: string
+        next_run_at:
+          type: string
+          nullable: true
+        last_run_at:
+          type: string
+          nullable: true
+        last_status:
+          type: string
+          nullable: true
+        last_error:
+          type: string
+          nullable: true
+        deliver:
+          type: string
+          nullable: true
+        origin:
+          type: string
+
+    Template:
+      type: object
+      properties:
+        name:
+          type: string
+        files:
+          type: array
+          items:
+            type: string
+
+    TemplateFile:
+      type: object
+      required: [name, file, content]
+      properties:
+        name:
+          type: string
+        file:
+          type: string
+          enum: [AGENTS.md, SOUL.md, config.yaml]
+        content:
+          type: string
