@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import path from 'node:path';
 
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -10,6 +11,36 @@ import { getRuntimeAgentsRootPath } from '@/src/lib/runtime-paths';
 import { CopyAgentSchema } from '@/src/lib/validators/agents';
 
 const MAX_ID_RETRIES = 5;
+
+async function updateCopiedMetaName(toHome: string): Promise<void> {
+  const metaPath = path.join(toHome, 'meta.json');
+  try {
+    const content = await fs.readFile(metaPath, 'utf-8');
+    const parsed = JSON.parse(content) as {
+      name?: unknown;
+      description?: unknown;
+      tags?: unknown;
+    };
+
+    const baseName = typeof parsed.name === 'string' ? parsed.name.trim() : '';
+    if (!baseName) {
+      return;
+    }
+
+    const copiedName = baseName.endsWith(' (Copy)') ? baseName : `${baseName} (Copy)`;
+    const normalized = {
+      name: copiedName,
+      description: typeof parsed.description === 'string' ? parsed.description : '',
+      tags: Array.isArray(parsed.tags)
+        ? parsed.tags.filter((tag): tag is string => typeof tag === 'string')
+        : [],
+    };
+
+    await fs.writeFile(metaPath, JSON.stringify(normalized, null, 2), 'utf-8');
+  } catch {
+    // meta.json is optional for copied agents
+  }
+}
 
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -31,7 +62,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'source agent not found' }, { status: 404 });
   }
 
-  // Auto-generate a unique agent ID
   let newAgentId: string | null = null;
   for (let attempt = 0; attempt < MAX_ID_RETRIES; attempt++) {
     const candidate = generateAgentId();
@@ -53,8 +83,8 @@ export async function POST(request: NextRequest) {
 
   const copiedEnvPath = `${toHome}/.env`;
   await clearTokenValues(copiedEnvPath, PLATFORM_TOKEN_KEYS);
+  await updateCopiedMetaName(toHome);
 
-  // Re-read the newly created agent from filesystem
   const newAgent = await getAgent(newAgentId);
   return NextResponse.json(newAgent, { status: 201 });
 }

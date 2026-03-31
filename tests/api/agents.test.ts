@@ -24,10 +24,23 @@ vi.mock('@/src/lib/agents', () => ({
       enabled: false,
       createdAt: new Date(),
       updatedAt: new Date(),
+      name: '',
+      description: '',
+      tags: [],
     };
     mockState.createdAgent = agent;
     return agent;
   }),
+  updateAgentMeta: vi.fn(
+    async (agentId: string, meta: { name: string; description: string; tags: string[] }) => {
+      const agent = mockState.agents.find((a) => a.agentId === agentId);
+      if (!agent) return null;
+      agent.name = meta.name;
+      agent.description = meta.description;
+      agent.tags = meta.tags;
+      return meta;
+    },
+  ),
   deleteAgent: vi.fn(async () => undefined),
 }));
 
@@ -36,6 +49,7 @@ vi.mock('node:fs/promises', () => ({
   default: {
     mkdir: vi.fn().mockResolvedValue(undefined),
     writeFile: vi.fn().mockResolvedValue(undefined),
+    readFile: vi.fn().mockRejectedValue(new Error('ENOENT')),
     rm: vi.fn().mockResolvedValue(undefined),
     cp: vi.fn().mockResolvedValue(undefined),
     stat: vi
@@ -72,6 +86,7 @@ vi.mock('@/src/lib/dotenv-parser', () => ({
 }));
 
 // Import handlers after mocks are set up
+import { PUT as META_PUT } from '../../app/api/agents/[id]/meta/route';
 import { POST as COPY_POST } from '../../app/api/agents/copy/route';
 import { DELETE, GET, POST } from '../../app/api/agents/route';
 import type { Agent } from '../../src/lib/agents';
@@ -106,6 +121,9 @@ describe('GET /api/agents', () => {
         enabled: false,
         createdAt: new Date(),
         updatedAt: new Date(),
+        name: '',
+        description: '',
+        tags: [],
       },
     ];
     const res = await GET();
@@ -143,6 +161,19 @@ describe('POST /api/agents', () => {
     const res = await POST(req);
     expect(res.status).toBe(201);
   });
+
+  it('accepts meta parameter in body', async () => {
+    const req = makeReq('http://localhost/api/agents', {
+      method: 'POST',
+      body: JSON.stringify({
+        meta: { name: 'Ops Bot', description: '運用', tags: ['prod', 'ops'] },
+      }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(201);
+  });
 });
 
 describe('DELETE /api/agents', () => {
@@ -161,6 +192,9 @@ describe('DELETE /api/agents', () => {
         enabled: false,
         createdAt: new Date(),
         updatedAt: new Date(),
+        name: '',
+        description: '',
+        tags: [],
       },
     ];
 
@@ -193,6 +227,9 @@ describe('DELETE /api/agents', () => {
         enabled: false,
         createdAt: new Date(),
         updatedAt: new Date(),
+        name: '',
+        description: '',
+        tags: [],
       },
     ];
 
@@ -203,6 +240,52 @@ describe('DELETE /api/agents', () => {
       expect.arrayContaining(['unload']),
       expect.any(Function),
     );
+  });
+});
+
+describe('PUT /api/agents/[id]/meta', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockState.agents = [];
+    mockState.createdAgent = null;
+  });
+
+  it('updates metadata for existing agent', async () => {
+    mockState.agents = [
+      {
+        agentId: 'abc1234',
+        home: '/runtime/agents/abc1234',
+        label: 'ai.hermes.gateway.abc1234',
+        enabled: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        name: '',
+        description: '',
+        tags: [],
+      },
+    ];
+
+    const req = makeReq('http://localhost/api/agents/abc1234/meta', {
+      method: 'PUT',
+      body: JSON.stringify({ name: '新名前', description: '説明', tags: ['prod'] }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const res = await META_PUT(req, { params: Promise.resolve({ id: 'abc1234' }) });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toEqual({ name: '新名前', description: '説明', tags: ['prod'] });
+  });
+
+  it('returns 404 when agent not found', async () => {
+    const req = makeReq('http://localhost/api/agents/ghost/meta', {
+      method: 'PUT',
+      body: JSON.stringify({ name: 'x' }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const res = await META_PUT(req, { params: Promise.resolve({ id: 'ghost' }) });
+    expect(res.status).toBe(404);
   });
 });
 
@@ -222,6 +305,9 @@ describe('POST /api/agents/copy', () => {
         enabled: false,
         createdAt: new Date(),
         updatedAt: new Date(),
+        name: '',
+        description: '',
+        tags: [],
       },
     ];
 
@@ -244,6 +330,9 @@ describe('POST /api/agents/copy', () => {
         enabled: false,
         createdAt: new Date(),
         updatedAt: new Date(),
+        name: '',
+        description: '',
+        tags: [],
       },
     ];
 
@@ -268,6 +357,9 @@ describe('POST /api/agents/copy', () => {
         enabled: false,
         createdAt: new Date(),
         updatedAt: new Date(),
+        name: '',
+        description: '',
+        tags: [],
       },
     ];
 
@@ -282,6 +374,40 @@ describe('POST /api/agents/copy', () => {
     expect(vi.mocked(clearTokenValues)).toHaveBeenCalledWith(
       expect.stringContaining('/runtime/agents/abc1234/.env'),
       PLATFORM_TOKEN_KEYS,
+    );
+  });
+
+  it('appends (Copy) to copied agent name when meta exists', async () => {
+    mockState.agents = [
+      {
+        agentId: 'delta11',
+        home: '/runtime/agents/delta11',
+        label: 'ai.hermes.gateway.delta11',
+        enabled: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        name: 'My Bot',
+        description: '',
+        tags: ['prod'],
+      },
+    ];
+
+    vi.mocked(fs.readFile).mockResolvedValue(
+      JSON.stringify({ name: 'My Bot', description: '', tags: ['prod'] }) as never,
+    );
+
+    const req = makeReq('http://localhost/api/agents/copy', {
+      method: 'POST',
+      body: JSON.stringify({ from: 'delta11' }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    await COPY_POST(req);
+
+    expect(vi.mocked(fs.writeFile)).toHaveBeenCalledWith(
+      expect.stringContaining('/runtime/agents/abc1234/meta.json'),
+      expect.stringContaining('My Bot (Copy)'),
+      'utf-8',
     );
   });
 

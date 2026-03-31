@@ -37,6 +37,9 @@ const AGENT: Agent = {
   enabled: false,
   createdAt: new Date(),
   updatedAt: new Date(),
+  name: '',
+  description: '',
+  tags: [],
 };
 
 describe('GET /api/files', () => {

@@ -45,6 +45,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/src/components/ui/dropdown-menu';
+import { Input } from '@/src/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -61,6 +62,9 @@ interface Agent {
   label: string;
   enabled: boolean;
   createdAt: number | string;
+  name?: string;
+  description?: string;
+  tags?: string[];
 }
 
 interface AgentWithStatus extends Agent {
@@ -80,6 +84,9 @@ export default function Home() {
   const [addTemplateAgentsMd, setAddTemplateAgentsMd] = useState('default');
   const [addTemplateSoulMd, setAddTemplateSoulMd] = useState('default');
   const [addTemplateConfigYaml, setAddTemplateConfigYaml] = useState('default');
+  const [addName, setAddName] = useState('');
+  const [addDescription, setAddDescription] = useState('');
+  const [addTags, setAddTags] = useState('');
   const [allTemplates, setAllTemplates] = useState<TemplateEntry[]>([]);
   const [busyMap, setBusyMap] = useState<Record<string, 'start' | 'stop' | 'restart'>>({});
 
@@ -163,6 +170,18 @@ export default function Home() {
         body.templates = templates;
       }
 
+      const parsedTags = addTags
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter((tag) => tag.length > 0);
+      if (addName.trim() || addDescription.trim() || parsedTags.length > 0) {
+        body.meta = {
+          name: addName.trim(),
+          description: addDescription.trim(),
+          tags: parsedTags,
+        };
+      }
+
       const res = await fetch('/api/agents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -177,6 +196,9 @@ export default function Home() {
       setAddTemplateAgentsMd('default');
       setAddTemplateSoulMd('default');
       setAddTemplateConfigYaml('default');
+      setAddName('');
+      setAddDescription('');
+      setAddTags('');
       setAddDialogOpen(false);
       toast.success(`Agent "${created.agentId}" created`);
       await fetchAgents();
@@ -291,6 +313,39 @@ export default function Home() {
               </DialogDescription>
             </DialogHeader>
             <div className="mt-4 space-y-4">
+              <div className="space-y-1.5">
+                <label htmlFor="agent-name" className="text-sm font-medium">
+                  Display Name
+                </label>
+                <Input
+                  id="agent-name"
+                  value={addName}
+                  onChange={(e) => setAddName(e.target.value)}
+                  placeholder="My Bot"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="agent-description" className="text-sm font-medium">
+                  Description
+                </label>
+                <Input
+                  id="agent-description"
+                  value={addDescription}
+                  onChange={(e) => setAddDescription(e.target.value)}
+                  placeholder="用途やメモ"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="agent-tags" className="text-sm font-medium">
+                  Tags (comma separated)
+                </label>
+                <Input
+                  id="agent-tags"
+                  value={addTags}
+                  onChange={(e) => setAddTags(e.target.value)}
+                  placeholder="prod, monitor"
+                />
+              </div>
               <TemplateSelect
                 label="AGENTS.md Template"
                 id="tpl-agents-md"
@@ -369,12 +424,25 @@ export default function Home() {
                       href={`/agents/${encodeURIComponent(a.agentId)}`}
                       className="hover:underline"
                     >
-                      <span className="font-mono">{a.agentId}</span>
+                      {a.name?.trim() ? a.name : <span className="font-mono">{a.agentId}</span>}
                     </Link>
                   </CardTitle>
-                  {a.label && (
-                    <p className="mt-1 truncate text-xs text-muted-foreground">{a.label}</p>
-                  )}
+                  <div className="mt-1 space-y-1">
+                    <p className="truncate text-xs text-muted-foreground">{a.label || '--'}</p>
+                    {a.tags && a.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {a.tags.map((tag) => (
+                          <Badge
+                            key={`${a.agentId}-${tag}`}
+                            variant="outline"
+                            className="text-[10px]"
+                          >
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <AgentStatusBadge running={a.running} busy={busyMap[a.agentId] ?? null} />
               </CardHeader>
@@ -400,8 +468,9 @@ export default function Home() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/50">
-                <th className="px-4 py-3 text-left font-medium">ID</th>
+                <th className="px-4 py-3 text-left font-medium">Name</th>
                 <th className="px-4 py-3 text-left font-medium">Label</th>
+                <th className="px-4 py-3 text-left font-medium">Tags</th>
                 <th className="px-4 py-3 text-left font-medium">Status</th>
                 <th className="px-4 py-3 text-right font-medium">Actions</th>
               </tr>
@@ -414,10 +483,27 @@ export default function Home() {
                       href={`/agents/${encodeURIComponent(a.agentId)}`}
                       className="hover:underline"
                     >
-                      <span className="font-mono">{a.agentId}</span>
+                      {a.name?.trim() ? a.name : <span className="font-mono">{a.agentId}</span>}
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{a.label || '--'}</td>
+                  <td className="px-4 py-3">
+                    {a.tags && a.tags.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {a.tags.map((tag) => (
+                          <Badge
+                            key={`${a.agentId}-table-${tag}`}
+                            variant="outline"
+                            className="text-[10px]"
+                          >
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">--</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     <AgentStatusBadge running={a.running} busy={busyMap[a.agentId] ?? null} />
                   </td>

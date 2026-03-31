@@ -95,6 +95,9 @@ const ALPHA: Agent = {
   enabled: false,
   createdAt: new Date(),
   updatedAt: new Date(),
+  name: '',
+  description: '',
+  tags: [],
 };
 
 // ---- Tree walk unit tests ----
