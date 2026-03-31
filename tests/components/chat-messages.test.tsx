@@ -1,0 +1,72 @@
+import { render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import '@testing-library/jest-dom';
+
+import { ChatTab } from '../../src/components/chat-tab';
+
+function mockFetch() {
+  return vi.fn().mockImplementation(async (url: string) => {
+    if (url.includes('/sessions') && !url.includes('/messages')) {
+      return {
+        ok: true,
+        json: async () => [
+          {
+            id: 's1',
+            source: 'tool',
+            title: 'Session A',
+            started_at: '2026-01-01T00:00:00Z',
+            message_count: 2,
+          },
+        ],
+      };
+    }
+    if (url.includes('/messages')) {
+      return {
+        ok: true,
+        json: async () => [
+          {
+            session_id: 's1',
+            role: 'user',
+            content: 'hello',
+            timestamp: '2026-01-01T00:00:01Z',
+            tool_name: null,
+          },
+          {
+            session_id: 's1',
+            role: 'assistant',
+            content: 'hi',
+            timestamp: '2026-01-01T00:00:02Z',
+            tool_name: null,
+          },
+          {
+            session_id: 's1',
+            role: 'tool',
+            content: 'called x',
+            timestamp: '2026-01-01T00:00:03Z',
+            tool_name: 'x',
+          },
+        ],
+      };
+    }
+    return { ok: true, json: async () => ({ ok: true }) };
+  });
+}
+
+describe('chat messages UI', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    global.fetch = mockFetch() as typeof fetch;
+  });
+
+  it('renders role based chat bubbles', async () => {
+    render(<ChatTab name="alpha" />);
+
+    expect(await screen.findByText('hello')).toBeInTheDocument();
+    expect(screen.getByText('hi')).toBeInTheDocument();
+    expect(screen.getByText('called x')).toBeInTheDocument();
+    expect(screen.getByText('user')).toBeInTheDocument();
+    expect(screen.getByText('assistant')).toBeInTheDocument();
+    expect(screen.getAllByText('tool').length).toBeGreaterThan(0);
+  });
+});
