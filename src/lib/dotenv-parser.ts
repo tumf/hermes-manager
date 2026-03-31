@@ -1,3 +1,5 @@
+import fs from 'node:fs/promises';
+
 export function parse(content: string): { key: string; value: string }[] {
   const out: { key: string; value: string }[] = [];
   for (const line of content.split(/\r?\n/)) {
@@ -27,6 +29,17 @@ export function deleteKey(entries: { key: string; value: string }[], key: string
   const map = new Map(entries.map((e) => [e.key, e.value]));
   map.delete(key);
   return Array.from(map.entries()).map(([k, v]) => ({ key: k, value: v }));
+}
+
+export async function clearTokenValues(envPath: string, keys: readonly string[]): Promise<void> {
+  const content = await fs.readFile(envPath, 'utf-8');
+  const entries = parse(content);
+  const keySet = new Set(keys);
+  const sanitizedEntries = entries.map((entry) =>
+    keySet.has(entry.key) ? { ...entry, value: '' } : entry,
+  );
+
+  await fs.writeFile(envPath, serialize(sanitizedEntries), 'utf-8');
 }
 
 function escapeValue(val: string) {
