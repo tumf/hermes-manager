@@ -11,6 +11,25 @@ vi.mock('sonner', () => ({
   },
 }));
 
+vi.mock('@/src/components/code-editor', () => ({
+  CodeEditor: ({
+    value,
+    onChange,
+    ariaLabel,
+  }: {
+    value: string;
+    onChange: (v: string) => void;
+    ariaLabel?: string;
+    filePath?: string;
+    className?: string;
+  }) =>
+    React.createElement('textarea', {
+      value,
+      onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => onChange(e.target.value),
+      'aria-label': ariaLabel,
+    }),
+}));
+
 let AgentDetailPage: React.ComponentType<{ params: Promise<{ id: string }> }>;
 
 function renderPage(name: string) {
@@ -165,7 +184,6 @@ describe('Agent detail memory tab', () => {
   it('blocks switching when dirty and user cancels', async () => {
     const fetchMock = createFetchMock();
     global.fetch = fetchMock;
-    const confirmMock = vi.spyOn(window, 'confirm').mockReturnValue(false);
 
     await act(async () => {
       renderPage('alpha');
@@ -181,9 +199,16 @@ describe('Agent detail memory tab', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'SOUL.md' }));
 
-    expect(confirmMock).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole('textbox', { name: 'Edit SOUL.md' })).not.toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: 'Edit AGENTS.md' })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Keep Editing' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('textbox', { name: 'Edit SOUL.md' })).not.toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: 'Edit AGENTS.md' })).toBeInTheDocument();
+    });
 
     const getCalls = (fetchMock.mock.calls as [string, { method?: string }?][]).filter(
       ([url, init]) => url.startsWith('/api/files?') && (init?.method ?? 'GET') === 'GET',

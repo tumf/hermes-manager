@@ -11,6 +11,7 @@ import {
   ScrollText,
   Settings,
   Square,
+  Undo2,
 } from 'lucide-react';
 import Link from 'next/link';
 import {
@@ -25,8 +26,19 @@ import {
 import { toast } from 'sonner';
 
 import { AgentEnvTab } from '@/src/components/agent-env-tab';
+import { CodeEditor } from '@/src/components/code-editor';
 import { CronTab } from '@/src/components/cron-tab';
 import { SkillsTab } from '@/src/components/skills-tab';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/src/components/ui/alert-dialog';
 import { Badge } from '@/src/components/ui/badge';
 import { Button } from '@/src/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
@@ -254,32 +266,63 @@ const FILE_PATH_TO_TEMPLATE_FILE: Record<string, string> = {
 
 const MEMORY_FILES = ['AGENTS.md', 'SOUL.md'] as const;
 
-function MemoryTab({ name }: { name: string }) {
+const FILE_DESCRIPTIONS: Record<string, string> = {
+  'AGENTS.md': 'Defines agent behavior, instructions, and capabilities',
+  'SOUL.md': "Contains the agent's personality, tone, and communication style",
+};
+
+interface MemoryTabProps {
+  name: string;
+}
+
+function MemoryTab({ name }: MemoryTabProps) {
   const [selectedFile, setSelectedFile] = useState<string>(MEMORY_FILES[0]);
+  const [pendingFile, setPendingFile] = useState<string | null>(null);
+  const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
   const editorRef = useRef<FileEditorHandle>(null);
 
   function handleSwitch(file: string) {
     if (file === selectedFile) return;
     if (editorRef.current?.isDirty()) {
-      const confirmed = window.confirm('You have unsaved changes. Discard and switch?');
-      if (!confirmed) return;
+      setPendingFile(file);
+      setDiscardDialogOpen(true);
+      return;
     }
     setSelectedFile(file);
   }
 
+  function confirmDiscard() {
+    setSelectedFile(pendingFile!);
+    setPendingFile(null);
+    setDiscardDialogOpen(false);
+  }
+
   return (
     <div className="space-y-3">
-      <div className="flex gap-1">
-        {MEMORY_FILES.map((file) => (
-          <Button
-            key={file}
-            variant={selectedFile === file ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => handleSwitch(file)}
-          >
-            {file}
-          </Button>
-        ))}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex gap-1">
+          {MEMORY_FILES.map((file) => (
+            <Button
+              key={file}
+              variant={selectedFile === file ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => handleSwitch(file)}
+              className="relative"
+              aria-pressed={selectedFile === file}
+            >
+              {editorRef.current?.isDirty() && selectedFile === file && (
+                <span
+                  className="absolute -right-1 -top-1 size-2 rounded-full bg-orange-400"
+                  aria-hidden="true"
+                />
+              )}
+              {file}
+            </Button>
+          ))}
+        </div>
+        {selectedFile && FILE_DESCRIPTIONS[selectedFile] && (
+          <p className="text-xs text-muted-foreground">{FILE_DESCRIPTIONS[selectedFile]}</p>
+        )}
       </div>
       <FileEditor
         key={selectedFile}
@@ -288,12 +331,33 @@ function MemoryTab({ name }: { name: string }) {
         filePath={selectedFile}
         label={selectedFile}
       />
+      <AlertDialog open={discardDialogOpen} onOpenChange={setDiscardDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes in the current file. Switching tabs will discard your
+              changes.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingFile(null)}>Keep Editing</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDiscard}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Discard Changes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
 
 interface FileEditorHandle {
   isDirty: () => boolean;
+  save: () => void;
 }
 
 const FileEditor = forwardRef<FileEditorHandle, { name: string; filePath: string; label: string }>(
@@ -307,12 +371,35 @@ const FileEditor = forwardRef<FileEditorHandle, { name: string; filePath: string
     const [savingTemplate, setSavingTemplate] = useState(false);
     const originalRef = useRef('');
 
+    const save = useCallback(async () => {
+      setSaving(true);
+      try {
+        const res = await fetch('/api/files', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ agent: name, path: filePath, content }),
+        });
+        if (res.ok) {
+          originalRef.current = content;
+          setDirty(false);
+          toast.success(`${label} saved`);
+        } else {
+          toast.error(`Failed to save ${label}`);
+        }
+      } catch {
+        toast.error(`Failed to save ${label}`);
+      } finally {
+        setSaving(false);
+      }
+    }, [name, content, filePath, label]);
+
     useImperativeHandle(
       ref,
       () => ({
         isDirty: () => dirty,
+        save,
       }),
-      [dirty],
+      [dirty, save],
     );
 
     useEffect(() => {
@@ -336,31 +423,22 @@ const FileEditor = forwardRef<FileEditorHandle, { name: string; filePath: string
       void load();
     }, [name, filePath]);
 
+    useEffect(() => {
+      function handleKeyDown(e: KeyboardEvent) {
+        if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+          e.preventDefault();
+          if (!saving && dirty && !loading) {
+            void save();
+          }
+        }
+      }
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [saving, dirty, loading, save]);
+
     function handleChange(val: string) {
       setContent(val);
       setDirty(val !== originalRef.current);
-    }
-
-    async function save() {
-      setSaving(true);
-      try {
-        const res = await fetch('/api/files', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ agent: name, path: filePath, content }),
-        });
-        if (res.ok) {
-          originalRef.current = content;
-          setDirty(false);
-          toast.success(`${label} saved`);
-        } else {
-          toast.error(`Failed to save ${label}`);
-        }
-      } catch {
-        toast.error(`Failed to save ${label}`);
-      } finally {
-        setSaving(false);
-      }
     }
 
     async function saveAsTemplate() {
@@ -392,10 +470,20 @@ const FileEditor = forwardRef<FileEditorHandle, { name: string; filePath: string
       }
     }
 
+    const lineCount = content.split('\n').length;
+    const charCount = content.length;
+
     return (
-      <Card>
-        <CardHeader className="flex-row items-center justify-between">
-          <CardTitle className="font-mono text-xs">{label}</CardTitle>
+      <Card className="flex h-[calc(100dvh-14rem)] flex-col">
+        <CardHeader className="shrink-0 flex-row items-center justify-between gap-3 pb-2">
+          <div className="flex items-center gap-2">
+            <CardTitle className="font-mono text-xs">{label}</CardTitle>
+            {dirty && (
+              <span className="text-[10px] text-orange-500" aria-live="polite">
+                unsaved
+              </span>
+            )}
+          </div>
           <div className="flex gap-1.5">
             <Dialog open={saveAsTemplateOpen} onOpenChange={setSaveAsTemplateOpen}>
               <DialogTrigger asChild>
@@ -407,7 +495,7 @@ const FileEditor = forwardRef<FileEditorHandle, { name: string; filePath: string
                   onClick={() => setTemplateName('')}
                 >
                   <FileText className="size-3.5" />
-                  Save as Template
+                  <span className="hidden sm:inline">Template</span>
                 </Button>
               </DialogTrigger>
               <DialogContent>
@@ -445,23 +533,32 @@ const FileEditor = forwardRef<FileEditorHandle, { name: string; filePath: string
             >
               {saving ? (
                 <Loader2 className="size-3.5 animate-spin" />
-              ) : (
+              ) : dirty ? (
                 <Save className="size-3.5" />
+              ) : (
+                <Undo2 className="size-3.5 text-muted-foreground" />
               )}
-              {saving ? 'Saving...' : 'Save'}
+              <span className="hidden sm:inline">{saving ? 'Saving...' : 'Save'}</span>
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex min-h-0 flex-1 flex-col pt-2">
           {loading ? (
-            <Skeleton className="h-48 w-full" />
+            <Skeleton className="w-full flex-1" />
           ) : (
-            <textarea
-              className="min-h-48 w-full resize-y rounded-md border border-input bg-muted/30 p-3 font-mono text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              value={content}
-              onChange={(e) => handleChange(e.target.value)}
-              aria-label={`Edit ${label}`}
-            />
+            <div className="relative flex min-h-0 flex-1 flex-col">
+              <CodeEditor
+                value={content}
+                onChange={handleChange}
+                filePath={filePath}
+                className="min-h-0 w-full flex-1 overflow-hidden rounded-md border border-input"
+                ariaLabel={`Edit ${label}`}
+              />
+              <div className="mt-1.5 flex items-center justify-end gap-3 text-[10px] text-muted-foreground/70">
+                <span>{lineCount} lines</span>
+                <span>{charCount.toLocaleString()} chars</span>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
