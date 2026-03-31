@@ -8,10 +8,10 @@ describe('generateAgentId', () => {
     expect(id).toHaveLength(7);
   });
 
-  it('contains only [0-9a-z] characters', () => {
+  it('contains only ambiguity-free characters', () => {
     for (let i = 0; i < 50; i++) {
       const id = generateAgentId();
-      expect(id).toMatch(/^[0-9a-z]{7}$/);
+      expect(id).toMatch(/^[34679ACDEFGHJKMNPQRTUVWXY]{7}$/);
     }
   });
 
