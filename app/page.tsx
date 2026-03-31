@@ -424,7 +424,16 @@ export default function Home() {
                       href={`/agents/${encodeURIComponent(a.agentId)}`}
                       className="hover:underline"
                     >
-                      {a.name?.trim() ? a.name : <span className="font-mono">{a.agentId}</span>}
+                      {a.name?.trim() ? (
+                        <>
+                          {a.name}{' '}
+                          <span className="font-mono text-[10px] font-normal text-muted-foreground">
+                            {a.agentId}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="font-mono">{a.agentId}</span>
+                      )}
                     </Link>
                   </CardTitle>
                   <div className="mt-1 space-y-1">
@@ -483,7 +492,16 @@ export default function Home() {
                       href={`/agents/${encodeURIComponent(a.agentId)}`}
                       className="hover:underline"
                     >
-                      {a.name?.trim() ? a.name : <span className="font-mono">{a.agentId}</span>}
+                      {a.name?.trim() ? (
+                        <>
+                          {a.name}{' '}
+                          <span className="font-mono text-[10px] font-normal text-muted-foreground">
+                            {a.agentId}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="font-mono">{a.agentId}</span>
+                      )}
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{a.label || '--'}</td>

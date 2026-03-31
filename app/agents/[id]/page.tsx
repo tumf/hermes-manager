@@ -69,9 +69,12 @@ export default function AgentPage({ params }: AgentPageProps) {
     label?: string;
     pid?: number | null;
   } | null>(null);
-  const [meta, setMeta] = useState<{ name: string; description: string; tags: string[] } | null>(
-    null,
-  );
+  const [meta, setMeta] = useState<{
+    name: string;
+    description: string;
+    tags: string[];
+    home: string;
+  } | null>(null);
   const [metaDraft, setMetaDraft] = useState<{
     name: string;
     description: string;
@@ -83,6 +86,12 @@ export default function AgentPage({ params }: AgentPageProps) {
   });
   const [metaSaving, setMetaSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== 'undefined' && window.location.hash) {
+      return window.location.hash.slice(1) || 'memory';
+    }
+    return 'memory';
+  });
   const [actionBusy, setActionBusy] = useState<'start' | 'stop' | 'restart' | null>(null);
 
   const fetchStatus = useCallback(async () => {
@@ -109,12 +118,14 @@ export default function AgentPage({ params }: AgentPageProps) {
         name?: string;
         description?: string;
         tags?: string[];
+        home?: string;
       }>;
       const current = agents.find((agent) => agent.agentId === name);
       const nextMeta = {
         name: current?.name ?? '',
         description: current?.description ?? '',
         tags: current?.tags ?? [],
+        home: current?.home ?? '',
       };
       setMeta(nextMeta);
       setMetaDraft({
@@ -153,7 +164,7 @@ export default function AgentPage({ params }: AgentPageProps) {
         return;
       }
       const updated = (await res.json()) as { name: string; description: string; tags: string[] };
-      setMeta(updated);
+      setMeta({ ...updated, home: meta?.home ?? '' });
       setMetaDraft({
         name: updated.name,
         description: updated.description,
@@ -218,9 +229,31 @@ export default function AgentPage({ params }: AgentPageProps) {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">
-              {meta?.name?.trim() ? meta.name : <span className="font-mono">{name}</span>}
+              {meta?.name?.trim() ? (
+                <>
+                  {meta.name}{' '}
+                  <span className="font-mono text-sm font-normal text-muted-foreground">
+                    {name}
+                  </span>
+                </>
+              ) : (
+                <span className="font-mono">{name}</span>
+              )}
             </h1>
             {status?.label && <p className="text-sm text-muted-foreground">{status.label}</p>}
+            {meta?.home && (
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 font-mono text-[9px] text-muted-foreground/60 transition-colors hover:text-foreground"
+                onClick={() => {
+                  void navigator.clipboard.writeText(meta.home);
+                  toast.success('Copied HERMES_HOME');
+                }}
+                title="Click to copy HERMES_HOME"
+              >
+                {meta.home}
+              </button>
+            )}
           </div>
           <div className="flex items-center gap-3">
             {loading ? (
@@ -344,7 +377,13 @@ export default function AgentPage({ params }: AgentPageProps) {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="memory">
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => {
+          setActiveTab(v);
+          window.history.replaceState(null, '', `#${v}`);
+        }}
+      >
         <TabsList className="w-full justify-start">
           <TabsTrigger value="memory" className="gap-1.5">
             <FileText className="size-3.5" />
