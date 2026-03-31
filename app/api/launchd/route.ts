@@ -78,6 +78,11 @@ async function ensureServiceBootstrapped(
   fs.mkdirSync(path.dirname(plistPath), { recursive: true });
   fs.writeFileSync(plistPath, plistContent, 'utf8');
 
+  const check = await runExecFile('launchctl', ['print', `gui/${uid}/${label}`]);
+  if (check.code === 0) {
+    return check;
+  }
+
   return runExecFile('launchctl', ['bootstrap', `gui/${uid}`, plistPath]);
 }
 
