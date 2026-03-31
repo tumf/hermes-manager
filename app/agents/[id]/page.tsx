@@ -810,7 +810,7 @@ function LogViewer({ name }: { name: string }) {
         ) : (
           <pre
             ref={logRef}
-            className="max-h-96 overflow-y-auto rounded-md bg-muted/50 p-3 font-mono text-xs leading-relaxed"
+            className="rounded-md bg-muted/50 p-3 font-mono text-xs leading-relaxed"
           >
             {lines.length ? lines.join('\n') : '(empty)'}
           </pre>
