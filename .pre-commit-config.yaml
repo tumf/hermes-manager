@@ -7,7 +7,7 @@ repos:
       - id: check-yaml
       - id: check-merge-conflict
   - repo: https://github.com/biomejs/pre-commit
-    rev: v0.3.1
+    rev: v2.4.10
     hooks:
       - id: biome-format
         additional_dependencies: []
