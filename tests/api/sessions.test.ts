@@ -12,7 +12,7 @@ vi.mock('@/src/lib/agents', () => ({
 }));
 
 vi.mock('@/src/lib/state-db', () => ({
-  getSessionList: vi.fn((_home: string, _opts?: unknown) => mockState.sessions),
+  getSessionList: vi.fn(() => mockState.sessions),
 }));
 
 import { GET } from '../../app/api/agents/[id]/sessions/route';

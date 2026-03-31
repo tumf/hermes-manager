@@ -1,6 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+// better-sqlite3 is a runtime dependency but static resolution can fail in some lint contexts.
+// eslint-disable-next-line import/no-unresolved
 import Database from 'better-sqlite3';
 
 export interface ChatSession {

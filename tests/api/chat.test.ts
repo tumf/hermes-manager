@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { execFile } from 'node:child_process';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockState = vi.hoisted(() => ({
@@ -29,7 +30,6 @@ vi.mock('node:child_process', () => ({
 }));
 
 import { POST } from '../../app/api/agents/[id]/chat/route';
-import { execFile } from 'node:child_process';
 
 describe('POST /api/agents/[id]/chat', () => {
   beforeEach(() => {
