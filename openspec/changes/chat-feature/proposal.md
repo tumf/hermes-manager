@@ -1,97 +1,74 @@
-# Chat Feature — エージェントとのチャット機能
+---
+change_type: implementation
+priority: high
+dependencies: []
+references:
+  - docs/design.md
+  - openspec/specs/agent-detail/spec.md
+---
 
-## 概要
+# Add Chat Feature — エージェントとのチャット機能
 
-WebApp上でエージェントと対話できるチャットUIを追加する。
-state.dbから既存セッション履歴も閲覧・再開可能。
+**Change Type**: implementation
 
-## 動機
+## Problem / Context
 
-現状、エージェントとの対話はTelegram等の外部プラットフォーム経由のみ。
-管理画面から直接テスト・対話できると開発・デバッグ効率が大幅に向上する。
+現状、Hermes エージェントとの対話は Telegram 等の外部プラットフォーム経由のみ。
+WebApp の管理画面から直接チャットできれば、開発・デバッグ効率が大幅に向上する。
 
-## データソース
+各エージェントの `state.db`（SQLite）に全セッション・メッセージが保存されており、
+`hermes chat` CLI で非対話メッセージ送信・セッション再開が可能。
 
-### state.db（HERMES_HOME/state.db）
+## Proposed Solution
 
-SQLiteデータベースに全セッション・メッセージが保存されている。
+エージェント詳細ページに「Chat」タブを追加し、以下の機能を提供する。
 
-- `sessions` テーブル: id, source, title, model, message_count, tool_call_count, tokens, cost, started_at, ended_at
-- `messages` テーブル: session_id, role, content, tool_calls, tool_call_id, tool_name, timestamp
+### データソース
 
-### hermes chat CLI
+- **state.db**（`runtime/agents/{agentId}/state.db`）
+  - `sessions` テーブル: id, source, title, model, message_count, tool_call_count, tokens, cost, started_at, ended_at
+  - `messages` テーブル: session_id, role, content, tool_calls, tool_call_id, tool_name, timestamp
+- **hermes chat CLI**
+  - `hermes chat -q <message> -Q --source tool` — 非対話メッセージ送信
+  - `--resume <sessionId>` — 既存セッション再開
+  - `HERMES_HOME` 環境変数でエージェント指定
 
-- `hermes chat -q <message> -Q --source tool` — 非対話メッセージ送信
-- `--resume <sessionId>` — 既存セッション再開
-- `HERMES_HOME` 環境変数でエージェント指定
+### API 設計
 
-## API設計
+| エンドポイント                                   | メソッド | 説明                                    |
+| ------------------------------------------------ | -------- | --------------------------------------- |
+| `/api/agents/[id]/sessions`                      | GET      | セッション一覧（state.db から読み取り） |
+| `/api/agents/[id]/sessions/[sessionId]/messages` | GET      | メッセージ一覧（state.db から読み取り） |
+| `/api/agents/[id]/chat`                          | POST     | メッセージ送信（hermes chat CLI 経由）  |
 
-### GET /api/agents/[id]/sessions
+### フロントエンド
 
-セッション一覧を返す（state.dbから直接読み取り）
+- **Chat タブ**: エージェント詳細ページのタブとして追加
+- **セッション一覧パネル**: source 別アイコン、日時、メッセージ数表示
+- **チャットUI**: shadcn AI Elements ベースのバブル UI（user/assistant/tool ロール対応）
+- **セッション操作**: 既存セッション閲覧・resume で会話継続・新規セッション作成
+- **ローディング状態**: hermes 実行は数秒〜数十秒かかるため適切な UX 提供
 
-```json
-{
-  "sessions": [
-    {
-      "id": "20260331_221913_b19a043a",
-      "source": "telegram",
-      "title": "...",
-      "model": "...",
-      "messageCount": 27,
-      "startedAt": 1711918753,
-      "endedAt": null
-    }
-  ]
-}
-```
+### 技術的考慮
 
-### GET /api/agents/[id]/sessions/[sessionId]/messages
+- state.db は SQLite（読み取り専用、WAL モード想定）→ `better-sqlite3` で同期読み取り
+- chat 送信は `execFile` 使用（セキュリティルール準拠）、タイムアウト 120s
+- `--source tool` で WebApp 経由のセッションを識別
+- セッション一覧では source 別フィルタ可能
 
-セッションのメッセージ一覧（state.dbから直接読み取り）
+## Acceptance Criteria
 
-```json
-{
-  "messages": [
-    {
-      "id": 1,
-      "role": "user",
-      "content": "hello",
-      "toolCalls": null,
-      "toolName": null,
-      "timestamp": 1711918753
-    }
-  ]
-}
-```
+1. エージェント詳細ページに Chat タブが表示される
+2. Chat タブでセッション一覧が表示され、source/日時でフィルタ・ソートできる
+3. セッションを選択するとメッセージ履歴がバブル UI で表示される
+4. テキスト入力からメッセージを送信でき、エージェントの応答が表示される
+5. 既存セッションを resume して会話を継続できる
+6. 新規セッションを開始できる
+7. 送信中はローディング状態が表示される
+8. state.db が存在しないエージェントでは適切なメッセージが表示される
 
-### POST /api/agents/[id]/chat
+## Out of Scope
 
-メッセージ送信
-
-- body: `{ message: string, sessionId?: string }`
-- 内部: `HERMES_HOME=runtime/agents/{id} hermes chat -q <message> -Q --source tool [--resume <sessionId>]`
-- response: `{ response: string, sessionId: string }`
-
-## フロントエンド
-
-- エージェント詳細ページに「Chat」タブ追加
-- 左サイドパネル: セッション一覧（source別アイコン、日時、メッセージ数）
-- 右メイン: チャットバブルUI（user/assistant/tool）
-- 既存セッションの閲覧 + resumeで会話継続
-- 新規セッション作成
-- ローディング状態（hermes実行は数秒〜数十秒かかる）
-
-## 段階的実装
-
-1. **Phase 1**: セッション/メッセージ閲覧API + UI
-2. **Phase 2**: チャット送信API + UI（同期）
-3. **Phase 3**: SSEストリーミング対応（将来、RPC Mode実装後）
-
-## 技術的考慮
-
-- state.dbはSQLite（読み取り専用、WALモード想定）→ better-sqlite3で同期読み取り
-- chat送信はexecFile使用（セキュリティルール準拠）、タイムアウト120s
-- `--source tool` でWebApp経由のセッションを識別
-- セッション一覧ではsource別フィルタ可能に
+- SSE/WebSocket によるストリーミング対応（将来、RPC Mode 実装後）
+- メッセージの編集・削除
+- ファイルアップロード
