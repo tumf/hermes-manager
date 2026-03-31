@@ -54,6 +54,7 @@ import {
   SelectValue,
 } from '@/src/components/ui/select';
 import { Skeleton } from '@/src/components/ui/skeleton';
+import { useLaunchdAction } from '@/src/hooks/use-launchd-action';
 
 interface Agent {
   id: number;
@@ -88,7 +89,6 @@ export default function Home() {
   const [addDescription, setAddDescription] = useState('');
   const [addTags, setAddTags] = useState('');
   const [allTemplates, setAllTemplates] = useState<TemplateEntry[]>([]);
-  const [busyMap, setBusyMap] = useState<Record<string, 'start' | 'stop' | 'restart'>>({});
 
   const fetchAgents = useCallback(async () => {
     try {
@@ -204,43 +204,6 @@ export default function Home() {
       await fetchAgents();
     } finally {
       setAddBusy(false);
-    }
-  }
-
-  async function handleStartStop(agent: AgentWithStatus, action: 'start' | 'stop' | 'restart') {
-    setBusyMap((prev) => ({ ...prev, [agent.agentId]: action }));
-    try {
-      const res = await fetch('/api/launchd', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agent: agent.agentId, action }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        const message =
-          typeof data.error === 'string'
-            ? data.error
-            : typeof data.stderr === 'string' && data.stderr.trim()
-              ? data.stderr.trim()
-              : `Failed to ${action} ${agent.agentId}`;
-        toast.error(message);
-        return;
-      }
-      const labels: Record<string, string> = {
-        start: 'started',
-        stop: 'stopped',
-        restart: 'restarted',
-      };
-      toast.success(`${agent.agentId} ${labels[action]}`);
-      await fetchAgents();
-    } catch {
-      toast.error(`Failed to ${action} ${agent.agentId}`);
-    } finally {
-      setBusyMap((prev) => {
-        const next = { ...prev };
-        delete next[agent.agentId];
-        return next;
-      });
     }
   }
 
@@ -453,14 +416,9 @@ export default function Home() {
                     )}
                   </div>
                 </div>
-                <AgentStatusBadge running={a.running} busy={busyMap[a.agentId] ?? null} />
+                <AgentControlCluster agent={a} onActionCompleted={fetchAgents} />
               </CardHeader>
               <CardFooter className="flex-wrap gap-2">
-                <AgentActionButtons
-                  agent={a}
-                  busy={busyMap[a.agentId] ?? null}
-                  onAction={handleStartStop}
-                />
                 <Button variant="outline" size="sm" asChild>
                   <Link href={`/agents/${encodeURIComponent(a.agentId)}`}>Manage</Link>
                 </Button>
@@ -523,15 +481,10 @@ export default function Home() {
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <AgentStatusBadge running={a.running} busy={busyMap[a.agentId] ?? null} />
+                    <AgentControlCluster agent={a} onActionCompleted={fetchAgents} />
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-2">
-                      <AgentActionButtons
-                        agent={a}
-                        busy={busyMap[a.agentId] ?? null}
-                        onAction={handleStartStop}
-                      />
                       <AgentActionsMenu agent={a} onDelete={handleDelete} onCopy={handleCopy} />
                     </div>
                   </td>
@@ -629,6 +582,31 @@ function AgentStatusBadge({ running, busy }: { running?: boolean; busy: ActionTy
               ? 'Running'
               : 'Stopped'}
     </Badge>
+  );
+}
+
+function AgentControlCluster({
+  agent,
+  onActionCompleted,
+}: {
+  agent: AgentWithStatus;
+  onActionCompleted: () => Promise<void>;
+}) {
+  const { busyAction, execute } = useLaunchdAction(agent.agentId, {
+    onSuccess: onActionCompleted,
+  });
+
+  return (
+    <div className="flex items-center gap-2">
+      <AgentStatusBadge running={agent.running} busy={busyAction} />
+      <AgentActionButtons
+        agent={agent}
+        busy={busyAction}
+        onAction={(_target, action) => {
+          void execute(action);
+        }}
+      />
+    </div>
   );
 }
 

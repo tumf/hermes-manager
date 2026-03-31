@@ -56,6 +56,7 @@ import { Input } from '@/src/components/ui/input';
 import { Skeleton } from '@/src/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/src/components/ui/tabs';
 import { Textarea } from '@/src/components/ui/textarea';
+import { useLaunchdAction } from '@/src/hooks/use-launchd-action';
 
 interface AgentPageProps {
   params: Promise<{ id: string }>;
@@ -92,7 +93,6 @@ export default function AgentPage({ params }: AgentPageProps) {
     }
     return 'memory';
   });
-  const [actionBusy, setActionBusy] = useState<'start' | 'stop' | 'restart' | null>(null);
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -178,38 +178,10 @@ export default function AgentPage({ params }: AgentPageProps) {
     }
   }
 
-  async function handleStartStop(action: 'start' | 'stop' | 'restart') {
-    setActionBusy(action);
-    try {
-      const res = await fetch('/api/launchd', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agent: name, action }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        const message =
-          typeof data.error === 'string'
-            ? data.error
-            : typeof data.stderr === 'string' && data.stderr.trim()
-              ? data.stderr.trim()
-              : `Failed to ${action}`;
-        toast.error(message);
-        return;
-      }
-      const labels: Record<string, string> = {
-        start: 'started',
-        stop: 'stopped',
-        restart: 'restarted',
-      };
-      toast.success(`${name} ${labels[action]}`);
-      await fetchStatus();
-    } catch {
-      toast.error(`Failed to ${action}`);
-    } finally {
-      setActionBusy(null);
-    }
-  }
+  const { busyAction: actionBusy, execute: executeLaunchdAction } = useLaunchdAction(name, {
+    onSuccess: fetchStatus,
+    fallbackMessage: (action) => `Failed to ${action}`,
+  });
 
   return (
     <div className="space-y-6">
@@ -283,7 +255,7 @@ export default function AgentPage({ params }: AgentPageProps) {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => void handleStartStop('stop')}
+                      onClick={() => void executeLaunchdAction('stop')}
                       disabled={actionBusy !== null}
                     >
                       {actionBusy === 'stop' ? (
@@ -296,7 +268,7 @@ export default function AgentPage({ params }: AgentPageProps) {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => void handleStartStop('restart')}
+                      onClick={() => void executeLaunchdAction('restart')}
                       disabled={actionBusy !== null}
                     >
                       {actionBusy === 'restart' ? (
@@ -310,7 +282,7 @@ export default function AgentPage({ params }: AgentPageProps) {
                 ) : (
                   <Button
                     size="sm"
-                    onClick={() => void handleStartStop('start')}
+                    onClick={() => void executeLaunchdAction('start')}
                     disabled={actionBusy !== null}
                   >
                     {actionBusy === 'start' ? (
