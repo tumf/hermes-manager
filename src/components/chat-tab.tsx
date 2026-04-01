@@ -343,8 +343,36 @@ export function ChatTab({ name }: { name: string }) {
         </CardHeader>
         <CardContent className="flex flex-1 flex-col space-y-3">
           {apiServerAvailable === false ? (
-            <div className="rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
-              Chat を使うには api_server プラットフォームを有効にし、gateway を再起動してください
+            <div className="space-y-2 rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
+              <p className="font-medium">
+                Chat を使うにはエージェントの api_server
+                プラットフォームを有効にする必要があります。
+              </p>
+              <ol className="list-inside list-decimal space-y-1 text-xs">
+                <li>
+                  エージェントの <code className="rounded bg-muted px-1">~/.hermes/.env</code>{' '}
+                  に以下を追加：
+                  <pre className="mt-1 rounded bg-muted p-2 font-mono">
+                    API_SERVER_ENABLED=true{'\n'}API_SERVER_KEY=your-secret-key
+                  </pre>
+                </li>
+                <li>
+                  gateway を再起動：{' '}
+                  <code className="rounded bg-muted px-1">hermes gateway restart</code>
+                </li>
+              </ol>
+              <p className="text-xs">
+                詳しくは{' '}
+                <a
+                  href="https://hermes-agent.nousresearch.com/docs/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline"
+                >
+                  Hermes Agent ドキュメント
+                </a>{' '}
+                を参照してください。
+              </p>
             </div>
           ) : (
             <>
