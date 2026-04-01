@@ -1,7 +1,7 @@
 'use client';
 
-import { Bot, MessageSquare, Plus, Terminal, Wrench } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Bot, ChevronRight, MessageSquare, Plus, Terminal, Wrench } from 'lucide-react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
 
@@ -57,6 +57,35 @@ export function ChatTab({ name }: { name: string }) {
   const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const streamAbortRef = useRef<AbortController | null>(null);
+  const gridRef = useRef<HTMLDivElement | null>(null);
+  const [gridMaxH, setGridMaxH] = useState<string | undefined>(undefined);
+
+  const recalcHeight = useCallback(() => {
+    const el = gridRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const available = window.innerHeight - rect.top - 16; // 16px bottom padding
+    setGridMaxH(`${Math.max(available, 300)}px`);
+  }, []);
+
+  useLayoutEffect(() => {
+    recalcHeight();
+  }, [recalcHeight]);
+
+  useEffect(() => {
+    window.addEventListener('resize', recalcHeight);
+    return () => window.removeEventListener('resize', recalcHeight);
+  }, [recalcHeight]);
+
+  const [collapsedTools, setCollapsedTools] = useState<Set<number>>(new Set());
+  function toggleToolCollapse(idx: number) {
+    setCollapsedTools((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  }
 
   async function loadAgentMeta() {
     try {
@@ -262,7 +291,7 @@ export function ChatTab({ name }: { name: string }) {
   }
 
   return (
-    <div className="grid h-[calc(100dvh-16rem)] gap-4 lg:grid-cols-[320px_1fr]">
+    <div ref={gridRef} className="grid gap-4 lg:grid-cols-[320px_1fr]" style={{ height: gridMaxH }}>
       <Card className="flex flex-col overflow-hidden">
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -395,28 +424,51 @@ export function ChatTab({ name }: { name: string }) {
                       : 'メッセージを入力して新しい会話を始めましょう。'}
                   </p>
                 ) : (
-                  messages.map((msg, idx) => (
-                    <div
-                      key={`${msg.timestamp ?? 'optimistic'}-${idx}`}
-                      className={cn(
-                        'max-w-[90%] rounded-lg px-3 py-2 text-sm',
-                        msg.role === 'user' && 'ml-auto bg-primary text-primary-foreground',
-                        msg.role === 'assistant' && 'bg-muted',
-                        msg.role === 'tool' && 'border border-dashed bg-background',
-                      )}
-                    >
-                      <div className="mb-1 text-[11px] uppercase text-muted-foreground">
-                        {msg.role}
-                      </div>
-                      {msg.role === 'assistant' ? (
-                        <div className="prose prose-sm dark:prose-invert max-w-none">
-                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  messages.map((msg, idx) =>
+                    msg.role === 'tool' ? (
+                      <button
+                        key={`${msg.timestamp ?? 'optimistic'}-${idx}`}
+                        type="button"
+                        className="flex w-full max-w-[90%] items-start gap-1.5 rounded border border-dashed bg-background px-2 py-1 text-left text-xs text-muted-foreground transition-colors hover:bg-muted/50"
+                        onClick={() => toggleToolCollapse(idx)}
+                      >
+                        <ChevronRight
+                          className={cn(
+                            'mt-0.5 size-3 shrink-0 transition-transform',
+                            !collapsedTools.has(idx) && 'rotate-90',
+                          )}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <span className="font-mono text-[11px]">{msg.tool_name ?? 'tool'}</span>
+                          {!collapsedTools.has(idx) && (
+                            <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-all text-[11px] leading-tight">
+                              {msg.content}
+                            </pre>
+                          )}
                         </div>
-                      ) : (
-                        <div className="whitespace-pre-wrap">{msg.content}</div>
-                      )}
-                    </div>
-                  ))
+                      </button>
+                    ) : (
+                      <div
+                        key={`${msg.timestamp ?? 'optimistic'}-${idx}`}
+                        className={cn(
+                          'max-w-[90%] rounded-lg px-3 py-2 text-sm',
+                          msg.role === 'user' && 'ml-auto bg-primary text-primary-foreground',
+                          msg.role === 'assistant' && 'bg-muted',
+                        )}
+                      >
+                        <div className="mb-1 text-[11px] uppercase text-muted-foreground">
+                          {msg.role}
+                        </div>
+                        {msg.role === 'assistant' ? (
+                          <div className="prose prose-sm dark:prose-invert max-w-none">
+                            <ReactMarkdown>{msg.content}</ReactMarkdown>
+                          </div>
+                        ) : (
+                          <div className="whitespace-pre-wrap">{msg.content}</div>
+                        )}
+                      </div>
+                    ),
+                  )
                 )}
               </div>
 
