@@ -43,6 +43,26 @@ describe('gateway discovery', () => {
     expect(execFileMock).not.toHaveBeenCalled();
   });
 
+  it('returns true when API_SERVER_ENABLED is set in .env', async () => {
+    const agentHome = path.join(tmpDir, 'agent-env');
+    await fsp.mkdir(agentHome, { recursive: true });
+    await fsp.writeFile(path.join(agentHome, 'config.yaml'), 'name: test\n');
+    await fsp.writeFile(path.join(agentHome, '.env'), 'API_SERVER_ENABLED=true\n');
+
+    const { isApiServerEnabled } = await import('../../src/lib/gateway-discovery');
+    expect(isApiServerEnabled(agentHome)).toBe(true);
+  });
+
+  it('returns true when API_SERVER_KEY is set in .env', async () => {
+    const agentHome = path.join(tmpDir, 'agent-key');
+    await fsp.mkdir(agentHome, { recursive: true });
+    await fsp.writeFile(path.join(agentHome, 'config.yaml'), 'name: test\n');
+    await fsp.writeFile(path.join(agentHome, '.env'), 'API_SERVER_KEY=my-secret\n');
+
+    const { isApiServerEnabled } = await import('../../src/lib/gateway-discovery');
+    expect(isApiServerEnabled(agentHome)).toBe(true);
+  });
+
   it('returns null when gateway is not running', async () => {
     const agentHome = path.join(tmpDir, 'agent-c');
     await fsp.mkdir(agentHome, { recursive: true });

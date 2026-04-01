@@ -350,11 +350,9 @@ export function ChatTab({ name }: { name: string }) {
               </p>
               <ol className="list-inside list-decimal space-y-1 text-xs">
                 <li>
-                  エージェントの <code className="rounded bg-muted px-1">config.yaml</code> の{' '}
-                  <code className="rounded bg-muted px-1">platforms</code> に{' '}
-                  <code className="rounded bg-muted px-1">api_server</code> を追加：
+                  エージェントの <code className="rounded bg-muted px-1">.env</code> に以下を追加：
                   <pre className="mt-1 rounded bg-muted p-2 font-mono">
-                    {'platforms:\n  - api_server'}
+                    {'API_SERVER_ENABLED=true'}
                   </pre>
                 </li>
                 <li>

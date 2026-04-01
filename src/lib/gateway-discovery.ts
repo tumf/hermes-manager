@@ -38,12 +38,40 @@ function getPlatforms(config: Record<string, unknown>): unknown {
   return config.platforms;
 }
 
+function readDotenv(filePath: string): Record<string, string> {
+  try {
+    const raw = fs.readFileSync(filePath, 'utf-8');
+    const result: Record<string, string> = {};
+    for (const line of raw.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eqIndex = trimmed.indexOf('=');
+      if (eqIndex < 1) continue;
+      const key = trimmed.slice(0, eqIndex).trim();
+      let value = trimmed.slice(eqIndex + 1).trim();
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1);
+      }
+      result[key] = value;
+    }
+    return result;
+  } catch {
+    return {};
+  }
+}
+
 export function isApiServerEnabled(agentHome: string): boolean {
+  // Check config.yaml platforms list
   const config = readYamlObject(path.join(agentHome, 'config.yaml'));
   const platforms = getPlatforms(config);
 
   if (Array.isArray(platforms)) {
-    return platforms.some((p) => p === 'api_server' || p === 'platforms/api_server');
+    if (platforms.some((p) => p === 'api_server' || p === 'platforms/api_server')) {
+      return true;
+    }
   }
 
   if (typeof platforms === 'object' && platforms !== null) {
@@ -53,6 +81,15 @@ export function isApiServerEnabled(agentHome: string): boolean {
       if (typeof value === 'boolean') return value;
       return true;
     }
+  }
+
+  // Also check .env for API_SERVER_ENABLED or API_SERVER_KEY (matches hermes gateway behavior)
+  const env = readDotenv(path.join(agentHome, '.env'));
+  if (['true', '1', 'yes'].includes((env.API_SERVER_ENABLED ?? '').toLowerCase())) {
+    return true;
+  }
+  if (env.API_SERVER_KEY) {
+    return true;
   }
 
   return false;
