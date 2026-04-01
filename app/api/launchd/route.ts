@@ -164,26 +164,14 @@ export async function POST(request: Request) {
   }
 
   if (action === 'restart') {
-    const currentStatus = await runExecFile('launchctl', ['print', `gui/${uid}/${label}`]);
-
-    if (!isServiceMissing(currentStatus)) {
-      await runExecFile('launchctl', ['bootout', `gui/${uid}/${label}`]);
-      // Wait for the service to fully stop before re-bootstrapping
-      const stopState = await waitForState('stopped', uid, label);
-      if (stopState.running) {
-        return NextResponse.json(
-          { stdout: '', stderr: 'Timed out waiting for service to stop', code: 1, running: true },
-          { status: 500 },
-        );
-      }
-    }
-
+    // Ensure service is bootstrapped (writes plist + registers if needed)
     const bootstrapResult = await ensureServiceBootstrapped(agentName, home, label, uid);
     if (bootstrapResult.code !== 0) {
       return NextResponse.json(bootstrapResult, { status: 500 });
     }
 
-    const result = await runExecFile('launchctl', ['kickstart', `gui/${uid}/${label}`]);
+    // kickstart -k kills the existing process and restarts it atomically
+    const result = await runExecFile('launchctl', ['kickstart', '-kp', `gui/${uid}/${label}`]);
     if (result.code !== 0) {
       return NextResponse.json({ ...result, running: false }, { status: 500 });
     }
