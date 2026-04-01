@@ -12,8 +12,9 @@ export interface ChatSession {
   model: string | null;
   message_count: number;
   tool_call_count: number;
-  tokens: number;
-  cost: number;
+  input_tokens: number;
+  output_tokens: number;
+  estimated_cost_usd: number | null;
   started_at: string;
   ended_at: string | null;
 }
@@ -62,7 +63,7 @@ export function getSessionList(
     const sort = options?.sort === 'asc' ? 'ASC' : 'DESC';
     const sourceClause = options?.source ? 'WHERE source = @source' : '';
     const stmt = db.prepare(
-      `SELECT id, source, title, model, message_count, tool_call_count, tokens, cost, started_at, ended_at
+      `SELECT id, source, title, model, message_count, tool_call_count, input_tokens, output_tokens, estimated_cost_usd, started_at, ended_at
        FROM sessions
        ${sourceClause}
        ORDER BY started_at ${sort}`,
