@@ -7,10 +7,15 @@ import * as yaml from 'js-yaml';
 
 const execFileAsync = promisify(execFile);
 
+type PlatformState = {
+  state?: string;
+};
+
 type GatewayState = {
   pid?: number;
   gateway_state?: string;
   api_server_port?: number;
+  platforms?: Record<string, PlatformState>;
 };
 
 function readYamlObject(filePath: string): Record<string, unknown> {
@@ -122,13 +127,20 @@ export async function discoverApiServerPort(agentHome: string): Promise<number |
     return null;
   }
 
+  // Check if api_server platform is actually connected in gateway state
+  if (state.platforms?.api_server?.state !== 'connected') {
+    return null;
+  }
+
   if (typeof state.api_server_port === 'number') {
     return state.api_server_port;
   }
 
   try {
+    // -a flag is required on macOS to AND the -p and -iTCP filters
     const { stdout } = await execFileAsync('lsof', [
       '-nP',
+      '-a',
       '-p',
       String(state.pid),
       '-iTCP',

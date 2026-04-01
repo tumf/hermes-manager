@@ -35,7 +35,12 @@ describe('gateway discovery', () => {
     await fsp.writeFile(path.join(agentHome, 'config.yaml'), 'platforms:\n  - api_server\n');
     await fsp.writeFile(
       path.join(agentHome, 'gateway_state.json'),
-      JSON.stringify({ pid: 9999, gateway_state: 'running', api_server_port: 18477 }),
+      JSON.stringify({
+        pid: 9999,
+        gateway_state: 'running',
+        api_server_port: 18477,
+        platforms: { api_server: { state: 'connected' } },
+      }),
     );
 
     const { discoverApiServerPort } = await import('../../src/lib/gateway-discovery');
