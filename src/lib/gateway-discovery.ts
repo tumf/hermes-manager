@@ -84,7 +84,11 @@ export function isApiServerEnabled(agentHome: string): boolean {
   }
 
   // Also check .env for API_SERVER_ENABLED or API_SERVER_KEY (matches hermes gateway behavior)
-  const env = readDotenv(path.join(agentHome, '.env'));
+  // Globals .env is merged first, then agent-local .env overrides
+  const globalsEnvPath = path.resolve(agentHome, '..', '..', 'globals', '.env');
+  const globalEnv = readDotenv(globalsEnvPath);
+  const localEnv = readDotenv(path.join(agentHome, '.env'));
+  const env = { ...globalEnv, ...localEnv };
   if (['true', '1', 'yes'].includes((env.API_SERVER_ENABLED ?? '').toLowerCase())) {
     return true;
   }

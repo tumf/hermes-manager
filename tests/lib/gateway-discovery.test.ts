@@ -53,6 +53,20 @@ describe('gateway discovery', () => {
     expect(isApiServerEnabled(agentHome)).toBe(true);
   });
 
+  it('returns true when API_SERVER_ENABLED is set in globals .env', async () => {
+    // Simulate runtime/agents/agent-id and runtime/globals/.env structure
+    const runtimeDir = path.join(tmpDir, 'runtime');
+    const agentHome = path.join(runtimeDir, 'agents', 'agent-global');
+    const globalsDir = path.join(runtimeDir, 'globals');
+    await fsp.mkdir(agentHome, { recursive: true });
+    await fsp.mkdir(globalsDir, { recursive: true });
+    await fsp.writeFile(path.join(agentHome, 'config.yaml'), 'name: test\n');
+    await fsp.writeFile(path.join(globalsDir, '.env'), 'API_SERVER_ENABLED=true\n');
+
+    const { isApiServerEnabled } = await import('../../src/lib/gateway-discovery');
+    expect(isApiServerEnabled(agentHome)).toBe(true);
+  });
+
   it('returns true when API_SERVER_KEY is set in .env', async () => {
     const agentHome = path.join(tmpDir, 'agent-key');
     await fsp.mkdir(agentHome, { recursive: true });
