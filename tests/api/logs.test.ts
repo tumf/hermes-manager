@@ -145,6 +145,8 @@ describe('GET /api/logs', () => {
       name: '',
       description: '',
       tags: [],
+      apiServerAvailable: false,
+      apiServerPort: null,
     };
     const req = makeReq('http://localhost/api/logs?agent=alice&file=gateway.log');
     const res = await GET(req);

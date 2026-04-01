@@ -7,6 +7,17 @@ import { ChatTab } from '../../src/components/chat-tab';
 
 function mockFetch() {
   return vi.fn().mockImplementation(async (url: string) => {
+    if (url.includes('/api/agents/alpha') && !url.includes('/sessions')) {
+      return {
+        ok: true,
+        json: async () => ({
+          agentId: 'alpha',
+          apiServerAvailable: true,
+          apiServerPort: 19001,
+        }),
+      };
+    }
+
     if (url.includes('/sessions') && !url.includes('/messages')) {
       return {
         ok: true,

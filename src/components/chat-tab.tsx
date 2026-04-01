@@ -1,13 +1,14 @@
 'use client';
 
 import { Bot, MessageSquare, Terminal, Wrench } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
 
 import { Button } from '@/src/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
-import { Input } from '@/src/components/ui/input';
 import { Skeleton } from '@/src/components/ui/skeleton';
+import { Textarea } from '@/src/components/ui/textarea';
 import { cn } from '@/src/lib/utils';
 
 type Session = {
@@ -19,12 +20,21 @@ type Session = {
 };
 
 type Message = {
-  session_id: string;
+  session_id?: string;
   role: string;
   content: string;
-  timestamp: string;
-  tool_name: string | null;
+  timestamp?: string;
+  tool_name?: string | null;
+  optimistic?: boolean;
 };
+
+type AgentMeta = {
+  agentId: string;
+  apiServerAvailable?: boolean;
+  apiServerPort?: number | null;
+};
+
+type ChatStatus = 'ready' | 'submitted' | 'streaming' | 'error';
 
 function sourceIcon(source: string | null) {
   if (source === 'telegram') return MessageSquare;
@@ -41,8 +51,23 @@ export function ChatTab({ name }: { name: string }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [message, setMessage] = useState('');
-  const [sending, setSending] = useState(false);
-  const [resumeSession, setResumeSession] = useState(true);
+  const [status, setStatus] = useState<ChatStatus>('ready');
+  const [lastUserMessage, setLastUserMessage] = useState<string | null>(null);
+  const [apiServerAvailable, setApiServerAvailable] = useState<boolean | null>(null);
+  const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const streamAbortRef = useRef<AbortController | null>(null);
+
+  async function loadAgentMeta() {
+    try {
+      const res = await fetch(`/api/agents/${encodeURIComponent(name)}`);
+      if (!res.ok) throw new Error('failed to load agent meta');
+      const data = (await res.json()) as AgentMeta;
+      setApiServerAvailable(data.apiServerAvailable === true);
+    } catch {
+      setApiServerAvailable(false);
+    }
+  }
 
   async function loadSessions() {
     setLoadingSessions(true);
@@ -86,7 +111,7 @@ export function ChatTab({ name }: { name: string }) {
   }
 
   useEffect(() => {
-    void loadSessions();
+    void Promise.all([loadAgentMeta(), loadSessions()]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [name, sourceFilter]);
 
@@ -97,35 +122,143 @@ export function ChatTab({ name }: { name: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSessionId]);
 
+  useEffect(() => {
+    if (!isAutoScrollEnabled) return;
+    const node = scrollContainerRef.current;
+    if (!node) return;
+    node.scrollTop = node.scrollHeight;
+  }, [messages, isAutoScrollEnabled]);
+
+  useEffect(() => {
+    return () => {
+      streamAbortRef.current?.abort();
+    };
+  }, []);
+
   const sourceOptions = useMemo(() => ['all', 'tool', 'telegram', 'cli'], []);
 
-  async function submitMessage() {
-    if (!message.trim()) return;
-    setSending(true);
+  function parseSseChunk(buffer: string): { events: string[]; rest: string } {
+    const events: string[] = [];
+    const blocks = buffer.split('\n\n');
+    const rest = blocks.pop() ?? '';
+
+    for (const block of blocks) {
+      const lines = block.split('\n');
+      for (const line of lines) {
+        if (!line.startsWith('data:')) continue;
+        events.push(line.slice(5).trim());
+      }
+    }
+
+    return { events, rest };
+  }
+
+  async function submitMessage(messageToSend?: string) {
+    const text = (messageToSend ?? message).trim();
+    if (!text || status === 'submitted' || status === 'streaming') return;
+
+    setStatus('submitted');
+    setLastUserMessage(text);
+
+    const optimisticUser: Message = {
+      role: 'user',
+      content: text,
+      optimistic: true,
+    };
+    const optimisticAssistant: Message = {
+      role: 'assistant',
+      content: '',
+      optimistic: true,
+    };
+
+    setMessages((prev) => [...prev, optimisticUser, optimisticAssistant]);
+    if (!messageToSend) {
+      setMessage('');
+    }
+
+    const abortController = new AbortController();
+    streamAbortRef.current = abortController;
+
     try {
       const res = await fetch(`/api/agents/${encodeURIComponent(name)}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message,
-          sessionId: resumeSession ? (selectedSessionId ?? undefined) : undefined,
-        }),
+        body: JSON.stringify({ message: text }),
+        signal: abortController.signal,
       });
-      if (!res.ok) {
+
+      if (!res.ok || !res.body) {
         const err = await res.json().catch(() => ({}));
         throw new Error((err as { error?: string }).error ?? 'failed to send message');
       }
-      setMessage('');
+
+      setStatus('streaming');
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parsed = parseSseChunk(buffer);
+        buffer = parsed.rest;
+
+        for (const evt of parsed.events) {
+          if (evt === '[DONE]') {
+            setStatus('ready');
+            await loadSessions();
+            if (selectedSessionId) {
+              await loadMessages(selectedSessionId);
+            }
+            return;
+          }
+
+          try {
+            const json = JSON.parse(evt) as {
+              choices?: Array<{ delta?: { content?: string } }>;
+            };
+            const delta = json.choices?.[0]?.delta?.content ?? '';
+            if (!delta) continue;
+
+            setMessages((prev) => {
+              if (prev.length === 0) return prev;
+              const next = [...prev];
+              const lastIndex = next.length - 1;
+              const last = next[lastIndex];
+              if (last.role !== 'assistant') return prev;
+              next[lastIndex] = {
+                ...last,
+                content: `${last.content}${delta}`,
+              };
+              return next;
+            });
+          } catch {
+            // ignore non-JSON SSE lines
+          }
+        }
+      }
+
+      setStatus('ready');
       await loadSessions();
       if (selectedSessionId) {
         await loadMessages(selectedSessionId);
       }
-      toast.success('Message sent');
     } catch (e) {
+      if (abortController.signal.aborted) {
+        setStatus('ready');
+        return;
+      }
+      setStatus('error');
       toast.error(e instanceof Error ? e.message : 'Failed to send message');
-    } finally {
-      setSending(false);
     }
+  }
+
+  function stopStreaming() {
+    streamAbortRef.current?.abort();
+    streamAbortRef.current = null;
+    setStatus('ready');
   }
 
   return (
@@ -189,62 +322,112 @@ export function ChatTab({ name }: { name: string }) {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="flex min-h-[600px] flex-col">
         <CardHeader>
           <CardTitle className="text-sm">Chat</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="max-h-[460px] space-y-2 overflow-y-auto rounded-md border p-3">
-            {loadingMessages ? (
-              <Skeleton className="h-20 w-full" />
-            ) : messages.length === 0 ? (
-              <p className="text-sm text-muted-foreground">メッセージがありません。</p>
-            ) : (
-              messages.map((msg, idx) => (
-                <div
-                  key={`${msg.timestamp}-${idx}`}
-                  className={cn(
-                    'max-w-[90%] rounded-lg px-3 py-2 text-sm',
-                    msg.role === 'user' && 'ml-auto bg-primary text-primary-foreground',
-                    msg.role === 'assistant' && 'bg-muted',
-                    msg.role === 'tool' && 'border border-dashed bg-background',
-                  )}
-                >
-                  <div className="mb-1 text-[11px] uppercase text-muted-foreground">{msg.role}</div>
-                  <div className="whitespace-pre-wrap">{msg.content}</div>
+        <CardContent className="flex flex-1 flex-col space-y-3">
+          {apiServerAvailable === false ? (
+            <div className="rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
+              Chat を使うには api_server プラットフォームを有効にし、gateway を再起動してください
+            </div>
+          ) : (
+            <>
+              <div
+                ref={scrollContainerRef}
+                className="flex-1 space-y-2 overflow-y-auto rounded-md border p-3"
+                onScroll={(e) => {
+                  const node = e.currentTarget;
+                  const threshold = 24;
+                  const atBottom =
+                    node.scrollHeight - node.scrollTop - node.clientHeight <= threshold;
+                  setIsAutoScrollEnabled(atBottom);
+                }}
+              >
+                {loadingMessages ? (
+                  <Skeleton className="h-20 w-full" />
+                ) : messages.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">メッセージがありません。</p>
+                ) : (
+                  messages.map((msg, idx) => (
+                    <div
+                      key={`${msg.timestamp ?? 'optimistic'}-${idx}`}
+                      className={cn(
+                        'max-w-[90%] rounded-lg px-3 py-2 text-sm',
+                        msg.role === 'user' && 'ml-auto bg-primary text-primary-foreground',
+                        msg.role === 'assistant' && 'bg-muted',
+                        msg.role === 'tool' && 'border border-dashed bg-background',
+                      )}
+                    >
+                      <div className="mb-1 text-[11px] uppercase text-muted-foreground">
+                        {msg.role}
+                      </div>
+                      {msg.role === 'assistant' ? (
+                        <div className="prose prose-sm dark:prose-invert max-w-none">
+                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        </div>
+                      ) : (
+                        <div className="whitespace-pre-wrap">{msg.content}</div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                <Textarea
+                  aria-label="Chat message"
+                  value={message}
+                  onChange={(e) => {
+                    setMessage(e.target.value);
+                    e.currentTarget.style.height = 'auto';
+                    e.currentTarget.style.height = `${Math.min(e.currentTarget.scrollHeight, 220)}px`;
+                  }}
+                  placeholder="Type a message"
+                  disabled={status === 'submitted' || status === 'streaming'}
+                  rows={1}
+                  className="min-h-[44px] resize-none"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      void submitMessage();
+                    }
+                  }}
+                />
+                {status === 'streaming' ? (
+                  <Button type="button" variant="destructive" onClick={stopStreaming}>
+                    Stop
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => void submitMessage()}
+                    disabled={(status !== 'ready' && status !== 'error') || !message.trim()}
+                  >
+                    {status === 'submitted' ? 'Sending...' : 'Send'}
+                  </Button>
+                )}
+              </div>
+
+              {status === 'error' && (
+                <div className="flex items-center justify-between rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs">
+                  <span>送信に失敗しました。</span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      if (lastUserMessage) {
+                        void submitMessage(lastUserMessage);
+                      }
+                    }}
+                    disabled={!lastUserMessage}
+                  >
+                    Retry
+                  </Button>
                 </div>
-              ))
-            )}
-          </div>
-
-          <div className="flex items-center gap-2 text-xs">
-            <input
-              id="resume-session"
-              type="checkbox"
-              checked={resumeSession}
-              onChange={(e) => setResumeSession(e.target.checked)}
-            />
-            <label htmlFor="resume-session">選択セッションを再開する</label>
-          </div>
-
-          <div className="flex gap-2">
-            <Input
-              aria-label="Chat message"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Type a message"
-              disabled={sending}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  void submitMessage();
-                }
-              }}
-            />
-            <Button onClick={() => void submitMessage()} disabled={sending || !message.trim()}>
-              {sending ? 'Sending...' : 'Send'}
-            </Button>
-          </div>
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
     </div>

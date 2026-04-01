@@ -6,6 +6,8 @@ interface AgentMeta {
   description: string;
   tags: string[];
   home: string;
+  apiServerAvailable: boolean;
+  apiServerPort: number | null;
 }
 
 interface AgentMetaDraft {
@@ -42,6 +44,8 @@ export function useAgentMeta(agentId: string): UseAgentMetaResult {
         description?: string;
         tags?: string[];
         home?: string;
+        apiServerAvailable?: boolean;
+        apiServerPort?: number | null;
       }>;
       const current = agents.find((agent) => agent.agentId === agentId);
       const nextMeta: AgentMeta = {
@@ -49,6 +53,8 @@ export function useAgentMeta(agentId: string): UseAgentMetaResult {
         description: current?.description ?? '',
         tags: current?.tags ?? [],
         home: current?.home ?? '',
+        apiServerAvailable: current?.apiServerAvailable === true,
+        apiServerPort: current?.apiServerPort ?? null,
       };
       setMeta(nextMeta);
       setMetaDraft({
@@ -84,7 +90,12 @@ export function useAgentMeta(agentId: string): UseAgentMetaResult {
       }
 
       const updated = (await res.json()) as { name: string; description: string; tags: string[] };
-      setMeta({ ...updated, home: meta?.home ?? '' });
+      setMeta({
+        ...updated,
+        home: meta?.home ?? '',
+        apiServerAvailable: meta?.apiServerAvailable ?? false,
+        apiServerPort: meta?.apiServerPort ?? null,
+      });
       setMetaDraft({
         name: updated.name,
         description: updated.description,
@@ -96,7 +107,15 @@ export function useAgentMeta(agentId: string): UseAgentMetaResult {
     } finally {
       setMetaSaving(false);
     }
-  }, [agentId, meta?.home, metaDraft.description, metaDraft.name, metaDraft.tagsInput]);
+  }, [
+    agentId,
+    meta?.apiServerAvailable,
+    meta?.apiServerPort,
+    meta?.home,
+    metaDraft.description,
+    metaDraft.name,
+    metaDraft.tagsInput,
+  ]);
 
   return {
     meta,

@@ -98,6 +98,8 @@ const ALPHA: Agent = {
   name: '',
   description: '',
   tags: [],
+  apiServerAvailable: false,
+  apiServerPort: null,
 };
 
 // ---- Tree walk unit tests ----
