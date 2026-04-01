@@ -337,7 +337,7 @@ export function ChatTab({ name }: { name: string }) {
         </CardContent>
       </Card>
 
-      <Card className="flex min-h-[600px] flex-col">
+      <Card className="flex h-[calc(100vh-12rem)] min-h-[400px] flex-col">
         <CardHeader>
           <CardTitle className="text-sm">Chat</CardTitle>
         </CardHeader>

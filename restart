@@ -1,3 +1,0 @@
-#!/bin/bash
-
-rm -rf .next && npm run build && launchctl kickstart -k "gui/$(id -u)/ai.hermes.agents-webapp"
