@@ -6,12 +6,6 @@ import path from 'node:path';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const execFileMock = vi.hoisted(() => vi.fn());
-
-vi.mock('node:child_process', () => ({
-  execFile: execFileMock,
-}));
-
 describe('gateway discovery', () => {
   let tmpDir: string;
 
@@ -45,7 +39,6 @@ describe('gateway discovery', () => {
 
     const { discoverApiServerPort } = await import('../../src/lib/gateway-discovery');
     await expect(discoverApiServerPort(agentHome)).resolves.toBe(18477);
-    expect(execFileMock).not.toHaveBeenCalled();
   });
 
   it('returns true when API_SERVER_ENABLED is set in .env', async () => {

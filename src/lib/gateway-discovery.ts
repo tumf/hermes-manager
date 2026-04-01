@@ -1,11 +1,7 @@
-import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { promisify } from 'node:util';
 
 import * as yaml from 'js-yaml';
-
-const execFileAsync = promisify(execFile);
 
 type PlatformState = {
   state?: string;
@@ -104,19 +100,6 @@ export function isApiServerEnabled(agentHome: string): boolean {
   return false;
 }
 
-function extractPortFromLsof(stdout: string): number | null {
-  const lines = stdout.split('\n');
-  for (const line of lines) {
-    const match = line.match(/:(\d+)\s*\(LISTEN\)/);
-    if (!match) continue;
-    const port = Number(match[1]);
-    if (Number.isInteger(port) && port > 0 && port <= 65535) {
-      return port;
-    }
-  }
-  return null;
-}
-
 export async function discoverApiServerPort(agentHome: string): Promise<number | null> {
   if (!isApiServerEnabled(agentHome)) {
     return null;
@@ -136,19 +119,17 @@ export async function discoverApiServerPort(agentHome: string): Promise<number |
     return state.api_server_port;
   }
 
-  try {
-    // -a flag is required on macOS to AND the -p and -iTCP filters
-    const { stdout } = await execFileAsync('lsof', [
-      '-nP',
-      '-a',
-      '-p',
-      String(state.pid),
-      '-iTCP',
-      '-sTCP:LISTEN',
-    ]);
-
-    return extractPortFromLsof(stdout);
-  } catch {
-    return null;
+  // Fall back to .env API_SERVER_PORT or hermes default (8642)
+  const DEFAULT_API_SERVER_PORT = 8642;
+  const globalsEnvPath = path.resolve(agentHome, '..', '..', 'globals', '.env');
+  const globalEnv = readDotenv(globalsEnvPath);
+  const localEnv = readDotenv(path.join(agentHome, '.env'));
+  const env = { ...globalEnv, ...localEnv };
+  const portStr = env.API_SERVER_PORT;
+  const port = portStr ? Number(portStr) : DEFAULT_API_SERVER_PORT;
+  if (Number.isInteger(port) && port > 0 && port <= 65535) {
+    return port;
   }
+
+  return null;
 }
