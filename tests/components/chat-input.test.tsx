@@ -10,6 +10,18 @@ function mockFetch() {
     .fn()
     .mockImplementation(async (url: string, init?: { method?: string; body?: string }) => {
       const method = init?.method ?? 'GET';
+
+      if (url.includes('/api/agents/alpha') && method === 'GET' && !url.includes('/sessions')) {
+        return {
+          ok: true,
+          json: async () => ({
+            agentId: 'alpha',
+            apiServerAvailable: true,
+            apiServerPort: 19001,
+          }),
+        };
+      }
+
       if (url.includes('/sessions') && !url.includes('/messages') && method === 'GET') {
         return {
           ok: true,
@@ -28,7 +40,19 @@ function mockFetch() {
         return { ok: true, json: async () => [] };
       }
       if (url.includes('/chat') && method === 'POST') {
-        return { ok: true, json: async () => ({ ok: true, stdout: 'ok' }) };
+        const stream = new ReadableStream({
+          start(controller) {
+            controller.enqueue(
+              new TextEncoder().encode('data: {"choices":[{"delta":{"content":"hello"}}]}\\n\\n'),
+            );
+            controller.enqueue(new TextEncoder().encode('data: [DONE]\\n\\n'));
+            controller.close();
+          },
+        });
+        return {
+          ok: true,
+          body: stream,
+        } as Response;
       }
       return { ok: true, json: async () => ({ ok: true }) };
     });
@@ -40,25 +64,24 @@ describe('chat input UI', () => {
     global.fetch = mockFetch() as typeof fetch;
   });
 
-  it('sends message with input and resume toggle', async () => {
+  it('sends message with textarea and enter key', async () => {
     render(<ChatTab name="alpha" />);
 
     await screen.findByText('Session A');
-    fireEvent.change(screen.getByLabelText('Chat message'), { target: { value: 'hello world' } });
-    fireEvent.click(screen.getByLabelText('選択セッションを再開する'));
-    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    const input = screen.getByLabelText('Chat message');
+    fireEvent.change(input, { target: { value: 'hello world' } });
+    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
 
     await waitFor(() => {
       const calls = (global.fetch as ReturnType<typeof mockFetch>).mock.calls;
       const chatCall = calls.find(
-        ([u, init]) =>
+        ([u, reqInit]) =>
           String(u).includes('/chat') &&
-          (init as { method?: string } | undefined)?.method === 'POST',
+          (reqInit as { method?: string } | undefined)?.method === 'POST',
       );
       expect(chatCall).toBeDefined();
       const body = JSON.parse(((chatCall?.[1] as { body?: string }).body as string) ?? '{}');
       expect(body.message).toBe('hello world');
-      expect(body.sessionId).toBeUndefined();
     });
   });
 });

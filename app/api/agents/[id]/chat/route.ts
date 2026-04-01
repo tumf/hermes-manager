@@ -1,19 +1,10 @@
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
-
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { getAgent } from '@/src/lib/agents';
 
-const execFileAsync = promisify(execFile);
-
 const ChatBodySchema = z.object({
   message: z.string().min(1).max(4096),
-  sessionId: z
-    .string()
-    .regex(/^[a-zA-Z0-9_-]+$/)
-    .optional(),
 });
 
 interface RouteContext {
@@ -43,32 +34,40 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: 'agent not found' }, { status: 404 });
   }
 
-  const args = ['chat', '-q', parsed.data.message, '-Q', '--source', 'tool'];
-  if (parsed.data.sessionId) {
-    args.push('--resume', parsed.data.sessionId);
+  if (!agent.apiServerAvailable || !agent.apiServerPort) {
+    return NextResponse.json({ error: 'api_server not available' }, { status: 503 });
   }
 
-  try {
-    const result = await execFileAsync('hermes', args, {
-      env: { ...process.env, HERMES_HOME: agent.home },
-      timeout: 120_000,
-      maxBuffer: 1024 * 1024,
-    });
+  const abortController = new AbortController();
+  request.signal.addEventListener('abort', () => abortController.abort(), { once: true });
 
-    return NextResponse.json({
-      ok: true,
-      stdout: result.stdout,
-      stderr: result.stderr,
-    });
-  } catch (error) {
-    const err = error as Error & { stdout?: string; stderr?: string };
+  const upstream = await fetch(`http://127.0.0.1:${agent.apiServerPort}/v1/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'hermes-agent',
+      stream: true,
+      messages: [{ role: 'user', content: parsed.data.message }],
+    }),
+    signal: abortController.signal,
+  });
+
+  if (!upstream.ok || !upstream.body) {
+    const errorText = await upstream.text().catch(() => 'gateway request failed');
     return NextResponse.json(
-      {
-        error: err.message,
-        stdout: err.stdout ?? '',
-        stderr: err.stderr ?? '',
-      },
-      { status: 500 },
+      { error: errorText || 'gateway request failed' },
+      { status: upstream.status || 502 },
     );
   }
+
+  return new Response(upstream.body, {
+    status: 200,
+    headers: {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+    },
+  });
 }

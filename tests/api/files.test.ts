@@ -40,6 +40,8 @@ const AGENT: Agent = {
   name: '',
   description: '',
   tags: [],
+  apiServerAvailable: false,
+  apiServerPort: null,
 };
 
 describe('GET /api/files', () => {

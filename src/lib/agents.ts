@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import * as yaml from 'js-yaml';
 
+import { discoverApiServerPort, isApiServerEnabled } from './gateway-discovery';
 import { getRuntimeAgentsRootPath } from './runtime-paths';
 
 export interface AgentMeta {
@@ -19,6 +20,8 @@ export interface Agent extends AgentMeta {
   enabled: boolean;
   createdAt: Date;
   updatedAt: Date;
+  apiServerAvailable: boolean;
+  apiServerPort: number | null;
 }
 
 const DEFAULT_AGENT_META: AgentMeta = {
@@ -97,6 +100,7 @@ export async function listAgents(): Promise<Agent[]> {
 
     const config = readConfigYaml(agentHome);
     const meta = readMetaJson(agentHome);
+    const apiServerPort = await discoverApiServerPort(agentHome).catch(() => null);
     agents.push({
       agentId: name,
       home: agentHome,
@@ -104,6 +108,8 @@ export async function listAgents(): Promise<Agent[]> {
       enabled: config.enabled === true,
       createdAt: stat.birthtime,
       updatedAt: stat.mtime,
+      apiServerAvailable: isApiServerEnabled(agentHome) && apiServerPort !== null,
+      apiServerPort,
       ...meta,
     });
   }
@@ -126,6 +132,7 @@ export async function getAgent(agentId: string): Promise<Agent | null> {
 
     const config = readConfigYaml(agentHome);
     const meta = readMetaJson(agentHome);
+    const apiServerPort = await discoverApiServerPort(agentHome).catch(() => null);
     return {
       agentId,
       home: agentHome,
@@ -133,6 +140,8 @@ export async function getAgent(agentId: string): Promise<Agent | null> {
       enabled: config.enabled === true,
       createdAt: stat.birthtime,
       updatedAt: stat.mtime,
+      apiServerAvailable: isApiServerEnabled(agentHome) && apiServerPort !== null,
+      apiServerPort,
       ...meta,
     };
   } catch {
@@ -181,6 +190,7 @@ export async function createAgent(
 
   const stat = await fsp.stat(home);
   const config = readConfigYaml(home);
+  const apiServerPort = await discoverApiServerPort(home).catch(() => null);
   return {
     agentId,
     home,
@@ -188,6 +198,8 @@ export async function createAgent(
     enabled: config.enabled === true,
     createdAt: stat.birthtime,
     updatedAt: stat.mtime,
+    apiServerAvailable: isApiServerEnabled(home) && apiServerPort !== null,
+    apiServerPort,
     ...normalizedMeta,
   };
 }

@@ -27,6 +27,8 @@ vi.mock('@/src/lib/agents', () => ({
       name: '',
       description: '',
       tags: [],
+      apiServerAvailable: false,
+      apiServerPort: null,
     };
     mockState.createdAgent = agent;
     return agent;
@@ -124,6 +126,8 @@ describe('GET /api/agents', () => {
         name: '',
         description: '',
         tags: [],
+        apiServerAvailable: false,
+        apiServerPort: null,
       },
     ];
     const res = await GET();
@@ -195,6 +199,8 @@ describe('DELETE /api/agents', () => {
         name: '',
         description: '',
         tags: [],
+        apiServerAvailable: false,
+        apiServerPort: null,
       },
     ];
 
@@ -230,6 +236,8 @@ describe('DELETE /api/agents', () => {
         name: '',
         description: '',
         tags: [],
+        apiServerAvailable: false,
+        apiServerPort: null,
       },
     ];
 
@@ -262,6 +270,8 @@ describe('PUT /api/agents/[id]/meta', () => {
         name: '',
         description: '',
         tags: [],
+        apiServerAvailable: false,
+        apiServerPort: null,
       },
     ];
 
@@ -308,6 +318,8 @@ describe('POST /api/agents/copy', () => {
         name: '',
         description: '',
         tags: [],
+        apiServerAvailable: false,
+        apiServerPort: null,
       },
     ];
 
@@ -333,6 +345,8 @@ describe('POST /api/agents/copy', () => {
         name: '',
         description: '',
         tags: [],
+        apiServerAvailable: false,
+        apiServerPort: null,
       },
     ];
 
@@ -361,6 +375,8 @@ describe('POST /api/agents/copy', () => {
         name: '',
         description: '',
         tags: [],
+        apiServerAvailable: false,
+        apiServerPort: null,
       },
     ];
 
@@ -390,6 +406,8 @@ describe('POST /api/agents/copy', () => {
         name: 'My Bot',
         description: '',
         tags: ['prod'],
+        apiServerAvailable: false,
+        apiServerPort: null,
       },
     ];
 

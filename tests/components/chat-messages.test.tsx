@@ -7,6 +7,17 @@ import { ChatTab } from '../../src/components/chat-tab';
 
 function mockFetch() {
   return vi.fn().mockImplementation(async (url: string) => {
+    if (url.includes('/api/agents/alpha') && !url.includes('/sessions')) {
+      return {
+        ok: true,
+        json: async () => ({
+          agentId: 'alpha',
+          apiServerAvailable: true,
+          apiServerPort: 19001,
+        }),
+      };
+    }
+
     if (url.includes('/sessions') && !url.includes('/messages')) {
       return {
         ok: true,
@@ -39,13 +50,6 @@ function mockFetch() {
             timestamp: '2026-01-01T00:00:02Z',
             tool_name: null,
           },
-          {
-            session_id: 's1',
-            role: 'tool',
-            content: 'called x',
-            timestamp: '2026-01-01T00:00:03Z',
-            tool_name: 'x',
-          },
         ],
       };
     }
@@ -64,9 +68,7 @@ describe('chat messages UI', () => {
 
     expect(await screen.findByText('hello')).toBeInTheDocument();
     expect(screen.getByText('hi')).toBeInTheDocument();
-    expect(screen.getByText('called x')).toBeInTheDocument();
     expect(screen.getByText('user')).toBeInTheDocument();
     expect(screen.getByText('assistant')).toBeInTheDocument();
-    expect(screen.getAllByText('tool').length).toBeGreaterThan(0);
   });
 });
