@@ -262,8 +262,8 @@ export function ChatTab({ name }: { name: string }) {
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
-      <Card>
+    <div className="grid h-[calc(100dvh-16rem)] gap-4 lg:grid-cols-[320px_1fr]">
+      <Card className="flex flex-col overflow-hidden">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm">Sessions</CardTitle>
@@ -297,7 +297,7 @@ export function ChatTab({ name }: { name: string }) {
             </select>
           </label>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="min-h-0 flex-1 space-y-2 overflow-y-auto">
           {loadingSessions ? (
             <>
               <Skeleton className="h-14 w-full" />
@@ -337,11 +337,11 @@ export function ChatTab({ name }: { name: string }) {
         </CardContent>
       </Card>
 
-      <Card className="flex h-[calc(100vh-12rem)] min-h-[400px] flex-col">
+      <Card className="flex min-h-0 flex-col overflow-hidden">
         <CardHeader>
           <CardTitle className="text-sm">Chat</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-1 flex-col space-y-3">
+        <CardContent className="flex min-h-0 flex-1 flex-col space-y-3">
           {apiServerAvailable === false ? (
             <div className="space-y-2 rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
               <p className="font-medium">
