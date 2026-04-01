@@ -168,6 +168,14 @@ export async function POST(request: Request) {
 
     if (!isServiceMissing(currentStatus)) {
       await runExecFile('launchctl', ['bootout', `gui/${uid}/${label}`]);
+      // Wait for the service to fully stop before re-bootstrapping
+      const stopState = await waitForState('stopped', uid, label);
+      if (stopState.running) {
+        return NextResponse.json(
+          { stdout: '', stderr: 'Timed out waiting for service to stop', code: 1, running: true },
+          { status: 500 },
+        );
+      }
     }
 
     const bootstrapResult = await ensureServiceBootstrapped(agentName, home, label, uid);
@@ -180,6 +188,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ ...result, running: false }, { status: 500 });
     }
     const state = await waitForState('running', uid, label);
+    if (!state.running) {
+      return NextResponse.json(
+        { ...result, running: false, pid: null, timedOut: state.timedOut },
+        { status: 500 },
+      );
+    }
     return NextResponse.json({
       ...result,
       running: state.running,

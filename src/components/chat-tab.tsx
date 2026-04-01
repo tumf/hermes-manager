@@ -1,6 +1,6 @@
 'use client';
 
-import { Bot, MessageSquare, Terminal, Wrench } from 'lucide-react';
+import { Bot, MessageSquare, Plus, Terminal, Wrench } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
@@ -265,7 +265,22 @@ export function ChatTab({ name }: { name: string }) {
     <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Sessions</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm">Sessions</CardTitle>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 gap-1 text-xs"
+              onClick={() => {
+                setSelectedSessionId(null);
+                setMessages([]);
+                setStatus('ready');
+              }}
+            >
+              <Plus className="size-3" />
+              New Chat
+            </Button>
+          </div>
           <label className="text-xs text-muted-foreground">
             Source filter
             <select
@@ -347,7 +362,11 @@ export function ChatTab({ name }: { name: string }) {
                 {loadingMessages ? (
                   <Skeleton className="h-20 w-full" />
                 ) : messages.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">メッセージがありません。</p>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedSessionId
+                      ? 'メッセージがありません。'
+                      : 'メッセージを入力して新しい会話を始めましょう。'}
+                  </p>
                 ) : (
                   messages.map((msg, idx) => (
                     <div
