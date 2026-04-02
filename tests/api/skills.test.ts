@@ -1,4 +1,3 @@
-// @vitest-environment node
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -15,14 +14,17 @@ const mockState = vi.hoisted(() => ({
   createdTargetPath: null as string | null,
   deletedTargetPath: null as string | null,
   deleteMode: 'post' as 'post' | 'delete',
-  linkExists: false,
-  deletedTargetPathOnPost: null as string | null,
   fsEntries: {} as Record<string, { isDirectory: () => boolean; name: string }[]>,
-  fsStat: {} as Record<string, { isDirectory: () => boolean }>,
+  fsStat: {} as Record<string, { isDirectory: () => boolean; isFile?: () => boolean }>,
+  fsReaddirPaths: [] as string[],
   fsLstat: {} as Record<string, boolean>,
   symlinkCalls: [] as { src: string; dest: string }[],
   unlinkCalls: [] as string[],
   mkdirCalls: [] as string[],
+  rmCalls: [] as string[],
+  cpCalls: [] as { from: string; to: string }[],
+  copyError: null as Error | null,
+  existingSource: new Set<string>(),
 }));
 
 // --- mock @/src/lib/agents ---
@@ -31,22 +33,37 @@ vi.mock('@/src/lib/agents', () => ({
 }));
 
 // --- mock @/src/lib/skill-links ---
-vi.mock('@/src/lib/skill-links', () => ({
-  listSkillLinks: vi.fn(async () => mockState.skillLinks),
-  createSkillLink: vi.fn(async (_home: string, _src: string, relPath: string) => {
-    const targetPath = `${mockState.agent?.home}/skills/${relPath}`;
-    mockState.createdTargetPath = targetPath;
-    return targetPath;
-  }),
-  deleteSkillLink: vi.fn(async (_home: string, targetPath: string) => {
-    if (mockState.deleteMode === 'post') {
-      mockState.deletedTargetPathOnPost = targetPath;
-    } else {
+vi.mock('@/src/lib/skill-links', async () => {
+  const actual = await vi.importActual<typeof import('../../src/lib/skill-links')>(
+    '../../src/lib/skill-links',
+  );
+  return {
+    ...actual,
+    createSkillLink: vi.fn(async (_home: string, _sourcePath: string, relativePath: string) => {
+      if (mockState.copyError) {
+        throw mockState.copyError;
+      }
+      const targetPath = `${mockState.agent?.home}/skills/${relativePath}`;
+      if (mockState.existingSource.has(targetPath)) {
+        const error = new Error('target exists') as Error & { code?: string };
+        error.code = 'EEXIST';
+        throw error;
+      }
+      mockState.existingSource.add(targetPath);
+      mockState.createdTargetPath = targetPath;
+      return targetPath;
+    }),
+    deleteSkillLink: vi.fn(async (_home: string, targetPath: string) => {
+      if (mockState.copyError) {
+        throw mockState.copyError;
+      }
       mockState.deletedTargetPath = targetPath;
-    }
-  }),
-  skillLinkExists: vi.fn(async () => mockState.linkExists),
-}));
+      mockState.existingSource.delete(targetPath);
+    }),
+    listSkillLinks: vi.fn(async () => mockState.skillLinks),
+    skillLinkExists: vi.fn(async (targetPath: string) => mockState.existingSource.has(targetPath)),
+  };
+});
 
 // --- mock node:fs ---
 vi.mock('node:fs', () => ({
@@ -61,15 +78,15 @@ vi.mock('node:fs', () => ({
     }),
     lstatSync: vi.fn((p: string) => {
       if (!mockState.fsLstat[p]) throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
-      return { isSymbolicLink: () => true };
+      return { isSymbolicLink: () => false, isDirectory: () => true };
     }),
     accessSync: vi.fn((p: string) => {
-      if (mockState.fsEntries[p] === undefined) {
+      if (mockState.fsEntries[p] === undefined && !mockState.fsStat[p] && !mockState.fsLstat[p]) {
         throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
       }
     }),
     existsSync: vi.fn((p: string) => {
-      return mockState.fsStat[p] !== undefined;
+      return mockState.fsStat[p] !== undefined || mockState.fsLstat[p] !== undefined;
     }),
     symlinkSync: vi.fn((src: string, dest: string) => {
       mockState.symlinkCalls.push({ src, dest });
@@ -81,7 +98,47 @@ vi.mock('node:fs', () => ({
       mockState.mkdirCalls.push(p);
     }),
     rmdirSync: vi.fn(() => {}),
+    readlinkSync: vi.fn(() => '/some/target'),
+    renameSync: vi.fn(() => {}),
   },
+}));
+
+// --- mock node:fs/promises ---
+vi.mock('node:fs/promises', () => ({
+  readdir: vi.fn((dir: string) => {
+    mockState.fsReaddirPaths.push(dir);
+    return Promise.resolve([] as { name: string; isDirectory: () => boolean }[]);
+  }),
+  stat: vi.fn((p: string) => {
+    const stat = mockState.fsStat[p];
+    if (!stat) {
+      return Promise.reject(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
+    }
+    return Promise.resolve(stat);
+  }),
+  lstat: vi.fn((p: string) => {
+    if (!mockState.fsLstat[p])
+      return Promise.reject(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
+    return Promise.resolve({ isDirectory: () => true, isSymbolicLink: () => false });
+  }),
+  mkdir: vi.fn((p: string) => {
+    mockState.mkdirCalls.push(p);
+    return Promise.resolve();
+  }),
+  cp: vi.fn((from: string, to: string) => {
+    mockState.cpCalls.push({ from, to });
+    if (mockState.copyError) {
+      return Promise.reject(mockState.copyError);
+    }
+    return Promise.resolve();
+  }),
+  rm: vi.fn((p: string) => {
+    mockState.deletedTargetPath = p;
+    if (mockState.copyError) {
+      return Promise.reject(mockState.copyError);
+    }
+    return Promise.resolve();
+  }),
 }));
 
 function makeReq(url: string, init?: ConstructorParameters<typeof NextRequest>[1]) {
@@ -230,7 +287,7 @@ describe('GET /api/skills/links', () => {
     mockState.skillLinks = [
       {
         agent: 'alpha',
-        sourcePath: '/home/user/.agents/skills/coding',
+        sourcePath: '/runtime/agents/alpha/skills/coding',
         targetPath: '/runtime/agents/alpha/skills/coding',
         relativePath: 'coding',
         exists: true,
@@ -253,12 +310,12 @@ describe('POST /api/skills/links', () => {
     mockState.skillLinks = [];
     mockState.createdTargetPath = null;
     mockState.deletedTargetPath = null;
-    mockState.deletedTargetPathOnPost = null;
     mockState.deleteMode = 'post';
-    mockState.linkExists = false;
     mockState.fsStat = {};
-    mockState.symlinkCalls = [];
-    mockState.mkdirCalls = [];
+    mockState.fsReaddirPaths = [];
+    mockState.cpCalls = [];
+    mockState.copyError = null;
+    mockState.existingSource = new Set();
   });
 
   it('returns 400 for invalid JSON', async () => {
@@ -284,12 +341,15 @@ describe('POST /api/skills/links', () => {
     expect(res.status).toBe(404);
   });
 
-  it('creates skill link with relative path', async () => {
+  it('creates skill copy with valid path', async () => {
     mockState.agent = ALPHA;
     const home = process.env.HOME || '/home/user';
     const skillsRoot = `${home}/.agents/skills`;
     mockState.fsStat[`${skillsRoot}/coding`] = { isDirectory: () => true };
-    mockState.fsStat[`${skillsRoot}/coding/SKILL.md`] = { isDirectory: () => false };
+    mockState.fsStat[`${skillsRoot}/coding/SKILL.md`] = {
+      isDirectory: () => false,
+      isFile: () => true,
+    };
 
     const res = await POST(
       makeReq('http://localhost/api/skills/links', {
@@ -302,6 +362,7 @@ describe('POST /api/skills/links', () => {
     const body = await res.json();
     expect(body.ok).toBe(true);
     expect(body.relativePath).toBe('coding');
+    expect(mockState.createdTargetPath).toBe('/runtime/agents/alpha/skills/coding');
   });
 
   it('returns 400 when source has no SKILL.md', async () => {
@@ -324,7 +385,6 @@ describe('POST /api/skills/links', () => {
 
   it('returns 409 on duplicate target path', async () => {
     mockState.agent = ALPHA;
-    mockState.linkExists = true;
     mockState.skillLinks = [
       {
         agent: 'alpha',
@@ -334,10 +394,15 @@ describe('POST /api/skills/links', () => {
         exists: true,
       },
     ];
+    mockState.existingSource.add('/runtime/agents/alpha/skills/coding');
+
     const home = process.env.HOME || '/home/user';
     const skillsRoot = `${home}/.agents/skills`;
     mockState.fsStat[`${skillsRoot}/coding`] = { isDirectory: () => true };
-    mockState.fsStat[`${skillsRoot}/coding/SKILL.md`] = { isDirectory: () => false };
+    mockState.fsStat[`${skillsRoot}/coding/SKILL.md`] = {
+      isDirectory: () => false,
+      isFile: () => true,
+    };
 
     const res = await POST(
       makeReq('http://localhost/api/skills/links', {
@@ -349,68 +414,40 @@ describe('POST /api/skills/links', () => {
     expect(res.status).toBe(409);
   });
 
-  it('replaces broken target path before creating link', async () => {
+  it('returns 500 when copy fails', async () => {
     mockState.agent = ALPHA;
-    mockState.linkExists = true;
-    mockState.skillLinks = [
-      {
-        agent: 'alpha',
-        sourcePath: '/nonexistent/path',
-        targetPath: '/runtime/agents/alpha/skills/dogfood',
-        relativePath: 'dogfood',
-        exists: false,
-      },
-    ];
+    mockState.copyError = new Error('failed to copy');
     const home = process.env.HOME || '/home/user';
     const skillsRoot = `${home}/.agents/skills`;
-    mockState.fsStat[`${skillsRoot}/dogfood`] = { isDirectory: () => true };
-    mockState.fsStat[`${skillsRoot}/dogfood/SKILL.md`] = { isDirectory: () => false };
+    mockState.fsStat[`${skillsRoot}/coding`] = { isDirectory: () => true };
+    mockState.fsStat[`${skillsRoot}/coding/SKILL.md`] = {
+      isDirectory: () => false,
+      isFile: () => true,
+    };
 
     const res = await POST(
       makeReq('http://localhost/api/skills/links', {
         method: 'POST',
-        body: JSON.stringify({ agent: 'alpha', relativePath: 'dogfood' }),
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    );
-    expect(res.status).toBe(200);
-    expect(mockState.deletedTargetPathOnPost).toBe('/runtime/agents/alpha/skills/dogfood');
-    expect(mockState.createdTargetPath).toBe('/runtime/agents/alpha/skills/dogfood');
-  });
-
-  it('returns 500 when replacing stale link fails', async () => {
-    mockState.agent = ALPHA;
-    mockState.linkExists = true;
-    mockState.skillLinks = [
-      {
-        agent: 'alpha',
-        sourcePath: '/nonexistent/path',
-        targetPath: '/runtime/agents/alpha/skills/dogfood',
-        relativePath: 'dogfood',
-        exists: false,
-      },
-    ];
-    const home = process.env.HOME || '/home/user';
-    const skillsRoot = `${home}/.agents/skills`;
-    mockState.fsStat[`${skillsRoot}/dogfood`] = { isDirectory: () => true };
-    mockState.fsStat[`${skillsRoot}/dogfood/SKILL.md`] = { isDirectory: () => false };
-
-    const { deleteSkillLink } = await import('@/src/lib/skill-links');
-    vi.mocked(deleteSkillLink).mockRejectedValueOnce(
-      new Error('target path is a non-empty directory'),
-    );
-
-    const res = await POST(
-      makeReq('http://localhost/api/skills/links', {
-        method: 'POST',
-        body: JSON.stringify({ agent: 'alpha', relativePath: 'dogfood' }),
+        body: JSON.stringify({ agent: 'alpha', relativePath: 'coding' }),
         headers: { 'Content-Type': 'application/json' },
       }),
     );
     expect(res.status).toBe(500);
     await expect(res.json()).resolves.toMatchObject({
-      error: expect.stringContaining('target path is a non-empty directory'),
+      error: expect.stringContaining('Failed to copy skill directory'),
     });
+  });
+
+  it('returns 400 on traversal path in relativePath', async () => {
+    mockState.agent = ALPHA;
+    const res = await POST(
+      makeReq('http://localhost/api/skills/links', {
+        method: 'POST',
+        body: JSON.stringify({ agent: 'alpha', relativePath: '../etc/passwd' }),
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    expect(res.status).toBe(400);
   });
 });
 
@@ -422,7 +459,7 @@ describe('DELETE /api/skills/links', () => {
     mockState.agent = null;
     mockState.deletedTargetPath = null;
     mockState.deleteMode = 'delete';
-    mockState.linkExists = false;
+    mockState.existingSource = new Set();
   });
 
   it('returns 400 if agent param missing', async () => {
@@ -449,21 +486,37 @@ describe('DELETE /api/skills/links', () => {
 
   it('returns 404 if link not found', async () => {
     mockState.agent = ALPHA;
-    mockState.linkExists = false;
     const res = await DELETE(
       makeReq('http://localhost/api/skills/links?agent=alpha&path=missing', { method: 'DELETE' }),
     );
     expect(res.status).toBe(404);
   });
 
-  it('removes symlink and returns ok', async () => {
+  it('removes copied skill directory and returns ok', async () => {
     mockState.agent = ALPHA;
-    mockState.linkExists = true;
+    mockState.existingSource.add('/runtime/agents/alpha/skills/coding');
+
     const res = await DELETE(
       makeReq('http://localhost/api/skills/links?agent=alpha&path=coding', { method: 'DELETE' }),
     );
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
     expect(mockState.deletedTargetPath).toBe('/runtime/agents/alpha/skills/coding');
+  });
+
+  it('returns 500 if delete fails', async () => {
+    mockState.agent = ALPHA;
+    mockState.existingSource.add('/runtime/agents/alpha/skills/coding');
+    mockState.copyError = new Error('failed to delete');
+
+    const res = await DELETE(
+      makeReq('http://localhost/api/skills/links?agent=alpha&path=coding', { method: 'DELETE' }),
+    );
+    expect(res.status).toBe(500);
+    await expect(res.json()).resolves.toMatchObject({
+      error: expect.stringContaining('Failed to remove copied skill'),
+    });
+
+    mockState.copyError = null;
   });
 });

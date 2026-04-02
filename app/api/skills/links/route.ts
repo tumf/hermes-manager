@@ -1,4 +1,3 @@
-import fs from 'node:fs';
 import path from 'node:path';
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -10,7 +9,15 @@ import {
   listSkillLinks,
   skillLinkExists,
 } from '@/src/lib/skill-links';
-import { CreateLinkSchema } from '@/src/lib/skills';
+import { CreateLinkSchema, resolveSkillSource } from '@/src/lib/skills';
+
+function isWithinRoot(root: string, candidate: string): boolean {
+  const resolvedRoot = path.resolve(root);
+  const resolvedCandidate = path.resolve(candidate);
+  return (
+    resolvedCandidate === resolvedRoot || resolvedCandidate.startsWith(`${resolvedRoot}${path.sep}`)
+  );
+}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -49,34 +56,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'agent not found' }, { status: 404 });
   }
 
-  // Resolve source and validate it's a skill directory
-  const home = process.env.HOME || process.env.USERPROFILE || '';
-  const skillsRoot = path.join(home, '.agents', 'skills');
-  const sourcePath = path.join(skillsRoot, relativePath);
-
-  // Prevent directory traversal
-  const normalized = path.normalize(sourcePath);
-  const normalizedRoot = path.normalize(skillsRoot);
-  if (!normalized.startsWith(normalizedRoot + path.sep) && normalized !== normalizedRoot) {
-    return NextResponse.json(
-      { error: 'invalid relative path: traversal detected' },
-      { status: 400 },
-    );
-  }
-
-  // Verify source exists and contains SKILL.md
-  let stat: fs.Stats;
-  try {
-    stat = fs.statSync(sourcePath);
-  } catch {
+  const { sourcePath, isValid, hasSKILLMd } = resolveSkillSource(relativePath);
+  if (!isValid) {
     return NextResponse.json({ error: 'source directory not found' }, { status: 400 });
   }
-
-  if (!stat.isDirectory()) {
-    return NextResponse.json({ error: 'source must be a directory' }, { status: 400 });
-  }
-
-  const hasSKILLMd = fs.existsSync(path.join(sourcePath, 'SKILL.md'));
   if (!hasSKILLMd) {
     return NextResponse.json(
       { error: 'source directory does not contain SKILL.md' },
@@ -84,40 +67,30 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const targetPath = path.join(agent.home, 'skills', relativePath);
-  const existingLinks = await listSkillLinks(agentName, agent.home);
-  const existingLink = existingLinks.find((link) => link.relativePath === relativePath);
+  const skillsRoot = path.join(agent.home, 'skills');
+  const targetPath = path.join(skillsRoot, relativePath);
+  if (!isWithinRoot(skillsRoot, targetPath)) {
+    return NextResponse.json(
+      { error: 'invalid relative path: traversal detected' },
+      { status: 400 },
+    );
+  }
 
-  if (existingLink?.exists) {
+  if (await skillLinkExists(targetPath)) {
     return NextResponse.json({ error: 'skill already equipped' }, { status: 409 });
-  }
-
-  const parentParts = relativePath.split('/');
-  for (let i = 1; i <= parentParts.length - 1; i++) {
-    const ancestorPath = parentParts.slice(0, i).join('/');
-    const ancestorLink = existingLinks.find((link) => link.relativePath === ancestorPath);
-    if (ancestorLink?.exists) {
-      return NextResponse.json({ error: 'skill already equipped' }, { status: 409 });
-    }
-  }
-
-  if (existingLink && !existingLink.exists) {
-    try {
-      await deleteSkillLink(agent.home, existingLink.targetPath);
-    } catch (err: unknown) {
-      const e = err as { message: string };
-      return NextResponse.json(
-        { error: `Failed to replace existing skill path: ${e.message}` },
-        { status: 500 },
-      );
-    }
   }
 
   try {
     await createSkillLink(agent.home, sourcePath, relativePath);
   } catch (err: unknown) {
-    const e = err as { message: string };
-    return NextResponse.json({ error: `Failed to create symlink: ${e.message}` }, { status: 500 });
+    const e = err as { code?: string; message?: string };
+    if (e.code === 'EEXIST') {
+      return NextResponse.json({ error: 'skill already equipped' }, { status: 409 });
+    }
+    return NextResponse.json(
+      { error: `Failed to copy skill directory: ${e.message ?? 'unknown error'}` },
+      { status: 500 },
+    );
   }
 
   return NextResponse.json({ ok: true, targetPath, relativePath });
@@ -140,9 +113,15 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'agent not found' }, { status: 404 });
   }
 
-  const targetPath = path.join(agent.home, 'skills', relativePath);
+  const skillsRoot = path.join(agent.home, 'skills');
+  const targetPath = path.join(skillsRoot, relativePath);
+  if (!isWithinRoot(skillsRoot, targetPath)) {
+    return NextResponse.json(
+      { error: 'invalid relative path: traversal detected' },
+      { status: 400 },
+    );
+  }
 
-  // Verify the symlink exists
   if (!(await skillLinkExists(targetPath))) {
     return NextResponse.json({ error: 'not found' }, { status: 404 });
   }
@@ -150,8 +129,11 @@ export async function DELETE(request: NextRequest) {
   try {
     await deleteSkillLink(agent.home, targetPath);
   } catch (err: unknown) {
-    const e = err as { message: string };
-    return NextResponse.json({ error: `Failed to remove symlink: ${e.message}` }, { status: 500 });
+    const e = err as { message?: string };
+    return NextResponse.json(
+      { error: `Failed to remove copied skill: ${e.message ?? 'unknown error'}` },
+      { status: 500 },
+    );
   }
 
   return NextResponse.json({ ok: true });
