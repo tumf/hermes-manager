@@ -14,6 +14,7 @@ import { AgentStatusHeader } from '@/src/components/agent-status-header';
 import { ChatTab } from '@/src/components/chat-tab';
 import { CronTab } from '@/src/components/cron-tab';
 import { SkillsTab } from '@/src/components/skills-tab';
+import { Badge } from '@/src/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/src/components/ui/tabs';
 import { useAgentMeta } from '@/src/hooks/use-agent-meta';
 import { useAgentStatus } from '@/src/hooks/use-agent-status';
@@ -36,9 +37,9 @@ export default function AgentPage({ params }: AgentPageProps) {
 
   const [activeTab, setActiveTab] = useState(() => {
     if (typeof window !== 'undefined' && window.location.hash) {
-      return window.location.hash.slice(1) || 'memory';
+      return window.location.hash.slice(1) || 'metadata';
     }
-    return 'memory';
+    return 'metadata';
   });
 
   useEffect(() => {
@@ -73,10 +74,22 @@ export default function AgentPage({ params }: AgentPageProps) {
               )}
             </h1>
             {status?.label && <p className="text-sm text-muted-foreground">{status.label}</p>}
+            {meta?.description?.trim() && (
+              <p className="mt-1 text-sm text-muted-foreground">{meta.description}</p>
+            )}
+            {meta?.tags?.length ? (
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {meta.tags.map((tag) => (
+                  <Badge key={tag} variant="secondary" className="text-[11px]">
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            ) : null}
             {meta?.home && (
               <button
                 type="button"
-                className="inline-flex items-center gap-1 font-mono text-[9px] text-muted-foreground/60 transition-colors hover:text-foreground"
+                className="mt-2 inline-flex items-center gap-1 font-mono text-[9px] text-muted-foreground/60 transition-colors hover:text-foreground"
                 onClick={() => {
                   void navigator.clipboard.writeText(meta.home);
                   toast.success('Copied HERMES_HOME');
@@ -97,15 +110,6 @@ export default function AgentPage({ params }: AgentPageProps) {
             }}
           />
         </div>
-
-        <AgentMetadataCard
-          metaDraft={metaDraft}
-          metaSaving={metaSaving}
-          onMetaDraftChange={setMetaDraft}
-          onSave={() => {
-            void saveMeta();
-          }}
-        />
       </div>
 
       <Tabs
@@ -116,6 +120,10 @@ export default function AgentPage({ params }: AgentPageProps) {
         }}
       >
         <TabsList className="w-full justify-start">
+          <TabsTrigger value="metadata" className="gap-1.5">
+            <Settings className="size-3.5" />
+            <span className="hidden sm:inline">Metadata</span>
+          </TabsTrigger>
           <TabsTrigger value="memory" className="gap-1.5">
             <FileText className="size-3.5" />
             <span className="hidden sm:inline">Memory</span>
@@ -145,6 +153,17 @@ export default function AgentPage({ params }: AgentPageProps) {
             <span className="hidden sm:inline">Logs</span>
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="metadata">
+          <AgentMetadataCard
+            metaDraft={metaDraft}
+            metaSaving={metaSaving}
+            onMetaDraftChange={setMetaDraft}
+            onSave={() => {
+              void saveMeta();
+            }}
+          />
+        </TabsContent>
 
         <TabsContent value="memory">
           <AgentMemoryTab name={name} />

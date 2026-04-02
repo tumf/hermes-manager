@@ -176,6 +176,7 @@ function createFetchMock() {
 }
 
 beforeEach(async () => {
+  window.history.replaceState(null, '', '/agents/alpha');
   const mod = await import('../../app/agents/[id]/page');
   AgentDetailPage = mod.default;
 });
@@ -291,7 +292,7 @@ describe('Agent detail memory tab', () => {
       expect(toast.error).toHaveBeenCalledWith('launch failed');
     });
   });
-  it('renders required tabs including Env and Skills', async () => {
+  it('renders required tabs including Metadata, Memory, Env and Skills', async () => {
     global.fetch = createFetchMock();
 
     await act(async () => {
@@ -299,17 +300,21 @@ describe('Agent detail memory tab', () => {
     });
 
     await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Metadata' })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: 'Memory' })).toBeInTheDocument();
     });
 
     expect(screen.getByRole('tab', { name: 'Config' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Env' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Skills' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Cron' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Chat' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Logs' })).toBeInTheDocument();
   });
 
-  it('shows single memory file editor (AGENTS.md by default)', async () => {
+  it('shows single memory file editor (AGENTS.md by default) after opening Memory tab', async () => {
     global.fetch = createFetchMock();
+    window.history.replaceState(null, '', '#memory');
 
     await act(async () => {
       renderPage('alpha');
@@ -323,9 +328,10 @@ describe('Agent detail memory tab', () => {
     expect(screen.queryByRole('textbox', { name: 'Edit SOUL.md' })).not.toBeInTheDocument();
   });
 
-  it('loads AGENTS.md file content by default', async () => {
+  it('loads AGENTS.md file content by default after opening Memory tab', async () => {
     const fetchMock = createFetchMock();
     global.fetch = fetchMock;
+    window.history.replaceState(null, '', '#memory');
 
     await act(async () => {
       renderPage('alpha');
@@ -344,6 +350,7 @@ describe('Agent detail memory tab', () => {
   it('blocks switching when dirty and user cancels', async () => {
     const fetchMock = createFetchMock();
     global.fetch = fetchMock;
+    window.history.replaceState(null, '', '#memory');
 
     await act(async () => {
       renderPage('alpha');
@@ -379,6 +386,7 @@ describe('Agent detail memory tab', () => {
   it('saves only currently selected memory file', async () => {
     const fetchMock = createFetchMock();
     global.fetch = fetchMock;
+    window.history.replaceState(null, '', '#memory');
 
     await act(async () => {
       renderPage('alpha');
@@ -449,6 +457,22 @@ describe('Agent detail memory tab', () => {
     });
   });
 
+  it('shows metadata as read-only in header and hides empty fields', async () => {
+    global.fetch = createFetchMock();
+
+    await act(async () => {
+      renderPage('alpha');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /alpha/i })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /alpha/i }).closest('div')).toHaveTextContent(
+        'test agent',
+      );
+      expect(screen.getByText('test')).toBeInTheDocument();
+    });
+  });
+
   it('saves metadata and shows success toast', async () => {
     const fetchMock = createFetchMock();
     global.fetch = fetchMock;
@@ -473,6 +497,10 @@ describe('Agent detail memory tab', () => {
       );
       expect(putMetaCalls.length).toBeGreaterThan(0);
       expect(toast.success).toHaveBeenCalledWith('Agent metadata updated');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Alpha Agent')).toBeInTheDocument();
     });
   });
 });
