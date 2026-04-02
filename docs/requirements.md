@@ -12,7 +12,7 @@
 
 - Agent: Hermes gateway を launchd で常駐させる単位。HERMES_HOME は {PROJECT_ROOT}/runtime/agents/{id}。id はシステムが自動生成する `[0-9a-z]{7}` のランダム文字列。
 - Global Vars: 全エージェント共通で参照する .env 値。runtime/globals/.env に生成され、dotenvx -f で積み上げる。
-- Skill: ~/.agents/skills 以下のスキル（階層ディレクトリ可）。HERMES_HOME/skills へ symlink 管理。スキルディレクトリ内に SKILL.md が存在するもののみ選択可能。
+- Skill: ~/.agents/skills 以下のスキル（階層ディレクトリ可）。HERMES_HOME/skills へディレクトリをコピーして管理。スキルディレクトリ内に SKILL.md が存在するもののみ選択可能。
 - Launchd Label: ai.hermes.gateway.{agent_id}
 
 ## 3. スコープ
@@ -21,7 +21,7 @@
   - エージェント管理: 追加/削除/コピー、launchd install/start/stop/status
   - メモリ/設定ファイルの編集: AGENTS.md, SOUL.md, config.yaml
   - 変数管理: HERMES_HOME/.env CRUD、グローバル変数 CRUD と runtime/globals/.env 再生成
-  - スキル管理: ~/.hermes/skills → {HERMES_HOME}/skills への symlink
+  - スキル管理: ~/.agents/skills から {HERMES_HOME}/skills へのディレクトリコピー/削除
   - ログ閲覧: gateway.log / gateway.error.log / errors.log（tail / SSE）
   - UI: Agents リスト、Agent 詳細（Memory/Config/Env/Logs）、Globals 管理
 - out of scope（当面）:
@@ -43,7 +43,7 @@
 - FR-3 Files API: AGENTS.md / SOUL.md / config.yaml の read/put（YAML 構文検証、原子書き込み）
 - FR-4 Env API: agent .env CRUD、resolved（global+agent マージ）、各変数に `visibility`（plain/secure）を保持し secure は管理表示でマスク
 - FR-5 Globals API: CRUD、`visibility`（plain/secure）を保持、secure は管理表示でマスクしつつ runtime/globals/.env は実値で再生成
-- FR-6 Skills API: skills tree 取得（~/.agents/skills、階層構造、SKILL.md 検出）、symlink 管理（相対パス保持のリンク/解除、DB 記録）
+- FR-6 Skills API: skills tree 取得（~/.agents/skills、階層構造、SKILL.md 検出）、コピー管理（相対パス保持で `{HERMES_HOME}/skills` にディレクトリをコピー/削除、既存コピー検出）
 - FR-7 Logs API: 読み取り（tail）、SSE で追尾
 - FR-8 Cron API: jobs.json CRUD、pause/resume/run action、output ファイル閲覧（GET/POST/PUT/DELETE、原子書き込み）
 - FR-9 UI: Agents 一覧（起動/停止/状態表示/追加/削除/コピー）、詳細タブ UI（Memory/Config/Env/Cron/Logs）、Globals UI

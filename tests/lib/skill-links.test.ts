@@ -26,137 +26,98 @@ afterEach(() => {
 });
 
 describe('listSkillLinks', () => {
-  it('returns empty array when no symlinks exist', async () => {
+  it('returns empty array when no copied skills exist', async () => {
     const links = await listSkillLinks('test-agent', agentHome);
     expect(links).toEqual([]);
   });
 
-  it('returns symlinks with existence status', async () => {
-    // Create a real directory to symlink to
-    const sourceDir = path.join(tmpDir, 'source-skill');
-    fs.mkdirSync(sourceDir);
-    fs.writeFileSync(path.join(sourceDir, 'SKILL.md'), '# Skill\n');
-
-    // Create symlink
+  it('discovers copied skill directories by presence of SKILL.md', async () => {
     const targetPath = path.join(agentHome, 'skills', 'test-skill');
-    fs.symlinkSync(sourceDir, targetPath);
+    fs.mkdirSync(targetPath, { recursive: true });
+    fs.writeFileSync(path.join(targetPath, 'SKILL.md'), '# Skill\n');
 
     const links = await listSkillLinks('test-agent', agentHome);
     expect(links).toHaveLength(1);
-    expect(links[0].sourcePath).toBe(sourceDir);
+    expect(links[0].sourcePath).toBe(targetPath);
     expect(links[0].targetPath).toBe(targetPath);
+    expect(links[0].relativePath).toBe('test-skill');
     expect(links[0].exists).toBe(true);
     expect(links[0].agent).toBe('test-agent');
   });
 
-  it('marks broken symlinks as exists: false', async () => {
-    // Create a symlink pointing to a nonexistent location
-    const targetPath = path.join(agentHome, 'skills', 'broken');
-    fs.symlinkSync('/nonexistent/path', targetPath);
+  it('returns nested copied skill directories with relative paths', async () => {
+    const targetDir = path.join(agentHome, 'skills', 'category', 'my-skill');
+    fs.mkdirSync(targetDir, { recursive: true });
+    fs.writeFileSync(path.join(targetDir, 'SKILL.md'), '# Skill\n');
 
     const links = await listSkillLinks('test-agent', agentHome);
     expect(links).toHaveLength(1);
-    expect(links[0].exists).toBe(false);
+    expect(links[0].relativePath).toBe('category/my-skill');
+    expect(links[0].exists).toBe(true);
   });
 });
 
 describe('createSkillLink', () => {
-  it('creates a symlink at the target path', async () => {
+  it('copies source directory to the target path', async () => {
     const sourceDir = path.join(tmpDir, 'source-skill');
     fs.mkdirSync(sourceDir);
+    fs.writeFileSync(path.join(sourceDir, 'SKILL.md'), '# Skill\n');
 
     const targetPath = await createSkillLink(agentHome, sourceDir, 'category/my-skill');
-    expect(fs.lstatSync(targetPath).isSymbolicLink()).toBe(true);
-    expect(fs.readlinkSync(targetPath)).toBe(sourceDir);
+    expect(fs.existsSync(targetPath)).toBe(true);
+    expect(fs.existsSync(path.join(targetPath, 'SKILL.md'))).toBe(true);
+    expect(path.relative(agentHome, targetPath)).toBe(path.join('skills', 'category', 'my-skill'));
   });
 
-  it('creates a .skill-link inside an existing directory for hybrid skills', async () => {
-    const sourceDir = path.join(tmpDir, 'hybrid-skill');
+  it('creates top-level copy directory when parent does not exist', async () => {
+    const sourceDir = path.join(tmpDir, 'source-skill');
     fs.mkdirSync(sourceDir);
-    fs.mkdirSync(path.join(agentHome, 'skills', 'hybrid-skill'), { recursive: true });
-    fs.writeFileSync(path.join(agentHome, 'skills', 'hybrid-skill', 'child.txt'), 'x');
+    fs.writeFileSync(path.join(sourceDir, 'SKILL.md'), '# Skill\n');
 
-    const targetPath = await createSkillLink(agentHome, sourceDir, 'hybrid-skill');
-    expect(targetPath).toBe(path.join(agentHome, 'skills', 'hybrid-skill', '.skill-link'));
-    expect(fs.lstatSync(targetPath).isSymbolicLink()).toBe(true);
-    expect(fs.readlinkSync(targetPath)).toBe(sourceDir);
+    const targetPath = await createSkillLink(agentHome, sourceDir, 'new-folder/leaf');
+    expect(targetPath).toBe(path.join(agentHome, 'skills', 'new-folder', 'leaf'));
+    expect(fs.existsSync(targetPath)).toBe(true);
+    expect(fs.existsSync(path.join(targetPath, 'SKILL.md'))).toBe(true);
   });
 });
 
 describe('deleteSkillLink', () => {
-  it('removes the symlink and prunes empty parents', async () => {
-    const sourceDir = path.join(tmpDir, 'source-skill');
-    fs.mkdirSync(sourceDir);
-
+  it('removes copied directory and prunes empty parents', async () => {
     const targetPath = path.join(agentHome, 'skills', 'category', 'my-skill');
-    fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-    fs.symlinkSync(sourceDir, targetPath);
-
-    await deleteSkillLink(agentHome, targetPath);
-    expect(fs.existsSync(targetPath)).toBe(false);
-    // Parent 'category' directory should also be removed (empty after symlink removal)
-    expect(fs.existsSync(path.join(agentHome, 'skills', 'category'))).toBe(false);
-  });
-
-  it('removes a hybrid .skill-link and keeps populated directory', async () => {
-    const sourceDir = path.join(tmpDir, 'hybrid-source');
-    fs.mkdirSync(sourceDir);
-    const targetDir = path.join(agentHome, 'skills', 'hybrid-skill');
-    fs.mkdirSync(targetDir, { recursive: true });
-    fs.writeFileSync(path.join(targetDir, 'child.txt'), 'x');
-    fs.symlinkSync(sourceDir, path.join(targetDir, '.skill-link'));
-
-    await deleteSkillLink(agentHome, targetDir);
-    expect(fs.existsSync(path.join(targetDir, '.skill-link'))).toBe(false);
-    expect(fs.existsSync(targetDir)).toBe(true);
-  });
-
-  it('removes an empty non-symlink directory and prunes empty parents', async () => {
-    const targetPath = path.join(agentHome, 'skills', 'category', 'empty-dir');
     fs.mkdirSync(targetPath, { recursive: true });
+    fs.writeFileSync(path.join(targetPath, 'SKILL.md'), '# Skill\n');
 
     await deleteSkillLink(agentHome, targetPath);
     expect(fs.existsSync(targetPath)).toBe(false);
     expect(fs.existsSync(path.join(agentHome, 'skills', 'category'))).toBe(false);
   });
 
-  it('throws for a non-empty directory', async () => {
+  it('removes non-empty copied directory and prunes empty parents', async () => {
     const targetPath = path.join(agentHome, 'skills', 'category', 'non-empty');
     fs.mkdirSync(targetPath, { recursive: true });
-    fs.writeFileSync(path.join(targetPath, 'file.txt'), 'x');
+    fs.writeFileSync(path.join(targetPath, 'SKILL.md'), '# Skill\n');
+    fs.writeFileSync(path.join(targetPath, 'nested.txt'), 'x');
 
-    await expect(deleteSkillLink(agentHome, targetPath)).rejects.toThrow(
-      'target path is a non-empty directory',
-    );
+    await expect(deleteSkillLink(agentHome, targetPath)).resolves.toBeUndefined();
+    expect(fs.existsSync(targetPath)).toBe(false);
+    expect(fs.existsSync(path.join(agentHome, 'skills', 'category'))).toBe(false);
   });
 
-  it('does not error when symlink does not exist', async () => {
+  it('does not error when directory does not exist', async () => {
     const targetPath = path.join(agentHome, 'skills', 'nonexistent');
     await expect(deleteSkillLink(agentHome, targetPath)).resolves.toBeUndefined();
   });
 });
 
 describe('skillLinkExists', () => {
-  it('returns true when symlink exists', async () => {
-    const sourceDir = path.join(tmpDir, 'source');
-    fs.mkdirSync(sourceDir);
+  it('returns true when copied directory exists', async () => {
     const targetPath = path.join(agentHome, 'skills', 'test');
-    fs.symlinkSync(sourceDir, targetPath);
+    fs.mkdirSync(targetPath, { recursive: true });
 
     expect(await skillLinkExists(targetPath)).toBe(true);
   });
 
-  it('returns true when hybrid .skill-link exists', async () => {
-    const sourceDir = path.join(tmpDir, 'hybrid-source');
-    fs.mkdirSync(sourceDir);
-    const targetDir = path.join(agentHome, 'skills', 'hybrid-skill');
-    fs.mkdirSync(targetDir, { recursive: true });
-    fs.symlinkSync(sourceDir, path.join(targetDir, '.skill-link'));
-
-    expect(await skillLinkExists(targetDir)).toBe(true);
-  });
-
-  it('returns false when no file exists', async () => {
+  it('returns false when copied directory missing', async () => {
     expect(await skillLinkExists(path.join(agentHome, 'skills', 'missing'))).toBe(false);
   });
 });

@@ -2,10 +2,6 @@ import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
 
-import { deriveRelativePath } from './skills';
-
-const HYBRID_LINK_NAME = '.skill-link';
-
 export interface SkillLink {
   agent: string;
   sourcePath: string;
@@ -14,196 +10,153 @@ export interface SkillLink {
   exists: boolean;
 }
 
-/**
- * Recursively scan a directory for symlinks and return their paths.
- */
-async function findSymlinks(dir: string): Promise<string[]> {
-  const result: string[] = [];
-  let entries: fs.Dirent[];
+function isWithinRoot(root: string, candidate: string): boolean {
+  const resolvedRoot = path.resolve(root);
+  const resolvedCandidate = path.resolve(candidate);
+  return (
+    resolvedCandidate === resolvedRoot || resolvedCandidate.startsWith(`${resolvedRoot}${path.sep}`)
+  );
+}
+
+async function scanSkillDirectories(
+  dir: string,
+  skillsRoot: string,
+  agentId: string,
+): Promise<SkillLink[]> {
+  let rawEntries: fs.Dirent[] = [];
   try {
-    entries = await fsp.readdir(dir, { withFileTypes: true });
+    rawEntries = (await fsp.readdir(dir, { withFileTypes: true })) as fs.Dirent[];
   } catch {
-    return result;
+    return [];
   }
 
-  for (const entry of entries) {
-    const fullPath = path.join(dir, entry.name);
-    if (entry.isSymbolicLink()) {
-      result.push(fullPath);
+  const links: SkillLink[] = [];
+
+  for (const entry of rawEntries) {
+    const entryName = entry.name.toString();
+    if (entryName.startsWith('.')) {
       continue;
     }
+
     if (!entry.isDirectory()) {
       continue;
     }
 
-    const hybridLinkPath = path.join(fullPath, HYBRID_LINK_NAME);
+    const fullPath = path.join(dir, entryName);
+
+    const skillFilePath = path.join(fullPath, 'SKILL.md');
+    let hasSkill = false;
     try {
-      const hybridStat = await fsp.lstat(hybridLinkPath);
-      if (hybridStat.isSymbolicLink()) {
-        result.push(hybridLinkPath);
-      }
+      const skillFileStat = await fsp.stat(skillFilePath);
+      hasSkill = skillFileStat.isFile();
     } catch {
-      undefined;
+      hasSkill = false;
     }
 
-    const nested = await findSymlinks(fullPath);
-    result.push(...nested.filter((nestedPath) => nestedPath !== hybridLinkPath));
-  }
-  return result;
-}
-
-/**
- * List all skill links for an agent by scanning the skills/ directory for symlinks.
- */
-export async function listSkillLinks(agentId: string, agentHome: string): Promise<SkillLink[]> {
-  const skillsDir = path.join(agentHome, 'skills');
-  const symlinkPaths = await findSymlinks(skillsDir);
-
-  const links: SkillLink[] = [];
-  for (const targetPath of symlinkPaths) {
-    let sourcePath: string;
-    let exists = false;
-    try {
-      sourcePath = await fsp.readlink(targetPath);
-      // Check if the source actually exists
-      try {
-        await fsp.stat(sourcePath);
-        exists = true;
-      } catch {
-        exists = false;
+    if (hasSkill && isWithinRoot(skillsRoot, fullPath)) {
+      const relativePath = path.relative(skillsRoot, fullPath).replace(/\\/g, '/');
+      if (relativePath) {
+        links.push({
+          agent: agentId,
+          sourcePath: fullPath,
+          targetPath: fullPath,
+          relativePath,
+          exists: true,
+        });
       }
-    } catch {
-      continue;
     }
 
-    const derivedRelativePath = deriveRelativePath(sourcePath);
-    const relativePath =
-      derivedRelativePath ||
-      (path.basename(targetPath) === HYBRID_LINK_NAME
-        ? path.relative(skillsDir, path.dirname(targetPath)).replace(/\\/g, '/')
-        : path.basename(sourcePath));
-    links.push({
-      agent: agentId,
-      sourcePath,
-      targetPath,
-      relativePath,
-      exists,
-    });
+    const nested = await scanSkillDirectories(fullPath, skillsRoot, agentId);
+    links.push(...nested);
   }
 
   return links;
 }
 
 /**
- * Create a skill link (symlink) for an agent.
+ * List equipped skills for an agent by scanning copied directories under skills/.
+ */
+export async function listSkillLinks(agentId: string, agentHome: string): Promise<SkillLink[]> {
+  const skillsDir = path.join(agentHome, 'skills');
+  const links = await scanSkillDirectories(skillsDir, skillsDir, agentId);
+  return links.sort((a, b) => a.relativePath.localeCompare(b.relativePath));
+}
+
+/**
+ * Copy a skill directory into an agent's skills directory.
  */
 export async function createSkillLink(
   agentHome: string,
   sourcePath: string,
   relativePath: string,
 ): Promise<string> {
-  const directTargetPath = path.join(agentHome, 'skills', relativePath);
+  const skillsRoot = path.join(agentHome, 'skills');
+  const targetPath = path.join(skillsRoot, relativePath);
 
-  try {
-    const stat = await fsp.lstat(directTargetPath);
-    if (stat.isDirectory() && !stat.isSymbolicLink()) {
-      const hybridTargetPath = path.join(directTargetPath, HYBRID_LINK_NAME);
-      await fsp.mkdir(directTargetPath, { recursive: true });
-      await fsp.symlink(sourcePath, hybridTargetPath);
-      return hybridTargetPath;
-    }
-  } catch {
-    undefined;
+  if (!isWithinRoot(skillsRoot, targetPath)) {
+    throw new Error('target path escapes skills root');
   }
 
-  await fsp.mkdir(path.dirname(directTargetPath), { recursive: true });
+  const sourceStat = await fsp.stat(sourcePath);
+  if (!sourceStat.isDirectory()) {
+    throw new Error('source must be a directory');
+  }
+
+  const sourceSkillPath = path.join(sourcePath, 'SKILL.md');
+  const sourceSkillStat = await fsp.stat(sourceSkillPath);
+  if (!sourceSkillStat.isFile()) {
+    throw new Error('source directory does not contain SKILL.md');
+  }
 
   try {
-    await fsp.symlink(sourcePath, directTargetPath);
+    await fsp.lstat(targetPath);
+    const error = new Error('target already exists') as Error & { code?: string };
+    error.code = 'EEXIST';
+    throw error;
   } catch (err: unknown) {
     const e = err as { code?: string };
-    if (e.code === 'EEXIST') {
-      const stat = await fsp.lstat(directTargetPath);
-      if (stat.isDirectory() && !stat.isSymbolicLink()) {
-        const hybridTargetPath = path.join(directTargetPath, HYBRID_LINK_NAME);
-        await fsp.symlink(sourcePath, hybridTargetPath);
-        return hybridTargetPath;
-      }
+    if (e.code !== 'ENOENT') {
+      throw err;
     }
-    throw err;
   }
-  return directTargetPath;
+
+  await fsp.mkdir(path.dirname(targetPath), { recursive: true });
+  await fsp.cp(sourcePath, targetPath, { recursive: true });
+
+  return targetPath;
 }
 
 /**
- * Delete a skill link (symlink) and prune empty parent directories.
+ * Delete an equipped copied skill directory and prune empty ancestors.
  */
 export async function deleteSkillLink(agentHome: string, targetPath: string): Promise<void> {
-  let removedPath = targetPath;
-  try {
-    const stat = await fsp.lstat(targetPath);
-    if (stat.isDirectory() && !stat.isSymbolicLink()) {
-      const hybridTargetPath = path.join(targetPath, HYBRID_LINK_NAME);
-      try {
-        const hybridStat = await fsp.lstat(hybridTargetPath);
-        if (hybridStat.isSymbolicLink()) {
-          await fsp.unlink(hybridTargetPath);
-          removedPath = hybridTargetPath;
-        } else {
-          throw new Error('target path is a non-empty directory');
-        }
-      } catch (err: unknown) {
-        const e = err as { code?: string };
-        if (e.code === 'ENOENT') {
-          const entries = await fsp.readdir(targetPath);
-          if (entries.length > 0) {
-            throw new Error('target path is a non-empty directory');
-          }
-          await fsp.rmdir(targetPath);
-        } else {
-          throw err;
-        }
-      }
-    } else {
-      await fsp.unlink(targetPath);
-    }
-  } catch (err: unknown) {
-    const e = err as { code?: string };
-    if (e.code !== 'ENOENT') throw err;
+  const skillsRoot = path.join(agentHome, 'skills');
+
+  if (!isWithinRoot(skillsRoot, targetPath)) {
+    throw new Error('target path escapes skills root');
   }
 
-  const skillsRoot = path.join(agentHome, 'skills');
-  let current = path.dirname(removedPath);
+  await fsp.rm(targetPath, { recursive: true, force: true });
 
-  while (current !== skillsRoot && current.startsWith(skillsRoot) && current !== '/') {
-    try {
-      const entries = await fsp.readdir(current);
-      if (entries.length === 0) {
-        await fsp.rmdir(current);
-        current = path.dirname(current);
-      } else {
-        break;
-      }
-    } catch {
+  let current = path.dirname(targetPath);
+  while (current !== skillsRoot && isWithinRoot(skillsRoot, current)) {
+    const entries = await fsp.readdir(current);
+    if (entries.length > 0) {
       break;
     }
+    await fsp.rmdir(current);
+    current = path.dirname(current);
   }
 }
 
 /**
- * Check if a symlink already exists at the target path.
+ * Check whether a copied skill directory exists at target path.
  */
 export async function skillLinkExists(targetPath: string): Promise<boolean> {
   try {
-    await fsp.lstat(targetPath);
-    return true;
+    const stat = await fsp.lstat(targetPath);
+    return stat.isDirectory() && !stat.isSymbolicLink();
   } catch {
-    try {
-      const hybridTargetPath = path.join(targetPath, HYBRID_LINK_NAME);
-      const stat = await fsp.lstat(hybridTargetPath);
-      return stat.isSymbolicLink();
-    } catch {
-      return false;
-    }
+    return false;
   }
 }
