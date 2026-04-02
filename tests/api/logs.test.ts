@@ -145,6 +145,7 @@ describe('GET /api/logs', () => {
       name: '',
       description: '',
       tags: [],
+      apiServerStatus: 'disabled',
       apiServerAvailable: false,
       apiServerPort: null,
     };

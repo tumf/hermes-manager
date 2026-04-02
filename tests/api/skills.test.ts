@@ -155,6 +155,7 @@ const ALPHA: Agent = {
   name: '',
   description: '',
   tags: [],
+  apiServerStatus: 'disabled',
   apiServerAvailable: false,
   apiServerPort: null,
 };

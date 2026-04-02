@@ -12,6 +12,7 @@ function mockFetch() {
         ok: true,
         json: async () => ({
           agentId: 'alpha',
+          apiServerStatus: 'connected',
           apiServerAvailable: true,
           apiServerPort: 19001,
         }),
