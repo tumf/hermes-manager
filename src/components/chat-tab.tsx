@@ -78,6 +78,11 @@ export function ChatTab({ name }: { name: string }) {
   }, [recalcHeight]);
 
   const [collapsedTools, setCollapsedTools] = useState<Set<number>>(new Set());
+
+  const visibleMessages = useMemo(
+    () => messages.filter((msg) => !(msg.role === 'assistant' && !msg.content.trim())),
+    [messages],
+  );
   function toggleToolCollapse(idx: number) {
     setCollapsedTools((prev) => {
       const next = new Set(prev);
@@ -417,14 +422,14 @@ export function ChatTab({ name }: { name: string }) {
               >
                 {loadingMessages ? (
                   <Skeleton className="h-20 w-full" />
-                ) : messages.length === 0 ? (
+                ) : visibleMessages.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
                     {selectedSessionId
                       ? 'メッセージがありません。'
                       : 'メッセージを入力して新しい会話を始めましょう。'}
                   </p>
                 ) : (
-                  messages.map((msg, idx) =>
+                  visibleMessages.map((msg, idx) =>
                     msg.role === 'tool' ? (
                       <button
                         key={`${msg.timestamp ?? 'optimistic'}-${idx}`}
@@ -435,12 +440,12 @@ export function ChatTab({ name }: { name: string }) {
                         <ChevronRight
                           className={cn(
                             'mt-0.5 size-3 shrink-0 transition-transform',
-                            !collapsedTools.has(idx) && 'rotate-90',
+                            collapsedTools.has(idx) && 'rotate-90',
                           )}
                         />
                         <div className="min-w-0 flex-1">
                           <span className="font-mono text-[11px]">{msg.tool_name ?? 'tool'}</span>
-                          {!collapsedTools.has(idx) && (
+                          {collapsedTools.has(idx) && (
                             <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-all text-[11px] leading-tight">
                               {msg.content}
                             </pre>
