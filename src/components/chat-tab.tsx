@@ -28,8 +28,11 @@ type Message = {
   optimistic?: boolean;
 };
 
+type ApiServerStatus = 'disabled' | 'configured-needs-restart' | 'starting' | 'connected' | 'error';
+
 type AgentMeta = {
   agentId: string;
+  apiServerStatus?: ApiServerStatus;
   apiServerAvailable?: boolean;
   apiServerPort?: number | null;
 };
@@ -53,7 +56,7 @@ export function ChatTab({ name }: { name: string }) {
   const [message, setMessage] = useState('');
   const [status, setStatus] = useState<ChatStatus>('ready');
   const [lastUserMessage, setLastUserMessage] = useState<string | null>(null);
-  const [apiServerAvailable, setApiServerAvailable] = useState<boolean | null>(null);
+  const [apiServerStatus, setApiServerStatus] = useState<ApiServerStatus>('disabled');
   const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const streamAbortRef = useRef<AbortController | null>(null);
@@ -97,9 +100,13 @@ export function ChatTab({ name }: { name: string }) {
       const res = await fetch(`/api/agents/${encodeURIComponent(name)}`);
       if (!res.ok) throw new Error('failed to load agent meta');
       const data = (await res.json()) as AgentMeta;
-      setApiServerAvailable(data.apiServerAvailable === true);
+      if (data.apiServerStatus) {
+        setApiServerStatus(data.apiServerStatus);
+        return;
+      }
+      setApiServerStatus(data.apiServerAvailable === true ? 'connected' : 'disabled');
     } catch {
-      setApiServerAvailable(false);
+      setApiServerStatus('error');
     }
   }
 
@@ -376,7 +383,7 @@ export function ChatTab({ name }: { name: string }) {
           <CardTitle className="text-sm">Chat</CardTitle>
         </CardHeader>
         <CardContent className="flex min-h-0 flex-1 flex-col space-y-3">
-          {apiServerAvailable === false ? (
+          {apiServerStatus === 'disabled' ? (
             <div className="space-y-2 rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
               <p className="font-medium">
                 Chat を使うにはエージェントの api_server
@@ -407,7 +414,25 @@ export function ChatTab({ name }: { name: string }) {
                 を参照してください。
               </p>
             </div>
-          ) : (
+          ) : apiServerStatus === 'configured-needs-restart' ? (
+            <div className="space-y-2 rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
+              <p className="font-medium">
+                api_server は有効化されていますが、gateway が未反映です。
+              </p>
+              <p className="text-xs">gateway を再起動して設定を反映してください。</p>
+              <p className="text-xs">推奨: hermes gateway restart</p>
+            </div>
+          ) : apiServerStatus === 'starting' ? (
+            <div className="space-y-2 rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
+              <p className="font-medium">api_server が接続準備中です。</p>
+              <p className="text-xs">少し時間をおいて再読込してください。</p>
+            </div>
+          ) : apiServerStatus === 'error' ? (
+            <div className="space-y-2 rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
+              <p className="font-medium">api_server 状態を取得できませんでした。</p>
+              <p className="text-xs">logs を確認するか、後で再試行してください。</p>
+            </div>
+          ) : apiServerStatus === 'connected' ? (
             <>
               <div
                 ref={scrollContainerRef}
@@ -530,7 +555,7 @@ export function ChatTab({ name }: { name: string }) {
                 </div>
               )}
             </>
-          )}
+          ) : null}
         </CardContent>
       </Card>
     </div>

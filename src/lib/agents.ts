@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import * as yaml from 'js-yaml';
 
-import { discoverApiServerPort, isApiServerEnabled } from './gateway-discovery';
+import { discoverApiServerStatus, type ApiServerStatus } from './gateway-discovery';
 import { getRuntimeAgentsRootPath } from './runtime-paths';
 
 export interface AgentMeta {
@@ -20,6 +20,7 @@ export interface Agent extends AgentMeta {
   enabled: boolean;
   createdAt: Date;
   updatedAt: Date;
+  apiServerStatus: ApiServerStatus;
   apiServerAvailable: boolean;
   apiServerPort: number | null;
 }
@@ -100,7 +101,8 @@ export async function listAgents(): Promise<Agent[]> {
 
     const config = readConfigYaml(agentHome);
     const meta = readMetaJson(agentHome);
-    const apiServerPort = await discoverApiServerPort(agentHome).catch(() => null);
+    const discovery = discoverApiServerStatus(agentHome);
+    const apiServerPort = discovery.port;
     agents.push({
       agentId: name,
       home: agentHome,
@@ -108,7 +110,8 @@ export async function listAgents(): Promise<Agent[]> {
       enabled: config.enabled === true,
       createdAt: stat.birthtime,
       updatedAt: stat.mtime,
-      apiServerAvailable: isApiServerEnabled(agentHome) && apiServerPort !== null,
+      apiServerStatus: discovery.status,
+      apiServerAvailable: discovery.status === 'connected' && apiServerPort !== null,
       apiServerPort,
       ...meta,
     });
@@ -132,7 +135,8 @@ export async function getAgent(agentId: string): Promise<Agent | null> {
 
     const config = readConfigYaml(agentHome);
     const meta = readMetaJson(agentHome);
-    const apiServerPort = await discoverApiServerPort(agentHome).catch(() => null);
+    const discovery = discoverApiServerStatus(agentHome);
+    const apiServerPort = discovery.port;
     return {
       agentId,
       home: agentHome,
@@ -140,7 +144,8 @@ export async function getAgent(agentId: string): Promise<Agent | null> {
       enabled: config.enabled === true,
       createdAt: stat.birthtime,
       updatedAt: stat.mtime,
-      apiServerAvailable: isApiServerEnabled(agentHome) && apiServerPort !== null,
+      apiServerStatus: discovery.status,
+      apiServerAvailable: discovery.status === 'connected' && apiServerPort !== null,
       apiServerPort,
       ...meta,
     };
@@ -190,7 +195,8 @@ export async function createAgent(
 
   const stat = await fsp.stat(home);
   const config = readConfigYaml(home);
-  const apiServerPort = await discoverApiServerPort(home).catch(() => null);
+  const discovery = discoverApiServerStatus(home);
+  const apiServerPort = discovery.port;
   return {
     agentId,
     home,
@@ -198,7 +204,8 @@ export async function createAgent(
     enabled: config.enabled === true,
     createdAt: stat.birthtime,
     updatedAt: stat.mtime,
-    apiServerAvailable: isApiServerEnabled(home) && apiServerPort !== null,
+    apiServerStatus: discovery.status,
+    apiServerAvailable: discovery.status === 'connected' && apiServerPort !== null,
     apiServerPort,
     ...normalizedMeta,
   };

@@ -47,7 +47,16 @@ const fileContents: Record<string, string> = {
   'config.yaml': 'name: alpha\n',
 };
 
-function createFetchMock() {
+function createFetchMock(
+  apiServerStatus:
+    | 'disabled'
+    | 'configured-needs-restart'
+    | 'starting'
+    | 'connected'
+    | 'error' = 'connected',
+) {
+  const apiServerAvailable = apiServerStatus === 'connected';
+
   return vi
     .fn()
     .mockImplementation(async (url: string, init?: { method?: string; body?: string }) => {
@@ -59,6 +68,30 @@ function createFetchMock() {
           return { ok: true, json: async () => ({ running: false }) };
         }
         return { ok: true, json: async () => ({}) };
+      }
+
+      if (url.includes('/api/agents/alpha') && method === 'GET' && !url.includes('/sessions')) {
+        return {
+          ok: true,
+          json: async () => ({
+            agentId: 'alpha',
+            apiServerStatus,
+            apiServerAvailable,
+            apiServerPort: apiServerAvailable ? 19001 : null,
+          }),
+        };
+      }
+
+      if (url.includes('/sessions') && !url.includes('/messages') && method === 'GET') {
+        return { ok: true, json: async () => [] };
+      }
+
+      if (url.includes('/messages') && method === 'GET') {
+        return { ok: true, json: async () => [] };
+      }
+
+      if (url.includes('/chat') && method === 'POST') {
+        return { ok: false, json: async () => ({ error: 'api_server not available' }) };
       }
 
       if (url.startsWith('/api/files?') && method === 'GET') {
@@ -470,6 +503,32 @@ describe('Agent detail memory tab', () => {
         'test agent',
       );
       expect(screen.getByText('test')).toBeInTheDocument();
+    });
+  });
+
+  it('Chat タブで configured-needs-restart ガイダンスを表示する', async () => {
+    global.fetch = createFetchMock('configured-needs-restart');
+    window.history.replaceState(null, '', '#chat');
+
+    await act(async () => {
+      renderPage('alpha');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/gateway を再起動/)).toBeInTheDocument();
+    });
+  });
+
+  it('Chat タブで starting ガイダンスを表示する', async () => {
+    global.fetch = createFetchMock('starting');
+    window.history.replaceState(null, '', '#chat');
+
+    await act(async () => {
+      renderPage('alpha');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/接続準備中/)).toBeInTheDocument();
     });
   });
 

@@ -34,8 +34,22 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: 'agent not found' }, { status: 404 });
   }
 
-  if (!agent.apiServerAvailable || !agent.apiServerPort) {
-    return NextResponse.json({ error: 'api_server not available' }, { status: 503 });
+  if (agent.apiServerStatus !== 'connected' || !agent.apiServerPort) {
+    const statusReason: Record<string, string> = {
+      disabled: 'api_server is disabled',
+      'configured-needs-restart': 'api_server is configured but gateway restart is required',
+      starting: 'api_server is starting and not connected yet',
+      connected: 'api_server port is unavailable',
+      error: 'api_server status could not be determined',
+    };
+    return NextResponse.json(
+      {
+        error: 'api_server not available',
+        apiServerStatus: agent.apiServerStatus,
+        reason: statusReason[agent.apiServerStatus] ?? 'api_server is unavailable',
+      },
+      { status: 503 },
+    );
   }
 
   const abortController = new AbortController();

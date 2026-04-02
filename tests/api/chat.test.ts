@@ -4,10 +4,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mockState = vi.hoisted(() => ({
   agent: {
     home: '/runtime/agents/alpha',
+    apiServerStatus: 'connected',
     apiServerAvailable: true,
     apiServerPort: 19001,
   } as {
     home: string;
+    apiServerStatus: 'disabled' | 'configured-needs-restart' | 'starting' | 'connected' | 'error';
     apiServerAvailable: boolean;
     apiServerPort: number | null;
   } | null,
@@ -24,6 +26,7 @@ describe('POST /api/agents/[id]/chat', () => {
     vi.clearAllMocks();
     mockState.agent = {
       home: '/runtime/agents/alpha',
+      apiServerStatus: 'connected',
       apiServerAvailable: true,
       apiServerPort: 19001,
     };
@@ -53,6 +56,7 @@ describe('POST /api/agents/[id]/chat', () => {
   it('returns 503 when api_server unavailable', async () => {
     mockState.agent = {
       home: '/runtime/agents/alpha',
+      apiServerStatus: 'configured-needs-restart',
       apiServerAvailable: false,
       apiServerPort: null,
     };
@@ -64,7 +68,11 @@ describe('POST /api/agents/[id]/chat', () => {
 
     const res = await POST(req as never, { params: Promise.resolve({ id: 'alpha' }) });
     expect(res.status).toBe(503);
-    await expect(res.json()).resolves.toEqual({ error: 'api_server not available' });
+    await expect(res.json()).resolves.toEqual({
+      error: 'api_server not available',
+      apiServerStatus: 'configured-needs-restart',
+      reason: 'api_server is configured but gateway restart is required',
+    });
   });
 
   it('proxies stream response', async () => {
