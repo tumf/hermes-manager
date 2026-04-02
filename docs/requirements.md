@@ -89,4 +89,4 @@
 - / Agents 一覧（Add Agent ダイアログにテンプレート選択を含む）
 - /globals グローバル変数
 - /templates テンプレート管理（fileType 別グループ、追加/編集/削除）
-- /agents/[id] Memory / Config / Env / Skills / Cron / Logs タブ（Save as Template ボタン付き）
+- /agents/[id] Metadata / Memory / Config / Env / Skills / Cron / Chat / Logs タブ（Save as Template ボタン付き）
