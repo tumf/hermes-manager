@@ -8,15 +8,9 @@ test.describe('Skills Tab - Tree Navigation', () => {
     await page.getByRole('tab', { name: 'Skills' }).click();
     // Skills コンテンツが読み込まれるまで待機
     // スキルリストを含むカードが表示されるまで
-    await page
-      .waitForSelector('text=~/.agents/skills|No skills available', { timeout: 5000 })
-      .catch(() => {
-        // フォールバック: チェックボックスが出るまで待つ
-        return page.waitForSelector('input[type="checkbox"]', { timeout: 2000 }).catch(() => {
-          // その場合はスケルトン表示中の可能性
-          return new Promise((resolve) => setTimeout(resolve, 1000));
-        });
-      });
+    await expect(
+      page.getByText('No skills available in ~/.agents/skills').or(page.getByRole('tree')),
+    ).toBeVisible({ timeout: 7000 });
   });
 
   test('should not expand skill directories', async ({ page }) => {
@@ -58,12 +52,11 @@ test.describe('Skills Tab - Tree Navigation', () => {
     // スキルディレクトリを展開しようとしても子が表示されない
     // dogfood のように SKILL.md を持ちながら子フォルダがあるケースを確認
 
-    const skillTreeNodes = await page.locator('text=dogfood').all();
-    if (skillTreeNodes.length > 0) {
-      // dogfood の行で展開ボタンがないことを確認
-      const nodeRow = skillTreeNodes[0].locator('xpath=ancestor::div[@class]').first();
-      const expandBtn = await nodeRow.locator('button').count();
-      expect(expandBtn).toBe(0); // no expand button for skill dir
+    const dogfoodLabels = page.getByText('dogfood', { exact: true });
+    if ((await dogfoodLabels.count()) > 0) {
+      await expect(page.getByRole('button', { name: /^(Expand|Collapse) dogfood$/ })).toHaveCount(
+        0,
+      );
     }
   });
 

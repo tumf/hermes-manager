@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DELETE, GET as GET_LINKS, POST } from '../../app/api/skills/links/route';
 import { GET as GET_TREE } from '../../app/api/skills/tree/route';
@@ -159,6 +159,17 @@ const ALPHA: Agent = {
   apiServerAvailable: false,
   apiServerPort: null,
 };
+
+const TEST_HOME = '/test-home';
+const TEST_SKILLS_ROOT = `${TEST_HOME}/.agents/skills`;
+
+beforeEach(() => {
+  vi.stubEnv('HOME', TEST_HOME);
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 // ---- Tree walk unit tests ----
 
@@ -344,10 +355,8 @@ describe('POST /api/skills/links', () => {
 
   it('creates skill copy with valid path', async () => {
     mockState.agent = ALPHA;
-    const home = process.env.HOME || '/home/user';
-    const skillsRoot = `${home}/.agents/skills`;
-    mockState.fsStat[`${skillsRoot}/coding`] = { isDirectory: () => true };
-    mockState.fsStat[`${skillsRoot}/coding/SKILL.md`] = {
+    mockState.fsStat[`${TEST_SKILLS_ROOT}/coding`] = { isDirectory: () => true };
+    mockState.fsStat[`${TEST_SKILLS_ROOT}/coding/SKILL.md`] = {
       isDirectory: () => false,
       isFile: () => true,
     };
@@ -368,9 +377,7 @@ describe('POST /api/skills/links', () => {
 
   it('returns 400 when source has no SKILL.md', async () => {
     mockState.agent = ALPHA;
-    const home = process.env.HOME || '/home/user';
-    const skillsRoot = `${home}/.agents/skills`;
-    mockState.fsStat[`${skillsRoot}/category`] = { isDirectory: () => true };
+    mockState.fsStat[`${TEST_SKILLS_ROOT}/category`] = { isDirectory: () => true };
 
     const res = await POST(
       makeReq('http://localhost/api/skills/links', {
@@ -397,10 +404,8 @@ describe('POST /api/skills/links', () => {
     ];
     mockState.existingSource.add('/runtime/agents/alpha/skills/coding');
 
-    const home = process.env.HOME || '/home/user';
-    const skillsRoot = `${home}/.agents/skills`;
-    mockState.fsStat[`${skillsRoot}/coding`] = { isDirectory: () => true };
-    mockState.fsStat[`${skillsRoot}/coding/SKILL.md`] = {
+    mockState.fsStat[`${TEST_SKILLS_ROOT}/coding`] = { isDirectory: () => true };
+    mockState.fsStat[`${TEST_SKILLS_ROOT}/coding/SKILL.md`] = {
       isDirectory: () => false,
       isFile: () => true,
     };
@@ -418,10 +423,8 @@ describe('POST /api/skills/links', () => {
   it('returns 500 when copy fails', async () => {
     mockState.agent = ALPHA;
     mockState.copyError = new Error('failed to copy');
-    const home = process.env.HOME || '/home/user';
-    const skillsRoot = `${home}/.agents/skills`;
-    mockState.fsStat[`${skillsRoot}/coding`] = { isDirectory: () => true };
-    mockState.fsStat[`${skillsRoot}/coding/SKILL.md`] = {
+    mockState.fsStat[`${TEST_SKILLS_ROOT}/coding`] = { isDirectory: () => true };
+    mockState.fsStat[`${TEST_SKILLS_ROOT}/coding/SKILL.md`] = {
       isDirectory: () => false,
       isFile: () => true,
     };
