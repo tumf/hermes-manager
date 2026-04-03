@@ -48,11 +48,18 @@ PORT=18470 npm run start
 ```bash
 npm run dev
 npm run test
+npm run test:e2e
 npm run typecheck
 npm run lint
 npm run format:check
 npm run build
 ```
+
+## Test Suite Boundaries
+
+- `npm run test` (Vitest): unit/component/integration-style tests under `tests/api`, `tests/components`, `tests/hooks`, `tests/lib`, `tests/ui`.
+- `npm run test:e2e` (Playwright): browser E2E tests under `tests/e2e`.
+- Playwright tests require a pre-running app server (`npm run dev` or equivalent) because `playwright.config.ts` does not auto-start `webServer`.
 
 ## Directory Structure
 
@@ -63,7 +70,9 @@ hermes-agents/
 ├── src/lib/                # Filesystem/Env/SkillLink helpers
 ├── docs/                   # Requirements & design docs
 ├── openspec/changes/       # Conflux change proposals
-├── tests/                  # Vitest tests
+├── tests/
+│   ├── api|components|hooks|lib|ui/  # Vitest unit/component/integration-style tests
+│   └── e2e/                         # Playwright browser E2E tests (requires running app server)
 ├── runtime/                # Runtime data (agents/globals/logs)
 └── AGENTS.md               # Developer guide (must-read)
 ```
