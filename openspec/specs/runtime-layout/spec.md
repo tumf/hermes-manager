@@ -9,7 +9,7 @@ The system MUST store generated operational data under `{PROJECT_ROOT}/runtime/`
 **Given** the application is configured with the default runtime root
 **When** a client creates a new agent
 **Then** the server creates `{PROJECT_ROOT}/runtime/agents/<agentId>`
-**And** writes `MEMORY.md`, `USER.md`, `SOUL.md`, `config.yaml`, `.env`, and `logs/` inside that directory
+**And** writes `SOUL.md`, `memories/MEMORY.md`, `memories/USER.md`, `config.yaml`, `.env`, and `logs/` inside that directory
 
 #### Scenario: globals env file uses runtime/globals
 

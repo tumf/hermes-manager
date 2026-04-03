@@ -20,7 +20,7 @@ Then the response is 200 and JSON array items contain agentId, name, description
 Given a JSON body with optional templates/meta fields
 When a client posts to /api/agents
 Then the server generates a unique agent ID
-And creates `{PROJECT_ROOT}/runtime/agents/<agentId>` with MEMORY.md, USER.md, SOUL.md, config.yaml, .env, and logs/
+And creates `{PROJECT_ROOT}/runtime/agents/<agentId>` with SOUL.md, memories/MEMORY.md, memories/USER.md, config.yaml, .env, and logs/
 And responds 201 with the created agent payload
 
 #### Scenario: create agent tolerates empty body

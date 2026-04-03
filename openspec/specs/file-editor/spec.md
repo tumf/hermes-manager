@@ -5,9 +5,9 @@
 Provide server-side endpoints to read and update agent memory and configuration files within the agent's home directory.
 
 - Endpoints:
-  - GET /api/files?agent=...&path=MEMORY.md|USER.md|SOUL.md|config.yaml
+  - GET /api/files?agent=...&path=SOUL.md|memories/MEMORY.md|memories/USER.md|config.yaml
   - PUT /api/files
-- Allowed paths: restricted to MEMORY.md, USER.md, SOUL.md, config.yaml (validated via zod enum)
+- Allowed paths: restricted to SOUL.md, memories/MEMORY.md, memories/USER.md, config.yaml (validated via zod enum)
 - YAML validation: For config.yaml, validate syntax with js-yaml; on error respond HTTP 422
 - Atomic writes: Write to .tmp and then rename to target path
 - Path traversal protection: Resolved path must remain within the agent home dir

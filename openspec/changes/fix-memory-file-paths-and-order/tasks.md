@@ -14,3 +14,8 @@
 ## Future Work
 
 - 既存 agent の `AGENTS.md` 実ファイルの棚卸しと安全な削除方針を別 proposal で決める
+
+## Acceptance #1 Failure Follow-up
+
+- [x] `openspec/specs/file-editor/spec.md` を `SOUL.md`, `memories/MEMORY.md`, `memories/USER.md`, `config.yaml` の許可パス仕様に更新し、旧ルート直下 `MEMORY.md` / `USER.md` 記述を 제거する
+- [x] `openspec/specs/runtime-layout/spec.md` と `openspec/specs/agents/spec.md` の scaffold 仕様を `memories/MEMORY.md` / `memories/USER.md` を含む実際の構成へ同期する
