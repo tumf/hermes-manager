@@ -47,11 +47,11 @@ export function AddAgentDialog({ templates, onOpen, onCreated }: AddAgentDialogP
   const [tags, setTags] = useState('');
 
   const memoryMdTemplates = useMemo(
-    () => templates.filter((template) => template.files.includes('MEMORY.md')),
+    () => templates.filter((template) => template.files.includes('memories/MEMORY.md')),
     [templates],
   );
   const userMdTemplates = useMemo(
-    () => templates.filter((template) => template.files.includes('USER.md')),
+    () => templates.filter((template) => template.files.includes('memories/USER.md')),
     [templates],
   );
   const soulMdTemplates = useMemo(
@@ -164,14 +164,14 @@ export function AddAgentDialog({ templates, onOpen, onCreated }: AddAgentDialogP
               placeholder="prod, monitor"
             />
             <TemplateSelect
-              label="MEMORY.md Template"
+              label="memories/MEMORY.md Template"
               id="tpl-memory-md"
               value={templateMemoryMd}
               onValueChange={setTemplateMemoryMd}
               templates={memoryMdTemplates}
             />
             <TemplateSelect
-              label="USER.md Template"
+              label="memories/USER.md Template"
               id="tpl-user-md"
               value={templateUserMd}
               onValueChange={setTemplateUserMd}

@@ -3,14 +3,14 @@ import path from 'node:path';
 
 import { getRuntimeTemplatesRootPath } from './runtime-paths';
 
-const ALLOWED_FILES = ['MEMORY.md', 'USER.md', 'SOUL.md', 'config.yaml'] as const;
+const ALLOWED_FILES = ['SOUL.md', 'memories/MEMORY.md', 'memories/USER.md', 'config.yaml'] as const;
 type TemplateFile = (typeof ALLOWED_FILES)[number];
 
 // Hardcoded fallback content for agent scaffolding when no template file exists
 const FALLBACK_CONTENT: Record<TemplateFile, (id: string) => string> = {
-  'MEMORY.md': (id: string) => `# Memory: ${id}\n`,
-  'USER.md': (id: string) => `# User: ${id}\n`,
   'SOUL.md': (id: string) => `# Soul: ${id}\n`,
+  'memories/MEMORY.md': (id: string) => `# Memory: ${id}\n`,
+  'memories/USER.md': (id: string) => `# User: ${id}\n`,
   'config.yaml': (id: string) => `name: ${id}\n`,
 };
 
@@ -44,10 +44,7 @@ export function listTemplates(): TemplateListEntry[] {
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
     const dirPath = path.join(root, entry.name);
-    const files = fs
-      .readdirSync(dirPath)
-      .filter((f) => ALLOWED_FILES.includes(f as TemplateFile))
-      .sort();
+    const files = ALLOWED_FILES.filter((file) => fs.existsSync(path.join(dirPath, file))).sort();
     result.push({ name: entry.name, files });
   }
 
@@ -93,7 +90,7 @@ export function writeTemplateFile(
     throw new Error('Invalid path');
   }
 
-  fs.mkdirSync(dirPath, { recursive: true });
+  fs.mkdirSync(path.dirname(resolved), { recursive: true });
   fs.writeFileSync(resolved, content, 'utf-8');
   return { name, file, content };
 }
