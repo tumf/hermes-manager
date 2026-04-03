@@ -69,6 +69,24 @@ describe('GET /api/files', () => {
     expect(res.status).toBe(400);
   });
 
+  it('returns file content for MEMORY.md path', async () => {
+    mockState.agent = AGENT;
+    vi.mocked(fs.readFile).mockResolvedValue('# Memory\n' as never);
+
+    const req = makeReq('http://localhost/api/files?agent=alpha&path=MEMORY.md');
+    const res = await GET(req);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.content).toBe('# Memory\n');
+  });
+
+  it('rejects AGENTS.md path', async () => {
+    mockState.agent = AGENT;
+    const req = makeReq('http://localhost/api/files?agent=alpha&path=AGENTS.md');
+    const res = await GET(req);
+    expect(res.status).toBe(400);
+  });
+
   it('returns 404 when agent not found', async () => {
     mockState.agent = null;
     const req = makeReq('http://localhost/api/files?agent=ghost&path=SOUL.md');
@@ -112,6 +130,42 @@ describe('PUT /api/files', () => {
       '/runtime/agents/alpha/SOUL.md.tmp',
       '/runtime/agents/alpha/SOUL.md',
     );
+  });
+
+  it('writes MEMORY.md atomically and returns ok', async () => {
+    mockState.agent = AGENT;
+
+    const req = makeReq('http://localhost/api/files', {
+      method: 'PUT',
+      body: JSON.stringify({ agent: 'alpha', path: 'MEMORY.md', content: '# Memory\n' }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const res = await PUT(req);
+    expect(res.status).toBe(200);
+
+    expect(vi.mocked(fs.writeFile)).toHaveBeenCalledWith(
+      '/runtime/agents/alpha/MEMORY.md.tmp',
+      '# Memory\n',
+      'utf-8',
+    );
+    expect(vi.mocked(fs.rename)).toHaveBeenCalledWith(
+      '/runtime/agents/alpha/MEMORY.md.tmp',
+      '/runtime/agents/alpha/MEMORY.md',
+    );
+  });
+
+  it('rejects AGENTS.md on PUT', async () => {
+    mockState.agent = AGENT;
+
+    const req = makeReq('http://localhost/api/files', {
+      method: 'PUT',
+      body: JSON.stringify({ agent: 'alpha', path: 'AGENTS.md', content: 'legacy' }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const res = await PUT(req);
+    expect(res.status).toBe(400);
   });
 
   it('returns 422 for invalid YAML in config.yaml', async () => {

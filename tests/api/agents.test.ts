@@ -70,7 +70,8 @@ vi.mock('node:child_process', () => ({
 vi.mock('@/src/lib/templates', () => ({
   resolveTemplateContent: vi.fn((fileName: string, agentId: string) => {
     const fallbacks: Record<string, (id: string) => string> = {
-      'AGENTS.md': (id: string) => `# ${id}\n`,
+      'MEMORY.md': (id: string) => `# Memory: ${id}\n`,
+      'USER.md': (id: string) => `# User: ${id}\n`,
       'SOUL.md': (id: string) => `# Soul: ${id}\n`,
       'config.yaml': (id: string) => `name: ${id}\n`,
     };
@@ -159,7 +160,12 @@ describe('POST /api/agents', () => {
     const req = makeReq('http://localhost/api/agents', {
       method: 'POST',
       body: JSON.stringify({
-        templates: { agentsMd: 'telegram-bot', soulMd: 'default', configYaml: 'custom' },
+        templates: {
+          memoryMd: 'telegram-bot',
+          userMd: 'default',
+          soulMd: 'default',
+          configYaml: 'custom',
+        },
       }),
       headers: { 'Content-Type': 'application/json' },
     });

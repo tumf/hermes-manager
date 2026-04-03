@@ -173,12 +173,13 @@ export async function agentExists(agentId: string): Promise<boolean> {
  */
 export async function createAgent(
   agentId: string,
-  files: { agentsMd: string; soulMd: string; configYaml: string },
+  files: { memoryMd: string; userMd: string; soulMd: string; configYaml: string },
   meta: Partial<AgentMeta> = {},
 ): Promise<Agent> {
   const home = getRuntimeAgentsRootPath(agentId);
   await fsp.mkdir(path.join(home, 'logs'), { recursive: true });
-  await fsp.writeFile(path.join(home, 'AGENTS.md'), files.agentsMd);
+  await fsp.writeFile(path.join(home, 'MEMORY.md'), files.memoryMd);
+  await fsp.writeFile(path.join(home, 'USER.md'), files.userMd);
   await fsp.writeFile(path.join(home, 'SOUL.md'), files.soulMd);
   await fsp.writeFile(path.join(home, 'config.yaml'), files.configYaml);
   await fsp.writeFile(path.join(home, '.env'), '');

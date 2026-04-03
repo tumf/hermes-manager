@@ -20,7 +20,8 @@ Agent creation no longer requires a user-supplied name. The system auto-generate
 
 **Given**: A new agent is created with id "x9k2m7p"
 **When**: The filesystem is scaffolded
-**Then**: The directory `runtime/agents/x9k2m7p/` is created containing `AGENTS.md`, `SOUL.md`, `config.yaml`, `.env`, and `logs/`
+**Then**: The directory `runtime/agents/x9k2m7p/` is created containing `MEMORY.md`, `USER.md`, `SOUL.md`, `config.yaml`, `.env`, and `logs/`
+**And**: `AGENTS.md` is not created by the scaffold step
 
 ### Requirement: agent copy without destination name
 

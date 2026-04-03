@@ -30,9 +30,14 @@ export function getRuntimeTemplatesRootPath(...segments: string[]): string {
 }
 
 // Hardcoded default template content — used when runtime/templates/default/ files are missing
-const DEFAULT_AGENTS_MD = `# {id}
+const DEFAULT_MEMORY_MD = `# Memory: {id}
 
-This file contains agent instructions.
+Store stable memory and long-term context here.
+`;
+
+const DEFAULT_USER_MD = `# User: {id}
+
+Store user profile, preferences, and constraints here.
 `;
 
 const DEFAULT_SOUL_MD = `# Soul
@@ -44,7 +49,8 @@ const DEFAULT_CONFIG_YAML = `name: default
 `;
 
 const DEFAULT_TEMPLATE_FILES: Record<string, string> = {
-  'AGENTS.md': DEFAULT_AGENTS_MD,
+  'MEMORY.md': DEFAULT_MEMORY_MD,
+  'USER.md': DEFAULT_USER_MD,
   'SOUL.md': DEFAULT_SOUL_MD,
   'config.yaml': DEFAULT_CONFIG_YAML,
 };

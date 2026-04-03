@@ -1,6 +1,6 @@
 # Hermes Agents WebApp 要件定義
 
-最終更新: 2026-03-29
+最終更新: 2026-04-03
 
 ## 1. 背景/目的
 
@@ -19,7 +19,7 @@
 
 - in scope:
   - エージェント管理: 追加/削除/コピー、launchd install/start/stop/status
-  - メモリ/設定ファイルの編集: AGENTS.md, SOUL.md, config.yaml
+  - メモリ/設定ファイルの編集: MEMORY.md, USER.md, SOUL.md, config.yaml
   - 変数管理: HERMES_HOME/.env CRUD、グローバル変数 CRUD と runtime/globals/.env 再生成
   - スキル管理: ~/.agents/skills から {HERMES_HOME}/skills へのディレクトリコピー/削除
   - ログ閲覧: gateway.log / gateway.error.log / errors.log（tail / SSE）
@@ -31,7 +31,7 @@
 ## 4. ユースケース
 
 - UC1: 新しいエージェントを作成し、設定→起動して Telegram 経由で応答させる
-- UC2: 稼働中のエージェントのメモリを編集（AGENTS.md/SOUL.md）→動作確認
+- UC2: 稼働中のエージェントのメモリを編集（MEMORY.md/USER.md/SOUL.md）→動作確認
 - UC3: .env の変更（モデル/キー差し替え）→再起動
 - UC4: スキルをリンク/解除して機能を拡張
 - UC5: エラー発生時にログを追跡
@@ -40,7 +40,7 @@
 
 - FR-1 Agents API: GET/POST/DELETE/copy（id 自動生成 `[0-9a-z]{7}`、標準ファイル作成、DB 登録、POST はボディ不要）
 - FR-2 Launchd API: install/uninstall/start/stop/status（child_process.execFile、stdout/err/code返却）
-- FR-3 Files API: AGENTS.md / SOUL.md / config.yaml の read/put（YAML 構文検証、原子書き込み）
+- FR-3 Files API: MEMORY.md / USER.md / SOUL.md / config.yaml の read/put（YAML 構文検証、原子書き込み）
 - FR-4 Env API: agent .env CRUD、resolved（global+agent マージ）、各変数に `visibility`（plain/secure）を保持し secure は管理表示でマスク
 - FR-5 Globals API: CRUD、`visibility`（plain/secure）を保持、secure は管理表示でマスクしつつ runtime/globals/.env は実値で再生成
 - FR-6 Skills API: skills tree 取得（~/.agents/skills、階層構造、SKILL.md 検出）、コピー管理（相対パス保持で `{HERMES_HOME}/skills` にディレクトリをコピー/削除、既存コピー検出）
@@ -73,7 +73,7 @@
 ## 9. 制約/前提
 
 - Node >= 20, macOS launchd 環境、dotenvx インストール済
-- HERMES_HOME 構造: runtime/agents/{id}/{AGENTS.md, SOUL.md, config.yaml, .env, logs/}
+- HERMES_HOME 構造: runtime/agents/{id}/{MEMORY.md, USER.md, SOUL.md, config.yaml, .env, logs/}
 
 ## 10. 受け入れ基準（抜粋）
 

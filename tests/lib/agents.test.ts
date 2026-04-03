@@ -95,14 +95,16 @@ describe('createAgent', () => {
     await fsp.mkdir(path.join(tmpDir, 'runtime', 'agents'), { recursive: true });
     const { createAgent } = await import('../../src/lib/agents');
     const agent = await createAgent('new-agent', {
-      agentsMd: '# New Agent\n',
+      memoryMd: '# Memory\n',
+      userMd: '# User\n',
       soulMd: '# Soul\n',
       configYaml: 'name: default\n',
     });
 
     expect(agent.agentId).toBe('new-agent');
     const home = agent.home;
-    expect(fs.existsSync(path.join(home, 'AGENTS.md'))).toBe(true);
+    expect(fs.existsSync(path.join(home, 'MEMORY.md'))).toBe(true);
+    expect(fs.existsSync(path.join(home, 'USER.md'))).toBe(true);
     expect(fs.existsSync(path.join(home, 'SOUL.md'))).toBe(true);
     expect(fs.existsSync(path.join(home, 'config.yaml'))).toBe(true);
     expect(fs.existsSync(path.join(home, '.env'))).toBe(true);
