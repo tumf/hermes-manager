@@ -17,6 +17,11 @@ vi.mock('../../src/lib/runtime-paths', () => ({
 
 import { DELETE, GET, POST, PUT } from '../../app/api/templates/route';
 
+function writeFixture(filePath: string, content: string): void {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, content);
+}
+
 function makeReq(url: string, init?: ConstructorParameters<typeof NextRequest>[1]) {
   return new NextRequest(url, init);
 }
@@ -42,35 +47,37 @@ describe('GET /api/templates', () => {
   it('lists all templates with files', async () => {
     const defaultDir = path.join(tempDir, 'templates', 'default');
     fs.mkdirSync(defaultDir, { recursive: true });
-    fs.writeFileSync(path.join(defaultDir, 'MEMORY.md'), '# Default\n');
-    fs.writeFileSync(path.join(defaultDir, 'USER.md'), '# User\n');
-    fs.writeFileSync(path.join(defaultDir, 'config.yaml'), 'name: default\n');
+    writeFixture(path.join(defaultDir, 'memories/MEMORY.md'), '# Default\n');
+    writeFixture(path.join(defaultDir, 'memories/USER.md'), '# User\n');
+    writeFixture(path.join(defaultDir, 'config.yaml'), 'name: default\n');
 
     const req = makeReq('http://localhost/api/templates');
     const res = await GET(req);
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body).toEqual([{ name: 'default', files: ['MEMORY.md', 'USER.md', 'config.yaml'] }]);
+    expect(body).toEqual([
+      { name: 'default', files: ['config.yaml', 'memories/MEMORY.md', 'memories/USER.md'] },
+    ]);
   });
 
   it('returns specific template file content', async () => {
     const defaultDir = path.join(tempDir, 'templates', 'default');
     fs.mkdirSync(defaultDir, { recursive: true });
-    fs.writeFileSync(path.join(defaultDir, 'MEMORY.md'), '# Agent Instructions\n');
+    writeFixture(path.join(defaultDir, 'memories/MEMORY.md'), '# Agent Instructions\n');
 
-    const req = makeReq('http://localhost/api/templates?name=default&file=MEMORY.md');
+    const req = makeReq('http://localhost/api/templates?name=default&file=memories/MEMORY.md');
     const res = await GET(req);
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toEqual({
       name: 'default',
-      file: 'MEMORY.md',
+      file: 'memories/MEMORY.md',
       content: '# Agent Instructions\n',
     });
   });
 
   it('returns 404 for non-existent template file', async () => {
-    const req = makeReq('http://localhost/api/templates?name=ghost&file=MEMORY.md');
+    const req = makeReq('http://localhost/api/templates?name=ghost&file=memories/MEMORY.md');
     const res = await GET(req);
     expect(res.status).toBe(404);
   });
@@ -82,7 +89,7 @@ describe('GET /api/templates', () => {
   });
 
   it('returns 400 for invalid template name', async () => {
-    const req = makeReq('http://localhost/api/templates?name=../evil&file=MEMORY.md');
+    const req = makeReq('http://localhost/api/templates?name=../evil&file=memories/MEMORY.md');
     const res = await GET(req);
     expect(res.status).toBe(400);
   });
@@ -126,12 +133,12 @@ describe('POST /api/templates', () => {
   it('returns 409 when file already exists', async () => {
     const dir = path.join(tempDir, 'templates', 'default');
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, 'MEMORY.md'), '# Default\n');
+    writeFixture(path.join(dir, 'memories/MEMORY.md'), '# Default\n');
 
     const req = makeReq('http://localhost/api/templates', {
       method: 'POST',
       body: JSON.stringify({
-        file: 'MEMORY.md',
+        file: 'memories/MEMORY.md',
         name: 'default',
         content: '# New content',
       }),
@@ -161,7 +168,7 @@ describe('POST /api/templates', () => {
     const req = makeReq('http://localhost/api/templates', {
       method: 'POST',
       body: JSON.stringify({
-        file: 'MEMORY.md',
+        file: 'memories/MEMORY.md',
         name: 'bad name!',
         content: 'test',
       }),
@@ -197,12 +204,12 @@ describe('PUT /api/templates', () => {
   it('updates existing template file', async () => {
     const dir = path.join(tempDir, 'templates', 'default');
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, 'MEMORY.md'), '# Old\n');
+    writeFixture(path.join(dir, 'memories/MEMORY.md'), '# Old\n');
 
     const req = makeReq('http://localhost/api/templates', {
       method: 'PUT',
       body: JSON.stringify({
-        file: 'MEMORY.md',
+        file: 'memories/MEMORY.md',
         name: 'default',
         content: '# Updated\n',
       }),
@@ -219,7 +226,7 @@ describe('PUT /api/templates', () => {
     const req = makeReq('http://localhost/api/templates', {
       method: 'PUT',
       body: JSON.stringify({
-        file: 'MEMORY.md',
+        file: 'memories/MEMORY.md',
         name: 'nonexistent',
         content: 'test',
       }),
@@ -244,7 +251,7 @@ describe('DELETE /api/templates', () => {
   it('deletes a single template file and returns ok', async () => {
     const dir = path.join(tempDir, 'templates', 'test-tpl');
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, 'SOUL.md'), '# Soul');
+    writeFixture(path.join(dir, 'SOUL.md'), '# Soul');
 
     const req = makeReq('http://localhost/api/templates?name=test-tpl&file=SOUL.md', {
       method: 'DELETE',
@@ -258,8 +265,8 @@ describe('DELETE /api/templates', () => {
   it('deletes entire template directory', async () => {
     const dir = path.join(tempDir, 'templates', 'old-template');
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, 'MEMORY.md'), '# Old');
-    fs.writeFileSync(path.join(dir, 'config.yaml'), 'name: old');
+    writeFixture(path.join(dir, 'memories/MEMORY.md'), '# Old');
+    writeFixture(path.join(dir, 'config.yaml'), 'name: old');
 
     const req = makeReq('http://localhost/api/templates?name=old-template', {
       method: 'DELETE',
@@ -286,7 +293,7 @@ describe('DELETE /api/templates', () => {
   });
 
   it('returns 404 when template file not found', async () => {
-    const req = makeReq('http://localhost/api/templates?name=ghost&file=MEMORY.md', {
+    const req = makeReq('http://localhost/api/templates?name=ghost&file=memories/MEMORY.md', {
       method: 'DELETE',
     });
     const res = await DELETE(req);

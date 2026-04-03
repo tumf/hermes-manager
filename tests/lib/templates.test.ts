@@ -25,6 +25,11 @@ import {
   writeTemplateFile,
 } from '../../src/lib/templates';
 
+function writeFixture(filePath: string, content: string): void {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, content);
+}
+
 describe('templates lib', () => {
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-templates-test-'));
@@ -52,8 +57,8 @@ describe('templates lib', () => {
 
   describe('isValidFileName', () => {
     it('accepts allowed file names', () => {
-      expect(isValidFileName('MEMORY.md')).toBe(true);
-      expect(isValidFileName('USER.md')).toBe(true);
+      expect(isValidFileName('memories/MEMORY.md')).toBe(true);
+      expect(isValidFileName('memories/USER.md')).toBe(true);
       expect(isValidFileName('SOUL.md')).toBe(true);
       expect(isValidFileName('config.yaml')).toBe(true);
     });
@@ -72,22 +77,22 @@ describe('templates lib', () => {
     it('lists templates with their files', () => {
       const defaultDir = path.join(tempDir, 'templates', 'default');
       fs.mkdirSync(defaultDir, { recursive: true });
-      fs.writeFileSync(path.join(defaultDir, 'MEMORY.md'), '# Agent');
-      fs.writeFileSync(path.join(defaultDir, 'config.yaml'), 'name: test');
+      writeFixture(path.join(defaultDir, 'memories/MEMORY.md'), '# Agent');
+      writeFixture(path.join(defaultDir, 'config.yaml'), 'name: test');
 
       const botDir = path.join(tempDir, 'templates', 'telegram-bot');
       fs.mkdirSync(botDir, { recursive: true });
-      fs.writeFileSync(path.join(botDir, 'MEMORY.md'), '# Bot');
+      writeFixture(path.join(botDir, 'memories/MEMORY.md'), '# Bot');
 
       const result = listTemplates();
       expect(result).toEqual([
-        { name: 'default', files: ['MEMORY.md', 'config.yaml'] },
-        { name: 'telegram-bot', files: ['MEMORY.md'] },
+        { name: 'default', files: ['config.yaml', 'memories/MEMORY.md'] },
+        { name: 'telegram-bot', files: ['memories/MEMORY.md'] },
       ]);
     });
 
     it('ignores non-directory entries', () => {
-      fs.writeFileSync(path.join(tempDir, 'templates', 'stray-file.txt'), 'junk');
+      writeFixture(path.join(tempDir, 'templates', 'stray-file.txt'), 'junk');
       expect(listTemplates()).toEqual([]);
     });
   });
@@ -96,18 +101,18 @@ describe('templates lib', () => {
     it('returns file content when file exists', () => {
       const dir = path.join(tempDir, 'templates', 'default');
       fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(path.join(dir, 'MEMORY.md'), '# Test Content');
+      writeFixture(path.join(dir, 'memories/MEMORY.md'), '# Test Content');
 
-      const result = getTemplateFile('default', 'MEMORY.md');
+      const result = getTemplateFile('default', 'memories/MEMORY.md');
       expect(result).toEqual({
         name: 'default',
-        file: 'MEMORY.md',
+        file: 'memories/MEMORY.md',
         content: '# Test Content',
       });
     });
 
     it('returns null when file does not exist', () => {
-      expect(getTemplateFile('nonexistent', 'MEMORY.md')).toBeNull();
+      expect(getTemplateFile('nonexistent', 'memories/MEMORY.md')).toBeNull();
     });
   });
 
@@ -128,10 +133,10 @@ describe('templates lib', () => {
     it('overwrites existing file', () => {
       const dir = path.join(tempDir, 'templates', 'default');
       fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(path.join(dir, 'MEMORY.md'), '# Old');
+      writeFixture(path.join(dir, 'memories/MEMORY.md'), '# Old');
 
-      writeTemplateFile('default', 'MEMORY.md', '# Updated');
-      expect(fs.readFileSync(path.join(dir, 'MEMORY.md'), 'utf-8')).toBe('# Updated');
+      writeTemplateFile('default', 'memories/MEMORY.md', '# Updated');
+      expect(fs.readFileSync(path.join(dir, 'memories/MEMORY.md'), 'utf-8')).toBe('# Updated');
     });
   });
 
@@ -139,17 +144,17 @@ describe('templates lib', () => {
     it('deletes a single file', () => {
       const dir = path.join(tempDir, 'templates', 'test');
       fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(path.join(dir, 'MEMORY.md'), '# Test');
-      fs.writeFileSync(path.join(dir, 'config.yaml'), 'name: test');
+      writeFixture(path.join(dir, 'memories/MEMORY.md'), '# Test');
+      writeFixture(path.join(dir, 'config.yaml'), 'name: test');
 
-      expect(deleteTemplateFile('test', 'MEMORY.md')).toBe(true);
-      expect(fs.existsSync(path.join(dir, 'MEMORY.md'))).toBe(false);
+      expect(deleteTemplateFile('test', 'memories/MEMORY.md')).toBe(true);
+      expect(fs.existsSync(path.join(dir, 'memories/MEMORY.md'))).toBe(false);
       // Directory and other files remain
       expect(fs.existsSync(path.join(dir, 'config.yaml'))).toBe(true);
     });
 
     it('returns false when file does not exist', () => {
-      expect(deleteTemplateFile('nonexistent', 'MEMORY.md')).toBe(false);
+      expect(deleteTemplateFile('nonexistent', 'memories/MEMORY.md')).toBe(false);
     });
   });
 
@@ -157,8 +162,8 @@ describe('templates lib', () => {
     it('deletes entire directory', () => {
       const dir = path.join(tempDir, 'templates', 'old-template');
       fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(path.join(dir, 'MEMORY.md'), '# Old');
-      fs.writeFileSync(path.join(dir, 'config.yaml'), 'name: old');
+      writeFixture(path.join(dir, 'memories/MEMORY.md'), '# Old');
+      writeFixture(path.join(dir, 'config.yaml'), 'name: old');
 
       expect(deleteTemplate('old-template')).toBe(true);
       expect(fs.existsSync(dir)).toBe(false);
@@ -173,22 +178,26 @@ describe('templates lib', () => {
     it('resolves from specified template', () => {
       const dir = path.join(tempDir, 'templates', 'custom');
       fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(path.join(dir, 'MEMORY.md'), '# Custom Agent');
+      writeFixture(path.join(dir, 'memories/MEMORY.md'), '# Custom Agent');
 
-      expect(resolveTemplateContent('MEMORY.md', 'test-id', 'custom')).toBe('# Custom Agent');
+      expect(resolveTemplateContent('memories/MEMORY.md', 'test-id', 'custom')).toBe(
+        '# Custom Agent',
+      );
     });
 
     it('falls back to default when specified template missing', () => {
       const dir = path.join(tempDir, 'templates', 'default');
       fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(path.join(dir, 'MEMORY.md'), '# Default Agent');
+      writeFixture(path.join(dir, 'memories/MEMORY.md'), '# Default Agent');
 
-      expect(resolveTemplateContent('MEMORY.md', 'test-id', 'nonexistent')).toBe('# Default Agent');
+      expect(resolveTemplateContent('memories/MEMORY.md', 'test-id', 'nonexistent')).toBe(
+        '# Default Agent',
+      );
     });
 
     it('falls back to hardcoded content when no templates exist', () => {
-      expect(resolveTemplateContent('MEMORY.md', 'abc1234')).toBe('# Memory: abc1234\n');
-      expect(resolveTemplateContent('USER.md', 'abc1234')).toBe('# User: abc1234\n');
+      expect(resolveTemplateContent('memories/MEMORY.md', 'abc1234')).toBe('# Memory: abc1234\n');
+      expect(resolveTemplateContent('memories/USER.md', 'abc1234')).toBe('# User: abc1234\n');
       expect(resolveTemplateContent('SOUL.md', 'abc1234')).toBe('# Soul: abc1234\n');
       expect(resolveTemplateContent('config.yaml', 'abc1234')).toBe('name: abc1234\n');
     });
@@ -196,7 +205,7 @@ describe('templates lib', () => {
     it('uses default template when no template name specified', () => {
       const dir = path.join(tempDir, 'templates', 'default');
       fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(path.join(dir, 'SOUL.md'), '# Default Soul');
+      writeFixture(path.join(dir, 'SOUL.md'), '# Default Soul');
 
       expect(resolveTemplateContent('SOUL.md', 'test-id')).toBe('# Default Soul');
     });

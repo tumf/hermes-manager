@@ -70,8 +70,8 @@ vi.mock('node:child_process', () => ({
 vi.mock('@/src/lib/templates', () => ({
   resolveTemplateContent: vi.fn((fileName: string, agentId: string) => {
     const fallbacks: Record<string, (id: string) => string> = {
-      'MEMORY.md': (id: string) => `# Memory: ${id}\n`,
-      'USER.md': (id: string) => `# User: ${id}\n`,
+      'memories/MEMORY.md': (id: string) => `# Memory: ${id}\n`,
+      'memories/USER.md': (id: string) => `# User: ${id}\n`,
       'SOUL.md': (id: string) => `# Soul: ${id}\n`,
       'config.yaml': (id: string) => `name: ${id}\n`,
     };

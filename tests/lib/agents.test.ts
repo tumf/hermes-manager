@@ -103,8 +103,8 @@ describe('createAgent', () => {
 
     expect(agent.agentId).toBe('new-agent');
     const home = agent.home;
-    expect(fs.existsSync(path.join(home, 'MEMORY.md'))).toBe(true);
-    expect(fs.existsSync(path.join(home, 'USER.md'))).toBe(true);
+    expect(fs.existsSync(path.join(home, 'memories', 'MEMORY.md'))).toBe(true);
+    expect(fs.existsSync(path.join(home, 'memories', 'USER.md'))).toBe(true);
     expect(fs.existsSync(path.join(home, 'SOUL.md'))).toBe(true);
     expect(fs.existsSync(path.join(home, 'config.yaml'))).toBe(true);
     expect(fs.existsSync(path.join(home, '.env'))).toBe(true);

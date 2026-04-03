@@ -15,8 +15,8 @@ export type AgentDetailFixtureOptions = {
 };
 
 const fileContents: Record<string, string> = {
-  'MEMORY.md': '# Memory file\n',
-  'USER.md': '# User file\n',
+  'memories/MEMORY.md': '# Memory file\n',
+  'memories/USER.md': '# User file\n',
   'SOUL.md': '# Soul file\n',
   'config.yaml': 'name: alpha\n',
 };
