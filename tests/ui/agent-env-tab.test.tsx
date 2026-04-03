@@ -5,32 +5,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom';
 
 import { AgentEnvTab } from '../../src/components/agent-env-tab';
+import { buildGetEnvRoute, buildPostEnvRoute, createEnvState } from '../helpers/env-helpers';
+import { createFetchRouter } from '../helpers/fetch-router';
 
 function mockFetch() {
-  return vi.fn().mockImplementation(async (url: string, init?: { method?: string }) => {
-    const method = init?.method ?? 'GET';
-
-    if (url === '/api/env?agent=alpha' && method === 'GET') {
-      return {
-        ok: true,
-        json: async () => [
-          { key: 'API_KEY', value: '***', masked: true, visibility: 'secure' },
-          {
-            key: 'BASE_URL',
-            value: 'https://example.com',
-            masked: false,
-            visibility: 'plain',
-          },
-        ],
-      };
-    }
-
-    if (url === '/api/env' && method === 'POST') {
-      return { ok: true, json: async () => ({ ok: true }) };
-    }
-
-    return { ok: true, json: async () => ({}) };
-  });
+  const state = createEnvState();
+  return createFetchRouter([buildGetEnvRoute('alpha', state), buildPostEnvRoute()]);
 }
 
 afterEach(() => {
