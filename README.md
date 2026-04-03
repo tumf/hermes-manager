@@ -59,6 +59,7 @@ npm run build
 
 - `npm run test` (Vitest): unit/component/integration-style tests under `tests/api`, `tests/components`, `tests/hooks`, `tests/lib`, `tests/ui`.
 - `npm run test:e2e` (Playwright): browser E2E tests under `tests/e2e`.
+- Current status: there are no committed Playwright specs in `tests/e2e` yet, so `npm run test:e2e` currently verifies runner wiring only (`--pass-with-no-tests`) instead of active E2E coverage.
 - Playwright tests require a pre-running app server (`npm run dev` or equivalent) because `playwright.config.ts` does not auto-start `webServer`.
 
 ## Directory Structure

@@ -58,6 +58,7 @@ npm run build
 
 - `npm run test` (Vitest): `tests/api`、`tests/components`、`tests/hooks`、`tests/lib`、`tests/ui` 配下のユニット/コンポーネント/統合寄りテスト。
 - `npm run test:e2e` (Playwright): `tests/e2e` 配下のブラウザE2Eテスト。
+- 現在、`tests/e2e` にはコミット済みの Playwright テストが存在しないため、`npm run test:e2e` は現状 `--pass-with-no-tests` のため実行パスの確認のみを行います。
 - Playwrightテストは事前にアプリを起動済みであることが前提（`npm run dev` など）。
 
 ## ディレクトリ構成（概要）
