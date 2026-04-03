@@ -73,7 +73,7 @@ describe('GET /api/files', () => {
     mockState.agent = AGENT;
     vi.mocked(fs.readFile).mockResolvedValue('# Memory\n' as never);
 
-    const req = makeReq('http://localhost/api/files?agent=alpha&path=MEMORY.md');
+    const req = makeReq('http://localhost/api/files?agent=alpha&path=memories/MEMORY.md');
     const res = await GET(req);
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -137,7 +137,7 @@ describe('PUT /api/files', () => {
 
     const req = makeReq('http://localhost/api/files', {
       method: 'PUT',
-      body: JSON.stringify({ agent: 'alpha', path: 'MEMORY.md', content: '# Memory\n' }),
+      body: JSON.stringify({ agent: 'alpha', path: 'memories/MEMORY.md', content: '# Memory\n' }),
       headers: { 'Content-Type': 'application/json' },
     });
 
@@ -145,13 +145,13 @@ describe('PUT /api/files', () => {
     expect(res.status).toBe(200);
 
     expect(vi.mocked(fs.writeFile)).toHaveBeenCalledWith(
-      '/runtime/agents/alpha/MEMORY.md.tmp',
+      '/runtime/agents/alpha/memories/MEMORY.md.tmp',
       '# Memory\n',
       'utf-8',
     );
     expect(vi.mocked(fs.rename)).toHaveBeenCalledWith(
-      '/runtime/agents/alpha/MEMORY.md.tmp',
-      '/runtime/agents/alpha/MEMORY.md',
+      '/runtime/agents/alpha/memories/MEMORY.md.tmp',
+      '/runtime/agents/alpha/memories/MEMORY.md',
     );
   });
 

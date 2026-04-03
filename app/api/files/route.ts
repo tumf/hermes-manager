@@ -7,7 +7,12 @@ import { z } from 'zod';
 
 import { getAgent } from '@/src/lib/agents';
 
-const AllowedPathEnum = z.enum(['MEMORY.md', 'USER.md', 'SOUL.md', 'config.yaml']);
+const AllowedPathEnum = z.enum([
+  'SOUL.md',
+  'memories/MEMORY.md',
+  'memories/USER.md',
+  'config.yaml',
+]);
 
 const GetQuerySchema = z.object({
   agent: z.string().min(1),

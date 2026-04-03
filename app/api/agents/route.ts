@@ -63,8 +63,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const memoryMdContent = resolveTemplateContent('MEMORY.md', agentId, templateNames?.memoryMd);
-  const userMdContent = resolveTemplateContent('USER.md', agentId, templateNames?.userMd);
+  const memoryMdContent = resolveTemplateContent(
+    'memories/MEMORY.md',
+    agentId,
+    templateNames?.memoryMd,
+  );
+  const userMdContent = resolveTemplateContent('memories/USER.md', agentId, templateNames?.userMd);
   const soulMdContent = resolveTemplateContent('SOUL.md', agentId, templateNames?.soulMd);
   const configYamlContent = resolveTemplateContent(
     'config.yaml',

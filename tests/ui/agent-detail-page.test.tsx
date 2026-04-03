@@ -136,7 +136,7 @@ describe('Agent detail memory tab', () => {
     expect(screen.getByRole('tab', { name: 'Logs' })).toBeInTheDocument();
   });
 
-  it('shows single memory file editor (MEMORY.md by default) after opening Memory tab', async () => {
+  it('shows single memory file editor (SOUL.md by default) after opening Memory tab', async () => {
     global.fetch = createFetchMock();
     window.history.replaceState(null, '', '#memory');
 
@@ -145,15 +145,19 @@ describe('Agent detail memory tab', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByRole('textbox', { name: 'Edit MEMORY.md' })).toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: 'Edit SOUL.md' })).toBeInTheDocument();
     });
 
     // Single file view: only one editor visible at a time
-    expect(screen.queryByRole('textbox', { name: 'Edit USER.md' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('textbox', { name: 'Edit SOUL.md' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('textbox', { name: 'Edit memories/USER.md' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('textbox', { name: 'Edit memories/MEMORY.md' }),
+    ).not.toBeInTheDocument();
   });
 
-  it('loads MEMORY.md file content by default after opening Memory tab', async () => {
+  it('loads SOUL.md file content by default after opening Memory tab', async () => {
     const fetchMock = createFetchMock();
     global.fetch = fetchMock;
     window.history.replaceState(null, '', '#memory');
@@ -163,13 +167,13 @@ describe('Agent detail memory tab', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByRole('textbox', { name: 'Edit MEMORY.md' })).toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: 'Edit SOUL.md' })).toBeInTheDocument();
     });
 
     const getCalls = (fetchMock.mock.calls as [string, { method?: string }?][]).filter(
       ([url, init]) => url.startsWith('/api/files?') && (init?.method ?? 'GET') === 'GET',
     );
-    expect(getCalls.some(([url]) => url.includes('path=MEMORY.md'))).toBe(true);
+    expect(getCalls.some(([url]) => url.includes('path=SOUL.md'))).toBe(true);
   });
 
   it('blocks switching when dirty and user cancels', async () => {
@@ -182,14 +186,14 @@ describe('Agent detail memory tab', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByRole('textbox', { name: 'Edit MEMORY.md' })).toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: 'Edit SOUL.md' })).toBeInTheDocument();
     });
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'Edit MEMORY.md' }), {
-      target: { value: '# updated memory\n' },
+    fireEvent.change(screen.getByRole('textbox', { name: 'Edit SOUL.md' }), {
+      target: { value: '# updated soul\n' },
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'USER.md' }));
+    fireEvent.click(screen.getByRole('button', { name: 'memories/USER.md' }));
 
     await waitFor(() => {
       expect(screen.getByRole('alertdialog')).toBeInTheDocument();
@@ -198,14 +202,16 @@ describe('Agent detail memory tab', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Keep Editing' }));
 
     await waitFor(() => {
-      expect(screen.queryByRole('textbox', { name: 'Edit USER.md' })).not.toBeInTheDocument();
-      expect(screen.getByRole('textbox', { name: 'Edit MEMORY.md' })).toBeInTheDocument();
+      expect(
+        screen.queryByRole('textbox', { name: 'Edit memories/USER.md' }),
+      ).not.toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: 'Edit SOUL.md' })).toBeInTheDocument();
     });
 
     const getCalls = (fetchMock.mock.calls as [string, { method?: string }?][]).filter(
       ([url, init]) => url.startsWith('/api/files?') && (init?.method ?? 'GET') === 'GET',
     );
-    expect(getCalls.some(([url]) => url.includes('path=USER.md'))).toBe(false);
+    expect(getCalls.some(([url]) => url.includes('path=memories/USER.md'))).toBe(false);
   });
 
   it('saves only currently selected memory file', async () => {
@@ -218,16 +224,16 @@ describe('Agent detail memory tab', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByRole('textbox', { name: 'Edit MEMORY.md' })).toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: 'Edit SOUL.md' })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'USER.md' }));
+    fireEvent.click(screen.getByRole('button', { name: 'memories/USER.md' }));
 
     await waitFor(() => {
-      expect(screen.getByRole('textbox', { name: 'Edit USER.md' })).toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: 'Edit memories/USER.md' })).toBeInTheDocument();
     });
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'Edit USER.md' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Edit memories/USER.md' }), {
       target: { value: '# updated user\n' },
     });
 
@@ -240,7 +246,7 @@ describe('Agent detail memory tab', () => {
       expect(putCalls.length).toBeGreaterThan(0);
 
       const lastPutBody = JSON.parse(putCalls[putCalls.length - 1][1]?.body ?? '{}');
-      expect(lastPutBody.path).toBe('USER.md');
+      expect(lastPutBody.path).toBe('memories/USER.md');
       expect(lastPutBody.agent).toBe('alpha');
     });
   });

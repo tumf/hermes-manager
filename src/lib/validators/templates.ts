@@ -2,7 +2,12 @@ import { z } from 'zod';
 
 const templateNameRegex = /^[a-zA-Z0-9_-]+$/;
 
-export const fileSchema = z.enum(['MEMORY.md', 'USER.md', 'SOUL.md', 'config.yaml']);
+export const fileSchema = z.enum([
+  'SOUL.md',
+  'memories/MEMORY.md',
+  'memories/USER.md',
+  'config.yaml',
+]);
 
 export const templateNameSchema = z
   .string()

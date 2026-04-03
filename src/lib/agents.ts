@@ -178,8 +178,9 @@ export async function createAgent(
 ): Promise<Agent> {
   const home = getRuntimeAgentsRootPath(agentId);
   await fsp.mkdir(path.join(home, 'logs'), { recursive: true });
-  await fsp.writeFile(path.join(home, 'MEMORY.md'), files.memoryMd);
-  await fsp.writeFile(path.join(home, 'USER.md'), files.userMd);
+  await fsp.mkdir(path.join(home, 'memories'), { recursive: true });
+  await fsp.writeFile(path.join(home, 'memories', 'MEMORY.md'), files.memoryMd);
+  await fsp.writeFile(path.join(home, 'memories', 'USER.md'), files.userMd);
   await fsp.writeFile(path.join(home, 'SOUL.md'), files.soulMd);
   await fsp.writeFile(path.join(home, 'config.yaml'), files.configYaml);
   await fsp.writeFile(path.join(home, '.env'), '');

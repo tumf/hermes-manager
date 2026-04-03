@@ -49,9 +49,9 @@ const DEFAULT_CONFIG_YAML = `name: default
 `;
 
 const DEFAULT_TEMPLATE_FILES: Record<string, string> = {
-  'MEMORY.md': DEFAULT_MEMORY_MD,
-  'USER.md': DEFAULT_USER_MD,
   'SOUL.md': DEFAULT_SOUL_MD,
+  'memories/MEMORY.md': DEFAULT_MEMORY_MD,
+  'memories/USER.md': DEFAULT_USER_MD,
   'config.yaml': DEFAULT_CONFIG_YAML,
 };
 
@@ -65,6 +65,8 @@ function ensureDefaultTemplates(): void {
 
   for (const [filename, content] of Object.entries(DEFAULT_TEMPLATE_FILES)) {
     const filePath = path.join(defaultDir, filename);
+    const fileDir = path.dirname(filePath);
+    fs.mkdirSync(fileDir, { recursive: true });
     if (!fs.existsSync(filePath)) {
       fs.writeFileSync(filePath, content, 'utf-8');
     }
