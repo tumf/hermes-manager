@@ -7,10 +7,9 @@ The system MUST store generated operational data under `{PROJECT_ROOT}/runtime/`
 #### Scenario: agent scaffolding uses runtime/agents
 
 **Given** the application is configured with the default runtime root
-**When** a client creates a new agent named `alpha`
-**Then** the server creates `{PROJECT_ROOT}/runtime/agents/alpha`
-**And** writes `AGENTS.md`, `SOUL.md`, `config.yaml`, `.env`, and `logs/` inside that directory
-**And** stores that runtime path in the agent record
+**When** a client creates a new agent
+**Then** the server creates `{PROJECT_ROOT}/runtime/agents/<agentId>`
+**And** writes `MEMORY.md`, `USER.md`, `SOUL.md`, `config.yaml`, `.env`, and `logs/` inside that directory
 
 #### Scenario: globals env file uses runtime/globals
 
@@ -53,12 +52,10 @@ Agent lifecycle operations MUST use the unified runtime root for per-agent home 
 
 **Given** an existing agent `charlie` with home `{PROJECT_ROOT}/runtime/agents/charlie`
 **When** a client deletes that agent with purge enabled
-**Then** the server removes the database row
-**And** recursively deletes `{PROJECT_ROOT}/runtime/agents/charlie`
+**Then** the server recursively deletes `{PROJECT_ROOT}/runtime/agents/charlie`
 
 #### Scenario: copy duplicates runtime agent home
 
 **Given** an existing agent `delta` with home `{PROJECT_ROOT}/runtime/agents/delta`
-**When** a client posts to copy that agent to `echo`
-**Then** the server deep-copies `{PROJECT_ROOT}/runtime/agents/delta` to `{PROJECT_ROOT}/runtime/agents/echo`
-**And** inserts a new agent row whose `home` is `{PROJECT_ROOT}/runtime/agents/echo`
+**When** a client posts to copy that agent
+**Then** the server deep-copies `{PROJECT_ROOT}/runtime/agents/delta` to a newly generated `{PROJECT_ROOT}/runtime/agents/<newAgentId>`

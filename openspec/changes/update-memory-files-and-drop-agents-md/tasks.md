@@ -12,3 +12,9 @@
 ## Future Work
 
 - 必要なら既存 `AGENTS.md` 実ファイルを棚卸しし、別 proposal で安全な移行/削除方針を決める
+
+## Acceptance #1 Failure Follow-up
+
+- [x] `openspec/specs/file-editor/spec.md` の許可ファイル一覧とシナリオを `MEMORY.md` / `USER.md` / `SOUL.md` / `config.yaml` に更新し、`AGENTS.md` 前提を除去する
+- [x] `openspec/specs/runtime-layout/spec.md` の agent scaffold 記述を新しいファイル構成（`MEMORY.md` / `USER.md` / `SOUL.md` / `config.yaml` / `.env` / `logs/`）へ更新する
+- [x] `openspec/specs/agents/spec.md` の Agents API 要件を現行実装（自動ID生成・filesystemベース・新しい scaffold 構成）へ同期する

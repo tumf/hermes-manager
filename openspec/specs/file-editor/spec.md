@@ -5,9 +5,9 @@
 Provide server-side endpoints to read and update agent memory and configuration files within the agent's home directory.
 
 - Endpoints:
-  - GET /api/files?agent=...&path=AGENTS.md|SOUL.md|config.yaml
+  - GET /api/files?agent=...&path=MEMORY.md|USER.md|SOUL.md|config.yaml
   - PUT /api/files
-- Allowed paths: restricted to AGENTS.md, SOUL.md, config.yaml (validated via zod enum)
+- Allowed paths: restricted to MEMORY.md, USER.md, SOUL.md, config.yaml (validated via zod enum)
 - YAML validation: For config.yaml, validate syntax with js-yaml; on error respond HTTP 422
 - Atomic writes: Write to .tmp and then rename to target path
 - Path traversal protection: Resolved path must remain within the agent home dir
@@ -20,7 +20,7 @@ Then the server responds 200 with a JSON body { content: "<file contents>" }
 
 #### Scenario: disallow non-whitelisted paths
 
-When GET /api/files?agent=alpha&path=../../etc/passwd is called
+When GET /api/files?agent=alpha&path=AGENTS.md is called
 Then the server responds 400 due to zod enum validation rejecting the path
 
 #### Scenario: validate YAML on PUT for config.yaml
