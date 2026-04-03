@@ -47,11 +47,19 @@ PORT=18470 npm run start
 ```bash
 npm run dev
 npm run test
+npm run test:e2e
 npm run typecheck
 npm run lint
 npm run format:check
 npm run build
 ```
+
+## テスト境界
+
+- `npm run test` (Vitest): `tests/api`、`tests/components`、`tests/hooks`、`tests/lib`、`tests/ui` 配下のユニット/コンポーネント/統合寄りテスト。
+- `npm run test:e2e` (Playwright): `tests/e2e` 配下のブラウザE2Eテスト。
+- 現在、`tests/e2e` にはコミット済みの Playwright テストが存在しないため、`npm run test:e2e` は現状 `--pass-with-no-tests` のため実行パスの確認のみを行います。
+- Playwrightテストは事前にアプリを起動済みであることが前提（`npm run dev` など）。
 
 ## ディレクトリ構成（概要）
 
@@ -62,7 +70,9 @@ hermes-agents/
 ├── src/lib/                # ファイルシステム/Env/SkillLink ヘルパー
 ├── docs/                   # 要件・設計ドキュメント
 ├── openspec/changes/       # Conflux 変更提案
-├── tests/                  # Vitest テスト
+├── tests/
+│   ├── api|components|hooks|lib|ui/  # Vitest ユニット/コンポーネント/統合寄りテスト
+│   └── e2e/                         # Playwright ブラウザE2Eテスト（事前にアプリ起動が必要）
 ├── runtime/                # 実行時データ（agents/globals/logs）
 └── AGENTS.md               # 開発者向け必読ガイド
 ```

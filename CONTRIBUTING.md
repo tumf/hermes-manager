@@ -53,6 +53,7 @@ python3 ~/.hermes/skills/cflx-proposal/scripts/cflx.py list
 
 ```bash
 npm run test
+npm run test:e2e
 npm run typecheck
 npm run lint
 npm run format:check
@@ -68,3 +69,4 @@ npm run build
 
 - README/CONTRIBUTING には概要のみ記載し、詳細は `AGENTS.md` と `docs/` へリンクする
 - 実装とドキュメントに差分がある場合、差分を解消してからレビュー依頼する
+- テスト境界に関するルールはこの文書および `README.md`（英語）/`README_ja.md`（日本語）で明示する
