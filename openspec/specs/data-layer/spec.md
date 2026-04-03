@@ -102,3 +102,14 @@ The `enabled` flag for agents is stored in `config.yaml` instead of a database c
 **Given**: `runtime/agents/my-agent/config.yaml` contains `enabled: true`
 **When**: `GET /api/agents` is called
 **Then**: The agent `my-agent` has `enabled: true` in the response
+
+### Requirement: filesystem-agent-registry
+
+Agent registration and discovery is based on the `runtime/agents/` directory structure, and newly scaffolded agents include the memory files required by the app-managed editor surface.
+
+#### Scenario: create-agent
+
+**Given**: `runtime/agents/new-agent/` does not exist
+**When**: `POST /api/agents` is called
+**Then**: The directory `runtime/agents/new-agent/` is created with `MEMORY.md`, `USER.md`, `SOUL.md`, `config.yaml`, `.env`, and `logs/`
+**And**: `AGENTS.md` is not scaffolded by the web app
