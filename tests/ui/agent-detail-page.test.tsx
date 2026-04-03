@@ -5,6 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import '@testing-library/jest-dom';
 
+import { buildAgentDetailRoutes } from '../helpers/agent-detail-fixtures';
+import { createFetchRouter } from '../helpers/fetch-router';
+
 vi.mock('sonner', () => ({
   toast: {
     success: vi.fn(),
@@ -41,12 +44,6 @@ function renderPage(name: string) {
   );
 }
 
-const fileContents: Record<string, string> = {
-  'AGENTS.md': '# Agents file\n',
-  'SOUL.md': '# Soul file\n',
-  'config.yaml': 'name: alpha\n',
-};
-
 function createFetchMock(
   apiServerStatus:
     | 'disabled'
@@ -55,157 +52,7 @@ function createFetchMock(
     | 'connected'
     | 'error' = 'connected',
 ) {
-  const apiServerAvailable = apiServerStatus === 'connected';
-
-  return vi
-    .fn()
-    .mockImplementation(async (url: string, init?: { method?: string; body?: string }) => {
-      const method = init?.method ?? 'GET';
-
-      if (url === '/api/launchd' && method === 'POST') {
-        const body = JSON.parse(init?.body ?? '{}');
-        if (body.action === 'status') {
-          return { ok: true, json: async () => ({ running: false }) };
-        }
-        return { ok: true, json: async () => ({}) };
-      }
-
-      if (url.includes('/api/agents/alpha') && method === 'GET' && !url.includes('/sessions')) {
-        return {
-          ok: true,
-          json: async () => ({
-            agentId: 'alpha',
-            apiServerStatus,
-            apiServerAvailable,
-            apiServerPort: apiServerAvailable ? 19001 : null,
-          }),
-        };
-      }
-
-      if (url.includes('/sessions') && !url.includes('/messages') && method === 'GET') {
-        return { ok: true, json: async () => [] };
-      }
-
-      if (url.includes('/messages') && method === 'GET') {
-        return { ok: true, json: async () => [] };
-      }
-
-      if (url.includes('/chat') && method === 'POST') {
-        return { ok: false, json: async () => ({ error: 'api_server not available' }) };
-      }
-
-      if (url.startsWith('/api/files?') && method === 'GET') {
-        const query = new URLSearchParams(url.split('?')[1] ?? '');
-        const path = query.get('path') ?? '';
-        return { ok: true, json: async () => ({ content: fileContents[path] ?? '' }) };
-      }
-
-      if (url === '/api/files' && method === 'PUT') {
-        return { ok: true, json: async () => ({}) };
-      }
-
-      if (url === '/api/agents' && method === 'GET') {
-        return {
-          ok: true,
-          json: async () => [
-            {
-              agentId: 'alpha',
-              name: 'alpha',
-              description: 'test agent',
-              tags: ['test'],
-              home: '/runtime/agents/alpha',
-            },
-          ],
-        };
-      }
-
-      if (url === '/api/agents/alpha/meta' && method === 'PUT') {
-        const body = JSON.parse(init?.body ?? '{}');
-        return {
-          ok: true,
-          json: async () => ({
-            name: body.name ?? '',
-            description: body.description ?? '',
-            tags: body.tags ?? [],
-          }),
-        };
-      }
-
-      if (url.startsWith('/api/env?agent=') && !url.includes('/resolved') && method === 'GET') {
-        return {
-          ok: true,
-          json: async () => [{ key: 'API_KEY', value: '***', masked: true, visibility: 'secure' }],
-        };
-      }
-
-      if (url.startsWith('/api/env/resolved?') && method === 'GET') {
-        return {
-          ok: true,
-          json: async () => [{ key: 'BASE_URL', value: 'https://example.com', source: 'global' }],
-        };
-      }
-
-      if (url === '/api/agents' && method === 'GET') {
-        return {
-          ok: true,
-          json: async () => [
-            {
-              agentId: 'alpha',
-              name: 'Alpha Agent',
-              description: 'test agent',
-              tags: ['test'],
-              home: '/runtime/agents/alpha',
-            },
-          ],
-        };
-      }
-
-      if (url === '/api/agents/alpha/meta' && method === 'PUT') {
-        const body = JSON.parse(init?.body ?? '{}');
-        return {
-          ok: true,
-          json: async () => ({
-            name: body.name ?? '',
-            description: body.description ?? '',
-            tags: body.tags ?? [],
-          }),
-        };
-      }
-
-      if (url === '/api/skills/tree' && method === 'GET') {
-        return {
-          ok: true,
-          json: async () => ({
-            tree: [
-              {
-                name: 'coding',
-                relativePath: 'coding',
-                hasSkill: true,
-                children: [],
-              },
-            ],
-          }),
-        };
-      }
-
-      if (url.startsWith('/api/skills/links?') && method === 'GET') {
-        return {
-          ok: true,
-          json: async () => [
-            {
-              id: 1,
-              agent: 'alpha',
-              sourcePath: '/Users/tumf/.hermes/skills/coding',
-              targetPath: '/runtime/agents/alpha/skills/coding',
-              exists: true,
-              relativePath: 'coding',
-            },
-          ],
-        };
-      }
-
-      return { ok: true, json: async () => ({}) };
-    });
+  return createFetchRouter(buildAgentDetailRoutes({ apiServerStatus }));
 }
 
 beforeEach(async () => {
@@ -249,67 +96,11 @@ describe('Agent detail memory tab', () => {
   });
 
   it('Start操作失敗時にエラートーストを表示する', async () => {
-    global.fetch = vi
-      .fn()
-      .mockImplementation(async (url: string, init?: { method?: string; body?: string }) => {
-        const method = init?.method ?? 'GET';
-        if (url === '/api/launchd' && method === 'POST') {
-          const body = JSON.parse(init?.body ?? '{}');
-          if (body.action === 'status') {
-            return { ok: true, json: async () => ({ running: false }) };
-          }
-          if (body.action === 'start') {
-            return { ok: false, json: async () => ({ stderr: 'launch failed' }) };
-          }
-          return { ok: true, json: async () => ({}) };
-        }
-        if (url.startsWith('/api/files?') && method === 'GET') {
-          const query = new URLSearchParams(url.split('?')[1] ?? '');
-          const path = query.get('path') ?? '';
-          return { ok: true, json: async () => ({ content: fileContents[path] ?? '' }) };
-        }
-        if (url === '/api/files' && method === 'PUT') {
-          return { ok: true, json: async () => ({}) };
-        }
-        if (url.startsWith('/api/env?agent=') && !url.includes('/resolved') && method === 'GET') {
-          return {
-            ok: true,
-            json: async () => [
-              { key: 'API_KEY', value: '***', masked: true, visibility: 'secure' },
-            ],
-          };
-        }
-        if (url.startsWith('/api/env/resolved?') && method === 'GET') {
-          return {
-            ok: true,
-            json: async () => [{ key: 'BASE_URL', value: 'https://example.com', source: 'global' }],
-          };
-        }
-        if (url === '/api/skills/tree' && method === 'GET') {
-          return {
-            ok: true,
-            json: async () => ({
-              tree: [{ name: 'coding', relativePath: 'coding', hasSkill: true, children: [] }],
-            }),
-          };
-        }
-        if (url.startsWith('/api/skills/links?') && method === 'GET') {
-          return {
-            ok: true,
-            json: async () => [
-              {
-                id: 1,
-                agent: 'alpha',
-                sourcePath: '/Users/tumf/.hermes/skills/coding',
-                targetPath: '/runtime/agents/alpha/skills/coding',
-                exists: true,
-                relativePath: 'coding',
-              },
-            ],
-          };
-        }
-        return { ok: true, json: async () => ({}) };
-      }) as unknown as typeof fetch;
+    global.fetch = createFetchRouter(
+      buildAgentDetailRoutes({
+        launchdStartError: 'launch failed',
+      }),
+    ) as unknown as typeof fetch;
 
     await act(async () => {
       renderPage('alpha');
