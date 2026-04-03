@@ -38,15 +38,20 @@ interface AddAgentDialogProps {
 export function AddAgentDialog({ templates, onOpen, onCreated }: AddAgentDialogProps) {
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
-  const [templateAgentsMd, setTemplateAgentsMd] = useState('default');
+  const [templateMemoryMd, setTemplateMemoryMd] = useState('default');
+  const [templateUserMd, setTemplateUserMd] = useState('default');
   const [templateSoulMd, setTemplateSoulMd] = useState('default');
   const [templateConfigYaml, setTemplateConfigYaml] = useState('default');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [tags, setTags] = useState('');
 
-  const agentsMdTemplates = useMemo(
-    () => templates.filter((template) => template.files.includes('AGENTS.md')),
+  const memoryMdTemplates = useMemo(
+    () => templates.filter((template) => template.files.includes('MEMORY.md')),
+    [templates],
+  );
+  const userMdTemplates = useMemo(
+    () => templates.filter((template) => template.files.includes('USER.md')),
     [templates],
   );
   const soulMdTemplates = useMemo(
@@ -59,7 +64,8 @@ export function AddAgentDialog({ templates, onOpen, onCreated }: AddAgentDialogP
   );
 
   function resetForm() {
-    setTemplateAgentsMd('default');
+    setTemplateMemoryMd('default');
+    setTemplateUserMd('default');
     setTemplateSoulMd('default');
     setTemplateConfigYaml('default');
     setName('');
@@ -71,7 +77,8 @@ export function AddAgentDialog({ templates, onOpen, onCreated }: AddAgentDialogP
     setBusy(true);
     try {
       const selectedTemplates: Record<string, string> = {};
-      if (templateAgentsMd !== 'default') selectedTemplates.agentsMd = templateAgentsMd;
+      if (templateMemoryMd !== 'default') selectedTemplates.memoryMd = templateMemoryMd;
+      if (templateUserMd !== 'default') selectedTemplates.userMd = templateUserMd;
       if (templateSoulMd !== 'default') selectedTemplates.soulMd = templateSoulMd;
       if (templateConfigYaml !== 'default') selectedTemplates.configYaml = templateConfigYaml;
 
@@ -157,11 +164,18 @@ export function AddAgentDialog({ templates, onOpen, onCreated }: AddAgentDialogP
               placeholder="prod, monitor"
             />
             <TemplateSelect
-              label="AGENTS.md Template"
-              id="tpl-agents-md"
-              value={templateAgentsMd}
-              onValueChange={setTemplateAgentsMd}
-              templates={agentsMdTemplates}
+              label="MEMORY.md Template"
+              id="tpl-memory-md"
+              value={templateMemoryMd}
+              onValueChange={setTemplateMemoryMd}
+              templates={memoryMdTemplates}
+            />
+            <TemplateSelect
+              label="USER.md Template"
+              id="tpl-user-md"
+              value={templateUserMd}
+              onValueChange={setTemplateUserMd}
+              templates={userMdTemplates}
             />
             <TemplateSelect
               label="SOUL.md Template"

@@ -52,7 +52,8 @@ describe('templates lib', () => {
 
   describe('isValidFileName', () => {
     it('accepts allowed file names', () => {
-      expect(isValidFileName('AGENTS.md')).toBe(true);
+      expect(isValidFileName('MEMORY.md')).toBe(true);
+      expect(isValidFileName('USER.md')).toBe(true);
       expect(isValidFileName('SOUL.md')).toBe(true);
       expect(isValidFileName('config.yaml')).toBe(true);
     });
@@ -71,17 +72,17 @@ describe('templates lib', () => {
     it('lists templates with their files', () => {
       const defaultDir = path.join(tempDir, 'templates', 'default');
       fs.mkdirSync(defaultDir, { recursive: true });
-      fs.writeFileSync(path.join(defaultDir, 'AGENTS.md'), '# Agent');
+      fs.writeFileSync(path.join(defaultDir, 'MEMORY.md'), '# Agent');
       fs.writeFileSync(path.join(defaultDir, 'config.yaml'), 'name: test');
 
       const botDir = path.join(tempDir, 'templates', 'telegram-bot');
       fs.mkdirSync(botDir, { recursive: true });
-      fs.writeFileSync(path.join(botDir, 'AGENTS.md'), '# Bot');
+      fs.writeFileSync(path.join(botDir, 'MEMORY.md'), '# Bot');
 
       const result = listTemplates();
       expect(result).toEqual([
-        { name: 'default', files: ['AGENTS.md', 'config.yaml'] },
-        { name: 'telegram-bot', files: ['AGENTS.md'] },
+        { name: 'default', files: ['MEMORY.md', 'config.yaml'] },
+        { name: 'telegram-bot', files: ['MEMORY.md'] },
       ]);
     });
 
@@ -95,18 +96,18 @@ describe('templates lib', () => {
     it('returns file content when file exists', () => {
       const dir = path.join(tempDir, 'templates', 'default');
       fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(path.join(dir, 'AGENTS.md'), '# Test Content');
+      fs.writeFileSync(path.join(dir, 'MEMORY.md'), '# Test Content');
 
-      const result = getTemplateFile('default', 'AGENTS.md');
+      const result = getTemplateFile('default', 'MEMORY.md');
       expect(result).toEqual({
         name: 'default',
-        file: 'AGENTS.md',
+        file: 'MEMORY.md',
         content: '# Test Content',
       });
     });
 
     it('returns null when file does not exist', () => {
-      expect(getTemplateFile('nonexistent', 'AGENTS.md')).toBeNull();
+      expect(getTemplateFile('nonexistent', 'MEMORY.md')).toBeNull();
     });
   });
 
@@ -127,10 +128,10 @@ describe('templates lib', () => {
     it('overwrites existing file', () => {
       const dir = path.join(tempDir, 'templates', 'default');
       fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(path.join(dir, 'AGENTS.md'), '# Old');
+      fs.writeFileSync(path.join(dir, 'MEMORY.md'), '# Old');
 
-      writeTemplateFile('default', 'AGENTS.md', '# Updated');
-      expect(fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf-8')).toBe('# Updated');
+      writeTemplateFile('default', 'MEMORY.md', '# Updated');
+      expect(fs.readFileSync(path.join(dir, 'MEMORY.md'), 'utf-8')).toBe('# Updated');
     });
   });
 
@@ -138,17 +139,17 @@ describe('templates lib', () => {
     it('deletes a single file', () => {
       const dir = path.join(tempDir, 'templates', 'test');
       fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(path.join(dir, 'AGENTS.md'), '# Test');
+      fs.writeFileSync(path.join(dir, 'MEMORY.md'), '# Test');
       fs.writeFileSync(path.join(dir, 'config.yaml'), 'name: test');
 
-      expect(deleteTemplateFile('test', 'AGENTS.md')).toBe(true);
-      expect(fs.existsSync(path.join(dir, 'AGENTS.md'))).toBe(false);
+      expect(deleteTemplateFile('test', 'MEMORY.md')).toBe(true);
+      expect(fs.existsSync(path.join(dir, 'MEMORY.md'))).toBe(false);
       // Directory and other files remain
       expect(fs.existsSync(path.join(dir, 'config.yaml'))).toBe(true);
     });
 
     it('returns false when file does not exist', () => {
-      expect(deleteTemplateFile('nonexistent', 'AGENTS.md')).toBe(false);
+      expect(deleteTemplateFile('nonexistent', 'MEMORY.md')).toBe(false);
     });
   });
 
@@ -156,7 +157,7 @@ describe('templates lib', () => {
     it('deletes entire directory', () => {
       const dir = path.join(tempDir, 'templates', 'old-template');
       fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(path.join(dir, 'AGENTS.md'), '# Old');
+      fs.writeFileSync(path.join(dir, 'MEMORY.md'), '# Old');
       fs.writeFileSync(path.join(dir, 'config.yaml'), 'name: old');
 
       expect(deleteTemplate('old-template')).toBe(true);
@@ -172,21 +173,22 @@ describe('templates lib', () => {
     it('resolves from specified template', () => {
       const dir = path.join(tempDir, 'templates', 'custom');
       fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(path.join(dir, 'AGENTS.md'), '# Custom Agent');
+      fs.writeFileSync(path.join(dir, 'MEMORY.md'), '# Custom Agent');
 
-      expect(resolveTemplateContent('AGENTS.md', 'test-id', 'custom')).toBe('# Custom Agent');
+      expect(resolveTemplateContent('MEMORY.md', 'test-id', 'custom')).toBe('# Custom Agent');
     });
 
     it('falls back to default when specified template missing', () => {
       const dir = path.join(tempDir, 'templates', 'default');
       fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(path.join(dir, 'AGENTS.md'), '# Default Agent');
+      fs.writeFileSync(path.join(dir, 'MEMORY.md'), '# Default Agent');
 
-      expect(resolveTemplateContent('AGENTS.md', 'test-id', 'nonexistent')).toBe('# Default Agent');
+      expect(resolveTemplateContent('MEMORY.md', 'test-id', 'nonexistent')).toBe('# Default Agent');
     });
 
     it('falls back to hardcoded content when no templates exist', () => {
-      expect(resolveTemplateContent('AGENTS.md', 'abc1234')).toBe('# abc1234\n');
+      expect(resolveTemplateContent('MEMORY.md', 'abc1234')).toBe('# Memory: abc1234\n');
+      expect(resolveTemplateContent('USER.md', 'abc1234')).toBe('# User: abc1234\n');
       expect(resolveTemplateContent('SOUL.md', 'abc1234')).toBe('# Soul: abc1234\n');
       expect(resolveTemplateContent('config.yaml', 'abc1234')).toBe('name: abc1234\n');
     });

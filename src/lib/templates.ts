@@ -3,12 +3,13 @@ import path from 'node:path';
 
 import { getRuntimeTemplatesRootPath } from './runtime-paths';
 
-const ALLOWED_FILES = ['AGENTS.md', 'SOUL.md', 'config.yaml'] as const;
+const ALLOWED_FILES = ['MEMORY.md', 'USER.md', 'SOUL.md', 'config.yaml'] as const;
 type TemplateFile = (typeof ALLOWED_FILES)[number];
 
 // Hardcoded fallback content for agent scaffolding when no template file exists
 const FALLBACK_CONTENT: Record<TemplateFile, (id: string) => string> = {
-  'AGENTS.md': (id: string) => `# ${id}\n`,
+  'MEMORY.md': (id: string) => `# Memory: ${id}\n`,
+  'USER.md': (id: string) => `# User: ${id}\n`,
   'SOUL.md': (id: string) => `# Soul: ${id}\n`,
   'config.yaml': (id: string) => `name: ${id}\n`,
 };

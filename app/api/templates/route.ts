@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     }
     if (!isValidFileName(file)) {
       return NextResponse.json(
-        { error: 'Invalid file. Must be one of: AGENTS.md, SOUL.md, config.yaml' },
+        { error: 'Invalid file. Must be one of: MEMORY.md, USER.md, SOUL.md, config.yaml' },
         { status: 400 },
       );
     }
@@ -129,7 +129,7 @@ export async function DELETE(request: NextRequest) {
     const parsedFile = fileSchema.safeParse(file);
     if (!parsedFile.success) {
       return NextResponse.json(
-        { error: 'Invalid file. Must be one of: AGENTS.md, SOUL.md, config.yaml' },
+        { error: 'Invalid file. Must be one of: MEMORY.md, USER.md, SOUL.md, config.yaml' },
         { status: 400 },
       );
     }

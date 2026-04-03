@@ -37,7 +37,9 @@ paths:
                 templates:
                   type: object
                   properties:
-                    agentsMd:
+                    memoryMd:
+                      type: string
+                    userMd:
                       type: string
                     soulMd:
                       type: string
@@ -181,7 +183,7 @@ paths:
           required: true
           schema:
             type: string
-            enum: [AGENTS.md, SOUL.md, config.yaml]
+            enum: [MEMORY.md, USER.md, SOUL.md, config.yaml]
       responses:
         '200':
           description: File content
@@ -208,7 +210,7 @@ paths:
                   type: string
                 path:
                   type: string
-                  enum: [AGENTS.md, SOUL.md, config.yaml]
+                  enum: [MEMORY.md, USER.md, SOUL.md, config.yaml]
                 content:
                   type: string
       responses:
@@ -755,7 +757,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [AGENTS.md, SOUL.md, config.yaml]
+            enum: [MEMORY.md, USER.md, SOUL.md, config.yaml]
       responses:
         '200':
           description: Template list or file content
@@ -826,7 +828,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [AGENTS.md, SOUL.md, config.yaml]
+            enum: [MEMORY.md, USER.md, SOUL.md, config.yaml]
       responses:
         '200':
           description: Deleted
@@ -983,6 +985,6 @@ components:
           type: string
         file:
           type: string
-          enum: [AGENTS.md, SOUL.md, config.yaml]
+          enum: [MEMORY.md, USER.md, SOUL.md, config.yaml]
         content:
           type: string

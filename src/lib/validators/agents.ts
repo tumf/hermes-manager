@@ -16,7 +16,8 @@ export const CreateAgentSchema = z
   .object({
     templates: z
       .object({
-        agentsMd: z.string().optional(),
+        memoryMd: z.string().optional(),
+        userMd: z.string().optional(),
         soulMd: z.string().optional(),
         configYaml: z.string().optional(),
       })

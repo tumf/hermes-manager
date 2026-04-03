@@ -19,7 +19,8 @@ import { Input } from '@/src/components/ui/input';
 import { Skeleton } from '@/src/components/ui/skeleton';
 
 const FILE_PATH_TO_TEMPLATE_FILE: Record<string, string> = {
-  'AGENTS.md': 'AGENTS.md',
+  'MEMORY.md': 'MEMORY.md',
+  'USER.md': 'USER.md',
   'SOUL.md': 'SOUL.md',
   'config.yaml': 'config.yaml',
 };

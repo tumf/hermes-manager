@@ -13,10 +13,11 @@ import {
 } from '@/src/components/ui/alert-dialog';
 import { Button } from '@/src/components/ui/button';
 
-const MEMORY_FILES = ['AGENTS.md', 'SOUL.md'] as const;
+const MEMORY_FILES = ['MEMORY.md', 'USER.md', 'SOUL.md'] as const;
 
 const FILE_DESCRIPTIONS: Record<string, string> = {
-  'AGENTS.md': 'Defines agent behavior, instructions, and capabilities',
+  'MEMORY.md': 'Stores long-term memory and reusable context for this agent',
+  'USER.md': 'Captures user profile, preferences, and communication hints',
   'SOUL.md': "Contains the agent's personality, tone, and communication style",
 };
 

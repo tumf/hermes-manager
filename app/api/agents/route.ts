@@ -26,7 +26,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  let templateNames: { agentsMd?: string; soulMd?: string; configYaml?: string } | undefined;
+  let templateNames:
+    | { memoryMd?: string; userMd?: string; soulMd?: string; configYaml?: string }
+    | undefined;
   let meta: { name?: string; description?: string; tags?: string[] } | undefined;
   if (request) {
     try {
@@ -61,7 +63,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const agentsMdContent = resolveTemplateContent('AGENTS.md', agentId, templateNames?.agentsMd);
+  const memoryMdContent = resolveTemplateContent('MEMORY.md', agentId, templateNames?.memoryMd);
+  const userMdContent = resolveTemplateContent('USER.md', agentId, templateNames?.userMd);
   const soulMdContent = resolveTemplateContent('SOUL.md', agentId, templateNames?.soulMd);
   const configYamlContent = resolveTemplateContent(
     'config.yaml',
@@ -72,7 +75,8 @@ export async function POST(request: NextRequest) {
   const agent = await createAgent(
     agentId,
     {
-      agentsMd: agentsMdContent,
+      memoryMd: memoryMdContent,
+      userMd: userMdContent,
       soulMd: soulMdContent,
       configYaml: configYamlContent,
     },

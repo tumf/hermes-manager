@@ -2,51 +2,52 @@
 
 ### Requirement: Agents REST API endpoints
 
-Provide REST routes for managing agents.
+Provide REST routes for managing agents through filesystem-backed runtime directories.
 
-- GET /api/agents — list agents (id, name, home, label, enabled, createdAt)
-- POST /api/agents — create new agent with validated name, scaffold filesystem, insert DB row
-- DELETE /api/agents?name=... — stop launchd, delete DB row, optional purge of filesystem with `?purge=true`
-- POST /api/agents/copy — deep copy `{from}` to `{to}` and insert DB row
+- GET /api/agents — list agents (agentId, name, description, tags, home, label, enabled, createdAt)
+- POST /api/agents — create a new agent with an auto-generated ID, scaffold filesystem files, and return the created agent
+- DELETE /api/agents?id=... — unload launchd for the agent; with `?purge=true` also delete the agent home directory
+- POST /api/agents/copy — deep copy `{from}` to a newly generated agent ID and return the copied agent
 
-#### Scenario: List agents returns expected fields
+#### Scenario: list agents returns expected fields
 
-Given the database contains agents rows
+Given runtime agent directories exist
 When a client requests GET /api/agents
-Then the response is 200 and JSON array items contain id, name, home, label, enabled, createdAt
+Then the response is 200 and JSON array items contain agentId, name, description, tags, home, label, enabled, createdAt
 
-#### Scenario: Create agent with valid name
+#### Scenario: create agent generates runtime scaffold
 
-Given a JSON body {"name": "alpha_1"}
+Given a JSON body with optional templates/meta fields
 When a client posts to /api/agents
-Then the server creates {PROJECT_ROOT}/agents/alpha_1 with AGENTS.md, SOUL.md, config.yaml, .env, logs/
-And inserts a row into agents with label ai.hermes.gateway.alpha_1
-And responds 201 with the created row payload
+Then the server generates a unique agent ID
+And creates `{PROJECT_ROOT}/runtime/agents/<agentId>` with MEMORY.md, USER.md, SOUL.md, config.yaml, .env, and logs/
+And responds 201 with the created agent payload
 
-#### Scenario: Create agent with invalid name returns 400
+#### Scenario: create agent tolerates empty body
 
-Given a JSON body {"name": "bad name!"}
+Given an empty or invalid JSON body
 When a client posts to /api/agents
-Then the server responds 400 and does not create directories or DB rows
+Then the server still creates a new agent using default templates
+And responds 201 with the created agent payload
 
-#### Scenario: Delete agent without purge keeps filesystem
+#### Scenario: delete agent without purge keeps filesystem
 
-Given an existing agent named bravo and its DB row
-When a client sends DELETE /api/agents?name=bravo
-Then the server best-effort stops the launchd service
-And removes the agents DB row for bravo
-And leaves the filesystem at {PROJECT_ROOT}/agents/bravo intact
+Given an existing agent ID and its runtime directory
+When a client sends DELETE /api/agents?id=<agentId>
+Then the server best-effort unloads the launchd service `ai.hermes.gateway.<agentId>`
+And leaves `{PROJECT_ROOT}/runtime/agents/<agentId>` intact
+And responds with { ok: true }
 
-#### Scenario: Delete agent with purge removes filesystem
+#### Scenario: delete agent with purge removes filesystem
 
-Given an existing agent named charlie and its DB row and directory
-When a client sends DELETE /api/agents?name=charlie&purge=true
-Then the server removes the DB row and recursively deletes {PROJECT_ROOT}/agents/charlie
+Given an existing agent ID and its runtime directory
+When a client sends DELETE /api/agents?id=<agentId>&purge=true
+Then the server recursively deletes `{PROJECT_ROOT}/runtime/agents/<agentId>`
+And responds with { ok: true }
 
-#### Scenario: Copy agent creates new dir and DB row
+#### Scenario: copy agent creates new dir with generated id
 
 Given an existing agent named delta with a populated directory
-When a client posts to /api/agents/copy with {"from":"delta","to":"echo"}
-Then the server deep-copies the delta directory to echo
-And inserts a DB row for echo with label ai.hermes.gateway.echo
-And responds 201 with the created row payload
+When a client posts to /api/agents/copy with {"from":"delta"}
+Then the server deep-copies the delta directory to `{PROJECT_ROOT}/runtime/agents/<newAgentId>`
+And responds 201 with the copied agent payload
