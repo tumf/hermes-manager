@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
@@ -10,21 +11,16 @@ import {
   type CronJobsFile,
 } from '@/src/lib/cron';
 
-const testDir = path.join('/tmp', 'cron-test');
+let testDir: string;
 
 describe('Cron Library', () => {
   beforeEach(() => {
-    // Create test directory
-    if (fs.existsSync(testDir)) {
-      fs.rmSync(testDir, { recursive: true });
-    }
-    fs.mkdirSync(testDir, { recursive: true });
+    testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cron-test-'));
   });
 
   afterEach(() => {
-    // Cleanup
-    if (fs.existsSync(testDir)) {
-      fs.rmSync(testDir, { recursive: true });
+    if (testDir && fs.existsSync(testDir)) {
+      fs.rmSync(testDir, { recursive: true, force: true });
     }
   });
 
