@@ -30,6 +30,8 @@ vi.mock('@/src/lib/agents', () => ({
       apiServerStatus: 'disabled',
       apiServerAvailable: false,
       apiServerPort: null,
+      memoryRssBytes: null,
+      hermesVersion: null,
     };
     mockState.createdAgent = agent;
     return agent;
@@ -131,6 +133,8 @@ describe('GET /api/agents', () => {
         apiServerStatus: 'disabled',
         apiServerAvailable: false,
         apiServerPort: null,
+        memoryRssBytes: null,
+        hermesVersion: null,
       },
     ];
     const res = await GET();
@@ -138,6 +142,8 @@ describe('GET /api/agents', () => {
     const body = await res.json();
     expect(body).toHaveLength(1);
     expect(body[0].agentId).toBe('abc1234');
+    expect(body[0].memoryRssBytes).toBeNull();
+    expect(body[0].hermesVersion).toBeNull();
   });
 });
 
@@ -210,6 +216,8 @@ describe('DELETE /api/agents', () => {
         apiServerStatus: 'disabled',
         apiServerAvailable: false,
         apiServerPort: null,
+        memoryRssBytes: null,
+        hermesVersion: null,
       },
     ];
 
@@ -248,6 +256,8 @@ describe('DELETE /api/agents', () => {
         apiServerStatus: 'disabled',
         apiServerAvailable: false,
         apiServerPort: null,
+        memoryRssBytes: null,
+        hermesVersion: null,
       },
     ];
 
@@ -283,6 +293,8 @@ describe('PUT /api/agents/[id]/meta', () => {
         apiServerStatus: 'disabled',
         apiServerAvailable: false,
         apiServerPort: null,
+        memoryRssBytes: null,
+        hermesVersion: null,
       },
     ];
 
@@ -332,6 +344,8 @@ describe('POST /api/agents/copy', () => {
         apiServerStatus: 'disabled',
         apiServerAvailable: false,
         apiServerPort: null,
+        memoryRssBytes: null,
+        hermesVersion: null,
       },
     ];
 
@@ -360,6 +374,8 @@ describe('POST /api/agents/copy', () => {
         apiServerStatus: 'disabled',
         apiServerAvailable: false,
         apiServerPort: null,
+        memoryRssBytes: null,
+        hermesVersion: null,
       },
     ];
 
@@ -391,6 +407,8 @@ describe('POST /api/agents/copy', () => {
         apiServerStatus: 'disabled',
         apiServerAvailable: false,
         apiServerPort: null,
+        memoryRssBytes: null,
+        hermesVersion: null,
       },
     ];
 
@@ -423,6 +441,8 @@ describe('POST /api/agents/copy', () => {
         apiServerStatus: 'disabled',
         apiServerAvailable: false,
         apiServerPort: null,
+        memoryRssBytes: null,
+        hermesVersion: null,
       },
     ];
 

@@ -1,10 +1,14 @@
+import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
+import { promisify } from 'node:util';
 
 import * as yaml from 'js-yaml';
 
 import { discoverApiServerStatus, type ApiServerStatus } from './gateway-discovery';
+import { parsePid, parseRunning } from './launchd';
 import { getRuntimeAgentsRootPath } from './runtime-paths';
 
 export interface AgentMeta {
@@ -13,7 +17,12 @@ export interface AgentMeta {
   tags: string[];
 }
 
-export interface Agent extends AgentMeta {
+export interface AgentProcessInfo {
+  memoryRssBytes: number | null;
+  hermesVersion: string | null;
+}
+
+export interface Agent extends AgentMeta, AgentProcessInfo {
   agentId: string;
   home: string;
   label: string;
@@ -30,6 +39,99 @@ const DEFAULT_AGENT_META: AgentMeta = {
   description: '',
   tags: [],
 };
+
+const execFileAsync = promisify(execFile);
+const PROCESS_INFO_PLACEHOLDER: AgentProcessInfo = {
+  memoryRssBytes: null,
+  hermesVersion: null,
+};
+
+function getAgentLabel(agentId: string): string {
+  return `ai.hermes.gateway.${agentId}`;
+}
+
+async function resolveAgentPid(agentId: string): Promise<number | null> {
+  const label = getAgentLabel(agentId);
+  const uid = process.getuid?.() ?? os.userInfo().uid;
+
+  try {
+    console.debug('[agents] resolving launchd pid', { agentId, label, uid });
+    const { stdout } = await execFileAsync('launchctl', ['print', `gui/${uid}/${label}`]);
+    if (!parseRunning(stdout)) {
+      return null;
+    }
+
+    return parsePid(stdout);
+  } catch (error) {
+    console.warn('[agents] failed to resolve launchd pid', {
+      agentId,
+      label,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+}
+
+async function resolveMemoryRssBytes(pid: number): Promise<number | null> {
+  try {
+    console.debug('[agents] resolving memory rss', { pid });
+    const { stdout } = await execFileAsync('ps', ['-o', 'rss=', '-p', String(pid)]);
+    const rssKb = Number.parseInt(stdout.trim(), 10);
+    if (!Number.isFinite(rssKb) || rssKb <= 0) {
+      return null;
+    }
+
+    return rssKb * 1024;
+  } catch (error) {
+    console.warn('[agents] failed to resolve memory rss', {
+      pid,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+}
+
+async function resolveHermesVersion(agentHome: string): Promise<string | null> {
+  try {
+    console.debug('[agents] resolving hermes version', { agentHome });
+    const { stdout } = await execFileAsync('hermes', ['--version'], {
+      env: {
+        ...process.env,
+        HERMES_HOME: agentHome,
+      },
+    });
+    const version = stdout.trim();
+    return version.length > 0 ? version : null;
+  } catch (error) {
+    console.warn('[agents] failed to resolve hermes version', {
+      agentHome,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+}
+
+async function resolveAgentProcessInfo(
+  agentId: string,
+  agentHome: string,
+): Promise<AgentProcessInfo> {
+  console.info('[agents] resolving process info', { agentId, agentHome });
+  const pid = await resolveAgentPid(agentId);
+  const memoryRssBytes = pid !== null ? await resolveMemoryRssBytes(pid) : null;
+  const hermesVersion = await resolveHermesVersion(agentHome);
+
+  console.info('[agents] resolved process info', {
+    agentId,
+    pid,
+    memoryRssBytes,
+    hermesVersionAvailable: hermesVersion !== null,
+  });
+
+  return {
+    memoryRssBytes,
+    hermesVersion,
+  };
+}
 
 /**
  * Parse config.yaml from an agent directory.
@@ -103,16 +205,18 @@ export async function listAgents(): Promise<Agent[]> {
     const meta = readMetaJson(agentHome);
     const discovery = discoverApiServerStatus(agentHome);
     const apiServerPort = discovery.port;
+    const processInfo = await resolveAgentProcessInfo(name, agentHome);
     agents.push({
       agentId: name,
       home: agentHome,
-      label: `ai.hermes.gateway.${name}`,
+      label: getAgentLabel(name),
       enabled: config.enabled === true,
       createdAt: stat.birthtime,
       updatedAt: stat.mtime,
       apiServerStatus: discovery.status,
       apiServerAvailable: discovery.status === 'connected' && apiServerPort !== null,
       apiServerPort,
+      ...processInfo,
       ...meta,
     });
   }
@@ -137,16 +241,18 @@ export async function getAgent(agentId: string): Promise<Agent | null> {
     const meta = readMetaJson(agentHome);
     const discovery = discoverApiServerStatus(agentHome);
     const apiServerPort = discovery.port;
+    const processInfo = await resolveAgentProcessInfo(agentId, agentHome);
     return {
       agentId,
       home: agentHome,
-      label: `ai.hermes.gateway.${agentId}`,
+      label: getAgentLabel(agentId),
       enabled: config.enabled === true,
       createdAt: stat.birthtime,
       updatedAt: stat.mtime,
       apiServerStatus: discovery.status,
       apiServerAvailable: discovery.status === 'connected' && apiServerPort !== null,
       apiServerPort,
+      ...processInfo,
       ...meta,
     };
   } catch {
@@ -202,13 +308,14 @@ export async function createAgent(
   return {
     agentId,
     home,
-    label: `ai.hermes.gateway.${agentId}`,
+    label: getAgentLabel(agentId),
     enabled: config.enabled === true,
     createdAt: stat.birthtime,
     updatedAt: stat.mtime,
     apiServerStatus: discovery.status,
     apiServerAvailable: discovery.status === 'connected' && apiServerPort !== null,
     apiServerPort,
+    ...PROCESS_INFO_PLACEHOLDER,
     ...normalizedMeta,
   };
 }
