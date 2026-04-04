@@ -19,6 +19,10 @@
 
 - [x] Fix the pre-commit/typecheck flow so `zsh .husky/pre-commit` passes from a clean checkout without requiring a prior `npm run build` to regenerate `.next/types`
 
+## Acceptance #3 Failure Follow-up
+
+- [x] Fix the standalone typecheck gate so `npm run typecheck` passes reliably without depending on concurrent `npm run build` output under `.next/types`
+
 ## Future Work
 
 - `config.yaml` への partial 適用
