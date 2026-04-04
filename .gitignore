@@ -17,3 +17,4 @@ globals/
 /.playwright-cli
 /test-results/
 /playwright-report/
+/.cflx/
