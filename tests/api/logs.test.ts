@@ -148,6 +148,8 @@ describe('GET /api/logs', () => {
       apiServerStatus: 'disabled',
       apiServerAvailable: false,
       apiServerPort: null,
+      memoryRssBytes: null,
+      hermesVersion: null,
     };
     const req = makeReq('http://localhost/api/logs?agent=alice&file=gateway.log');
     const res = await GET(req);

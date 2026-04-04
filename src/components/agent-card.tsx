@@ -1,6 +1,15 @@
 'use client';
 
-import { Copy, EllipsisVertical, Loader2, Play, RotateCcw, Square, Trash2 } from 'lucide-react';
+import {
+  ActivitySquare,
+  Copy,
+  EllipsisVertical,
+  Loader2,
+  Play,
+  RotateCcw,
+  Square,
+  Trash2,
+} from 'lucide-react';
 import Link from 'next/link';
 
 import {
@@ -25,6 +34,24 @@ import {
   DropdownMenuTrigger,
 } from '@/src/components/ui/dropdown-menu';
 
+function formatMemory(memoryRssBytes: number | null | undefined): string {
+  if (typeof memoryRssBytes !== 'number' || memoryRssBytes <= 0) {
+    return '--';
+  }
+
+  if (memoryRssBytes >= 1024 ** 3) {
+    return `${(memoryRssBytes / 1024 ** 3).toFixed(1)} GB`;
+  }
+  if (memoryRssBytes >= 1024 ** 2) {
+    return `${(memoryRssBytes / 1024 ** 2).toFixed(1)} MB`;
+  }
+  if (memoryRssBytes >= 1024) {
+    return `${(memoryRssBytes / 1024).toFixed(1)} KB`;
+  }
+
+  return `${memoryRssBytes} B`;
+}
+
 export interface Agent {
   id: number;
   agentId: string;
@@ -35,6 +62,8 @@ export interface Agent {
   name?: string;
   description?: string;
   tags?: string[];
+  memoryRssBytes?: number | null;
+  hermesVersion?: string | null;
 }
 
 export interface AgentWithStatus extends Agent {
@@ -66,6 +95,8 @@ export function AgentCard({ agent, busy, variant, onAction, onDelete, onCopy }: 
         <td className="px-4 py-3">
           <AgentStatusBadge running={agent.running} busy={busy} />
         </td>
+        <td className="px-4 py-3 text-muted-foreground">{formatMemory(agent.memoryRssBytes)}</td>
+        <td className="px-4 py-3">{agent.hermesVersion || '--'}</td>
         <td className="px-4 py-3">
           <div className="flex items-center justify-end gap-2">
             <AgentActionButtons agent={agent} busy={busy} onAction={onAction} />
@@ -86,6 +117,13 @@ export function AgentCard({ agent, busy, variant, onAction, onDelete, onCopy }: 
           <div className="mt-1 space-y-1">
             <p className="truncate text-xs text-muted-foreground">{agent.label || '--'}</p>
             <AgentTags agent={agent} />
+            <div className="space-y-0.5 text-xs text-muted-foreground">
+              <p className="flex items-center gap-1">
+                <ActivitySquare className="size-3" />
+                Memory: {formatMemory(agent.memoryRssBytes)}
+              </p>
+              <p>Hermes: {agent.hermesVersion || '--'}</p>
+            </div>
           </div>
         </div>
         <AgentStatusBadge running={agent.running} busy={busy} />

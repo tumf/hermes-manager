@@ -15,5 +15,6 @@ tsconfig.tsbuildinfo
 runtime/
 globals/
 /.playwright-cli
+/.cflx/
 /test-results/
 /playwright-report/
