@@ -29,6 +29,10 @@ export function getRuntimeTemplatesRootPath(...segments: string[]): string {
   return getRuntimeRootPath('templates', ...segments);
 }
 
+export function getRuntimePartialsRootPath(...segments: string[]): string {
+  return getRuntimeRootPath('partials', ...segments);
+}
+
 // Hardcoded default template content — used when runtime/templates/default/ files are missing
 const DEFAULT_MEMORY_MD = `# Memory: {id}
 
@@ -78,5 +82,6 @@ export function ensureRuntimeDirectories(): void {
   fs.mkdirSync(getRuntimeGlobalsRootPath(), { recursive: true });
   fs.mkdirSync(getRuntimeLogsRootPath(), { recursive: true });
   fs.mkdirSync(getRuntimeTemplatesRootPath(), { recursive: true });
+  fs.mkdirSync(getRuntimePartialsRootPath(), { recursive: true });
   ensureDefaultTemplates();
 }

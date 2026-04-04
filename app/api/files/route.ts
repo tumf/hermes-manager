@@ -6,9 +6,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { getAgent } from '@/src/lib/agents';
+import { SoulAssemblyError, writeSoulSourceAndAssembled } from '@/src/lib/soul-assembly';
 
 const AllowedPathEnum = z.enum([
   'SOUL.md',
+  'SOUL.src.md',
   'memories/MEMORY.md',
   'memories/USER.md',
   'config.yaml',
@@ -31,6 +33,15 @@ function guardTraversal(agentHome: string, requestedPath: string): string | null
     return null;
   }
   return resolved;
+}
+
+async function hasSoulSource(agentHome: string): Promise<boolean> {
+  try {
+    await fs.access(path.join(agentHome, 'SOUL.src.md'));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -56,8 +67,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'path traversal detected' }, { status: 400 });
   }
 
-  const content = await fs.readFile(resolved, 'utf-8');
-  return NextResponse.json({ content });
+  try {
+    const content = await fs.readFile(resolved, 'utf-8');
+    return NextResponse.json({ content });
+  } catch {
+    return NextResponse.json({ error: 'file not found' }, { status: 404 });
+  }
 }
 
 export async function PUT(request: NextRequest) {
@@ -94,7 +109,31 @@ export async function PUT(request: NextRequest) {
     }
   }
 
-  const tmpPath = resolved + '.tmp';
+  if (filePath === 'SOUL.md') {
+    if (await hasSoulSource(agent.home)) {
+      return NextResponse.json(
+        { error: 'SOUL.md cannot be edited directly when SOUL.src.md exists' },
+        { status: 409 },
+      );
+    }
+  }
+
+  if (filePath === 'SOUL.src.md') {
+    try {
+      await writeSoulSourceAndAssembled(agent.home, content);
+      return NextResponse.json({ ok: true });
+    } catch (error) {
+      if (error instanceof SoulAssemblyError) {
+        return NextResponse.json(
+          { error: `Unknown partial reference: ${error.partialName}` },
+          { status: 422 },
+        );
+      }
+      throw error;
+    }
+  }
+
+  const tmpPath = `${resolved}.tmp`;
   await fs.writeFile(tmpPath, content, 'utf-8');
   await fs.rename(tmpPath, resolved);
 

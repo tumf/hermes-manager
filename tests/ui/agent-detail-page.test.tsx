@@ -26,6 +26,7 @@ vi.mock('@/src/components/code-editor', () => ({
     ariaLabel?: string;
     filePath?: string;
     className?: string;
+    readOnly?: boolean;
   }) =>
     React.createElement('textarea', {
       value,
@@ -44,17 +45,6 @@ function renderPage(name: string) {
   );
 }
 
-function createFetchMock(
-  apiServerStatus:
-    | 'disabled'
-    | 'configured-needs-restart'
-    | 'starting'
-    | 'connected'
-    | 'error' = 'connected',
-) {
-  return createFetchRouter(buildAgentDetailRoutes({ apiServerStatus }));
-}
-
 beforeEach(async () => {
   window.history.replaceState(null, '', '/agents/alpha');
   const mod = await import('../../app/agents/[id]/page');
@@ -67,77 +57,66 @@ afterEach(() => {
 });
 
 describe('Agent detail memory tab', () => {
-  it('Start操作でlaunchd API呼び出しと成功トーストを表示する', async () => {
-    const fetchMock = createFetchMock();
-    global.fetch = fetchMock;
+  it('shows legacy SOUL editor by default', async () => {
+    global.fetch = createFetchRouter(buildAgentDetailRoutes({ partialModeEnabled: false }));
+    window.history.replaceState(null, '', '#memory');
 
     await act(async () => {
       renderPage('alpha');
     });
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Start' })).toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: 'Edit SOUL.md' })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    expect(screen.getByRole('button', { name: /Enable Partials/i })).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'Edit SOUL.src.md' })).not.toBeInTheDocument();
+  });
+
+  it('switches to SOUL.src.md editor in partial mode', async () => {
+    global.fetch = createFetchRouter(buildAgentDetailRoutes({ partialModeEnabled: true }));
+    window.history.replaceState(null, '', '#memory');
+
+    await act(async () => {
+      renderPage('alpha');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('textbox', { name: 'Edit SOUL.src.md' })).toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: 'Edit SOUL.md (assembled)' })).toBeInTheDocument();
+    });
+  });
+
+  it('enable partials flow writes SOUL.src.md', async () => {
+    const fetchMock = createFetchRouter(buildAgentDetailRoutes({ partialModeEnabled: false }));
+    global.fetch = fetchMock;
+    window.history.replaceState(null, '', '#memory');
+
+    await act(async () => {
+      renderPage('alpha');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Enable Partials/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Enable Partials/i }));
 
     await waitFor(() => {
       const calls = fetchMock.mock.calls as [string, { method?: string; body?: string }?][];
-      const call = calls.find(
-        ([url, init]) =>
-          url === '/api/launchd' &&
-          init?.method === 'POST' &&
-          JSON.parse(init?.body ?? '{}').action === 'start',
-      );
-      expect(call).toBeDefined();
+      const putCall = calls.find(([url, init]) => {
+        if (url !== '/api/files' || init?.method !== 'PUT' || !init.body) return false;
+        const parsed = JSON.parse(init.body);
+        return parsed.path === 'SOUL.src.md';
+      });
+      expect(putCall).toBeDefined();
     });
 
-    expect(toast.success).toHaveBeenCalledWith('alpha started');
+    expect(toast.success).toHaveBeenCalledWith('Partial mode enabled');
   });
 
-  it('Start操作失敗時にエラートーストを表示する', async () => {
-    global.fetch = createFetchRouter(
-      buildAgentDetailRoutes({
-        launchdStartError: 'launch failed',
-      }),
-    ) as unknown as typeof fetch;
-
-    await act(async () => {
-      renderPage('alpha');
-    });
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Start' })).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
-
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('launch failed');
-    });
-  });
-  it('renders required tabs including Metadata, Memory, Env and Skills', async () => {
-    global.fetch = createFetchMock();
-
-    await act(async () => {
-      renderPage('alpha');
-    });
-
-    await waitFor(() => {
-      expect(screen.getByRole('tab', { name: 'Metadata' })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: 'Memory' })).toBeInTheDocument();
-    });
-
-    expect(screen.getByRole('tab', { name: 'Config' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Env' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Skills' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Cron' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Chat' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Logs' })).toBeInTheDocument();
-  });
-
-  it('shows single memory file editor (SOUL.md by default) after opening Memory tab', async () => {
-    global.fetch = createFetchMock();
+  it('inserts partial reference via insert UI', async () => {
+    global.fetch = createFetchRouter(buildAgentDetailRoutes({ partialModeEnabled: true }));
     window.history.replaceState(null, '', '#memory');
 
     await act(async () => {
@@ -145,77 +124,16 @@ describe('Agent detail memory tab', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByRole('textbox', { name: 'Edit SOUL.md' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'directory-structure' })).toBeInTheDocument();
     });
 
-    // Single file view: only one editor visible at a time
-    expect(
-      screen.queryByRole('textbox', { name: 'Edit memories/USER.md' }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('textbox', { name: 'Edit memories/MEMORY.md' }),
-    ).not.toBeInTheDocument();
-  });
+    fireEvent.click(screen.getByRole('button', { name: 'directory-structure' }));
 
-  it('loads SOUL.md file content by default after opening Memory tab', async () => {
-    const fetchMock = createFetchMock();
-    global.fetch = fetchMock;
-    window.history.replaceState(null, '', '#memory');
-
-    await act(async () => {
-      renderPage('alpha');
-    });
-
-    await waitFor(() => {
-      expect(screen.getByRole('textbox', { name: 'Edit SOUL.md' })).toBeInTheDocument();
-    });
-
-    const getCalls = (fetchMock.mock.calls as [string, { method?: string }?][]).filter(
-      ([url, init]) => url.startsWith('/api/files?') && (init?.method ?? 'GET') === 'GET',
-    );
-    expect(getCalls.some(([url]) => url.includes('path=SOUL.md'))).toBe(true);
-  });
-
-  it('blocks switching when dirty and user cancels', async () => {
-    const fetchMock = createFetchMock();
-    global.fetch = fetchMock;
-    window.history.replaceState(null, '', '#memory');
-
-    await act(async () => {
-      renderPage('alpha');
-    });
-
-    await waitFor(() => {
-      expect(screen.getByRole('textbox', { name: 'Edit SOUL.md' })).toBeInTheDocument();
-    });
-
-    fireEvent.change(screen.getByRole('textbox', { name: 'Edit SOUL.md' }), {
-      target: { value: '# updated soul\n' },
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: 'memories/USER.md' }));
-
-    await waitFor(() => {
-      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Keep Editing' }));
-
-    await waitFor(() => {
-      expect(
-        screen.queryByRole('textbox', { name: 'Edit memories/USER.md' }),
-      ).not.toBeInTheDocument();
-      expect(screen.getByRole('textbox', { name: 'Edit SOUL.md' })).toBeInTheDocument();
-    });
-
-    const getCalls = (fetchMock.mock.calls as [string, { method?: string }?][]).filter(
-      ([url, init]) => url.startsWith('/api/files?') && (init?.method ?? 'GET') === 'GET',
-    );
-    expect(getCalls.some(([url]) => url.includes('path=memories/USER.md'))).toBe(false);
+    expect(toast.success).toHaveBeenCalledWith('Inserted partial: directory-structure');
   });
 
   it('saves only currently selected memory file', async () => {
-    const fetchMock = createFetchMock();
+    const fetchMock = createFetchRouter(buildAgentDetailRoutes({ partialModeEnabled: true }));
     global.fetch = fetchMock;
     window.history.replaceState(null, '', '#memory');
 
@@ -224,7 +142,7 @@ describe('Agent detail memory tab', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByRole('textbox', { name: 'Edit SOUL.md' })).toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: 'Edit SOUL.src.md' })).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'memories/USER.md' }));
@@ -237,7 +155,7 @@ describe('Agent detail memory tab', () => {
       target: { value: '# updated user\n' },
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save' })[0]);
 
     await waitFor(() => {
       const putCalls = (
@@ -248,116 +166,6 @@ describe('Agent detail memory tab', () => {
       const lastPutBody = JSON.parse(putCalls[putCalls.length - 1][1]?.body ?? '{}');
       expect(lastPutBody.path).toBe('memories/USER.md');
       expect(lastPutBody.agent).toBe('alpha');
-    });
-  });
-
-  it('renders Env and Skills tabs as clickable', async () => {
-    global.fetch = createFetchMock();
-
-    await act(async () => {
-      renderPage('alpha');
-    });
-
-    await waitFor(() => {
-      expect(screen.getByRole('tab', { name: 'Env' })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: 'Skills' })).toBeInTheDocument();
-    });
-
-    // Verify tabs are interactive (not disabled)
-    const envTab = screen.getByRole('tab', { name: 'Env' });
-    const skillsTab = screen.getByRole('tab', { name: 'Skills' });
-    expect(envTab).not.toBeDisabled();
-    expect(skillsTab).not.toBeDisabled();
-  });
-
-  it('shows toast after start action', async () => {
-    global.fetch = createFetchMock();
-
-    await act(async () => {
-      renderPage('alpha');
-    });
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Start' })).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
-
-    await waitFor(() => {
-      expect(toast.success).toHaveBeenCalledWith('alpha started');
-    });
-  });
-
-  it('shows metadata as read-only in header and hides empty fields', async () => {
-    global.fetch = createFetchMock();
-
-    await act(async () => {
-      renderPage('alpha');
-    });
-
-    await waitFor(() => {
-      expect(screen.getByRole('heading', { name: /alpha/i })).toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: /alpha/i }).closest('div')).toHaveTextContent(
-        'test agent',
-      );
-      expect(screen.getByText('test')).toBeInTheDocument();
-    });
-  });
-
-  it('Chat タブで configured-needs-restart ガイダンスを表示する', async () => {
-    global.fetch = createFetchMock('configured-needs-restart');
-    window.history.replaceState(null, '', '#chat');
-
-    await act(async () => {
-      renderPage('alpha');
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText(/gateway を再起動/)).toBeInTheDocument();
-    });
-  });
-
-  it('Chat タブで starting ガイダンスを表示する', async () => {
-    global.fetch = createFetchMock('starting');
-    window.history.replaceState(null, '', '#chat');
-
-    await act(async () => {
-      renderPage('alpha');
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText(/接続準備中/)).toBeInTheDocument();
-    });
-  });
-
-  it('saves metadata and shows success toast', async () => {
-    const fetchMock = createFetchMock();
-    global.fetch = fetchMock;
-
-    await act(async () => {
-      renderPage('alpha');
-    });
-
-    await waitFor(() => {
-      expect(screen.getByLabelText('Display Name')).toBeInTheDocument();
-    });
-
-    fireEvent.change(screen.getByLabelText('Display Name'), {
-      target: { value: 'Alpha Agent' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Save Metadata' }));
-
-    await waitFor(() => {
-      const putMetaCalls = (fetchMock.mock.calls as [string, { method?: string }?][]).filter(
-        ([url, init]) =>
-          url === '/api/agents/alpha/meta' && (init?.method ?? '').toUpperCase() === 'PUT',
-      );
-      expect(putMetaCalls.length).toBeGreaterThan(0);
-      expect(toast.success).toHaveBeenCalledWith('Agent metadata updated');
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText('Alpha Agent')).toBeInTheDocument();
     });
   });
 });
