@@ -1,3 +1,4 @@
+import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import { NextResponse } from 'next/server';
@@ -23,5 +24,11 @@ export async function GET(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: 'agent not found' }, { status: 404 });
   }
 
-  return NextResponse.json(agent);
+  const sourcePath = path.join(agent.home, 'SOUL.src.md');
+  const sourceContent = await fs.readFile(sourcePath, 'utf-8').catch(() => null);
+
+  return NextResponse.json({
+    ...agent,
+    partialModeEnabled: typeof sourceContent === 'string',
+  });
 }

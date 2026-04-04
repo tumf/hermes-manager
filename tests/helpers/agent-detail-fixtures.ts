@@ -12,21 +12,33 @@ export type ApiServerStatus =
 export type AgentDetailFixtureOptions = {
   apiServerStatus?: ApiServerStatus;
   launchdStartError?: string;
+  partialModeEnabled?: boolean;
 };
 
-const fileContents: Record<string, string> = {
+const legacyFileContents: Record<string, string> = {
   'memories/MEMORY.md': '# Memory file\n',
   'memories/USER.md': '# User file\n',
   'SOUL.md': '# Soul file\n',
   'config.yaml': 'name: alpha\n',
 };
 
+const partialFileContents: Record<string, string> = {
+  'memories/MEMORY.md': '# Memory file\n',
+  'memories/USER.md': '# User file\n',
+  'SOUL.md': '# Assembled Soul\n\n## Shared rules\n',
+  'SOUL.src.md': '# Soul source\n\n{{partial:directory-structure}}\n',
+  'config.yaml': 'name: alpha\n',
+};
+
 export function buildAgentDetailRoutes(options: AgentDetailFixtureOptions = {}): FetchRoute[] {
   const apiServerStatus = options.apiServerStatus ?? 'connected';
   const apiServerAvailable = apiServerStatus === 'connected';
+  const partialModeEnabled = options.partialModeEnabled ?? false;
   const envState = createEnvState({
     rows: [{ key: 'API_KEY', value: '***', masked: true, visibility: 'secure' }],
   });
+
+  const fileContents = partialModeEnabled ? partialFileContents : legacyFileContents;
 
   return [
     (url, init) => {
@@ -45,12 +57,17 @@ export function buildAgentDetailRoutes(options: AgentDetailFixtureOptions = {}):
     },
     (url, init) => {
       const method = init?.method ?? 'GET';
-      if (url.includes('/api/agents/alpha') && method === 'GET' && !url.includes('/sessions')) {
+      if (url === '/api/agents/alpha' && method === 'GET') {
         return jsonOk({
           agentId: 'alpha',
+          home: '/runtime/agents/alpha',
+          name: 'alpha',
+          description: 'test agent',
+          tags: ['test'],
           apiServerStatus,
           apiServerAvailable,
           apiServerPort: apiServerAvailable ? 19001 : null,
+          partialModeEnabled,
         });
       }
       return undefined;
@@ -67,6 +84,9 @@ export function buildAgentDetailRoutes(options: AgentDetailFixtureOptions = {}):
       if (url.startsWith('/api/files?') && method === 'GET') {
         const query = new URLSearchParams(url.split('?')[1] ?? '');
         const path = query.get('path') ?? '';
+        if (path === 'SOUL.src.md' && !partialModeEnabled) {
+          return { ok: false, json: async () => ({ error: 'file not found' }) };
+        }
         return jsonOk({ content: fileContents[path] ?? '' });
       }
       return undefined;
@@ -74,7 +94,7 @@ export function buildAgentDetailRoutes(options: AgentDetailFixtureOptions = {}):
     (url, init) => {
       const method = init?.method ?? 'GET';
       if (url === '/api/files' && method === 'PUT') {
-        return jsonOk({});
+        return jsonOk({ ok: true });
       }
       return undefined;
     },
@@ -106,6 +126,19 @@ export function buildAgentDetailRoutes(options: AgentDetailFixtureOptions = {}):
           description: body.description ?? '',
           tags: body.tags ?? [],
         });
+      }
+      return undefined;
+    },
+    (url, init) => {
+      const method = init?.method ?? 'GET';
+      if (url === '/api/partials' && method === 'GET') {
+        return jsonOk([
+          {
+            name: 'directory-structure',
+            content: '## Shared rules',
+            usedBy: partialModeEnabled ? ['alpha'] : [],
+          },
+        ]);
       }
       return undefined;
     },

@@ -22,6 +22,7 @@ interface CodeEditorProps {
   className?: string;
   ariaLabel?: string;
   dark?: boolean;
+  readOnly?: boolean;
 }
 
 export function CodeEditor({
@@ -31,6 +32,7 @@ export function CodeEditor({
   className,
   ariaLabel,
   dark = true,
+  readOnly = false,
 }: CodeEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -46,6 +48,8 @@ export function CodeEditor({
       syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
       langExtension(filePath),
       keymap.of([...defaultKeymap, ...historyKeymap]),
+      EditorState.readOnly.of(readOnly),
+      EditorView.editable.of(!readOnly),
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
           const newVal = update.state.doc.toString();
@@ -62,7 +66,7 @@ export function CodeEditor({
     ];
     if (dark) exts.push(oneDark);
     return exts;
-  }, [filePath, dark]);
+  }, [filePath, dark, readOnly]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -77,7 +81,7 @@ export function CodeEditor({
       viewRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filePath, dark]);
+  }, [filePath, dark, readOnly]);
 
   useEffect(() => {
     const view = viewRef.current;

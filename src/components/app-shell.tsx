@@ -1,6 +1,6 @@
 'use client';
 
-import { Bot, FileText, Globe, Menu, Moon, Sun } from 'lucide-react';
+import { Bot, FileText, Globe, Menu, Moon, Sun, ToyBrick } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTheme } from 'next-themes';
@@ -14,6 +14,7 @@ const navItems = [
   { href: '/', label: 'Agents', icon: Bot },
   { href: '/globals', label: 'Globals', icon: Globe },
   { href: '/templates', label: 'Templates', icon: FileText },
+  { href: '/partials', label: 'Partials', icon: ToyBrick },
 ];
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {

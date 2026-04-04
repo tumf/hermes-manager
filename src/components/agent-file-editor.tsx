@@ -28,16 +28,20 @@ const FILE_PATH_TO_TEMPLATE_FILE: Record<string, string> = {
 export interface FileEditorHandle {
   isDirty: () => boolean;
   save: () => void;
+  insertText: (text: string) => void;
 }
 
 interface FileEditorProps {
   name: string;
   filePath: string;
   label: string;
+  savePath?: string;
+  readOnly?: boolean;
+  hideTemplateButton?: boolean;
 }
 
 export const FileEditor = forwardRef<FileEditorHandle, FileEditorProps>(function FileEditor(
-  { name, filePath, label },
+  { name, filePath, label, savePath, readOnly = false, hideTemplateButton = false },
   ref,
 ) {
   const [content, setContent] = useState('');
@@ -49,13 +53,15 @@ export const FileEditor = forwardRef<FileEditorHandle, FileEditorProps>(function
   const [savingTemplate, setSavingTemplate] = useState(false);
   const originalRef = useRef('');
 
+  const effectiveSavePath = savePath ?? filePath;
+
   const save = useCallback(async () => {
     setSaving(true);
     try {
       const res = await fetch('/api/files', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agent: name, path: filePath, content }),
+        body: JSON.stringify({ agent: name, path: effectiveSavePath, content }),
       });
       if (res.ok) {
         originalRef.current = content;
@@ -69,13 +75,20 @@ export const FileEditor = forwardRef<FileEditorHandle, FileEditorProps>(function
     } finally {
       setSaving(false);
     }
-  }, [name, content, filePath, label]);
+  }, [name, content, effectiveSavePath, label]);
 
   useImperativeHandle(
     ref,
     () => ({
       isDirty: () => dirty,
       save,
+      insertText: (text: string) => {
+        setContent((previous) => {
+          const next = `${previous}${text}`;
+          setDirty(next !== originalRef.current);
+          return next;
+        });
+      },
     }),
     [dirty, save],
   );
@@ -165,50 +178,52 @@ export const FileEditor = forwardRef<FileEditorHandle, FileEditorProps>(function
           )}
         </div>
         <div className="flex gap-1.5">
-          <Dialog open={saveAsTemplateOpen} onOpenChange={setSaveAsTemplateOpen}>
-            <DialogTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={loading}
-                className="gap-1.5"
-                onClick={() => setTemplateName('')}
-              >
-                <FileText className="size-3.5" />
-                <span className="hidden sm:inline">Template</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Save as Template</DialogTitle>
-                <DialogDescription>
-                  Save the current content of {label} as a reusable template.
-                </DialogDescription>
-              </DialogHeader>
-              <Input
-                value={templateName}
-                onChange={(e) => setTemplateName(e.target.value)}
-                placeholder="template-name"
-                aria-label="Template name"
-              />
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button variant="outline">Cancel</Button>
-                </DialogClose>
+          {!hideTemplateButton && (
+            <Dialog open={saveAsTemplateOpen} onOpenChange={setSaveAsTemplateOpen}>
+              <DialogTrigger asChild>
                 <Button
-                  onClick={() => void saveAsTemplate()}
-                  disabled={savingTemplate || !templateName.trim()}
+                  variant="ghost"
+                  size="sm"
+                  disabled={loading || readOnly}
+                  className="gap-1.5"
+                  onClick={() => setTemplateName('')}
                 >
-                  {savingTemplate ? 'Saving...' : 'Save'}
+                  <FileText className="size-3.5" />
+                  <span className="hidden sm:inline">Template</span>
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Save as Template</DialogTitle>
+                  <DialogDescription>
+                    Save the current content of {label} as a reusable template.
+                  </DialogDescription>
+                </DialogHeader>
+                <Input
+                  value={templateName}
+                  onChange={(e) => setTemplateName(e.target.value)}
+                  placeholder="template-name"
+                  aria-label="Template name"
+                />
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button variant="outline">Cancel</Button>
+                  </DialogClose>
+                  <Button
+                    onClick={() => void saveAsTemplate()}
+                    disabled={savingTemplate || !templateName.trim()}
+                  >
+                    {savingTemplate ? 'Saving...' : 'Save'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
           <Button
             variant="outline"
             size="sm"
             onClick={() => void save()}
-            disabled={saving || loading || !dirty}
+            disabled={readOnly || saving || loading || !dirty}
             className="gap-1.5"
           >
             {saving ? (
@@ -233,6 +248,7 @@ export const FileEditor = forwardRef<FileEditorHandle, FileEditorProps>(function
               filePath={filePath}
               className="min-h-0 w-full flex-1 overflow-hidden rounded-md border border-input"
               ariaLabel={`Edit ${label}`}
+              readOnly={readOnly}
             />
             <div className="mt-1.5 flex items-center justify-end gap-3 text-[10px] text-muted-foreground/70">
               <span>{lineCount} lines</span>
