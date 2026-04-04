@@ -65,10 +65,10 @@
 
 ## 8. 運用要件
 
-- DB: ./runtime/data/app.db（better-sqlite3）。drizzle-kit によりマイグレート。
-- バックアップ: runtime/data/ と runtime/agents/ は resticprofile に追加推奨。
-- 監視: 最低限 runtime/logs/webapp.log の死活、必要に応じてエンドポイント ping。
-- 既存環境移行: `npm run migrate:runtime` を実行し、必要に応じて `--dry-run` で事前検証する。
+- データソース: `runtime/` ディレクトリ構造を唯一のソース・オブ・トゥルースとして運用する（SQLite は使用しない）。
+- バックアップ: `runtime/agents/`、`runtime/globals/`、`runtime/logs/` を resticprofile に追加推奨。
+- 監視: 最低限 `runtime/logs/webapp.log` / `runtime/logs/webapp.error.log` の死活確認、必要に応じて `/api/health` の ping を行う。
+- 既存環境移行: 既存運用手順で `runtime/` の必須ディレクトリ/ファイル（agents・globals・logs）を作成し、構成不整合がないことを起動前に検証する。
 
 ## 9. 制約/前提
 
