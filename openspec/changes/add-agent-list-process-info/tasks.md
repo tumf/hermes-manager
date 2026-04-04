@@ -11,3 +11,7 @@
 
 - CPU / memory 履歴可視化
 - フィルタやソートへの process info 統合
+
+## Acceptance #1 Failure Follow-up
+
+- [x] Remove or ignore untracked `.cflx/` files so `git status --porcelain` is clean during acceptance
