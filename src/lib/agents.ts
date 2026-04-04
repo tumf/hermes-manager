@@ -100,8 +100,12 @@ async function resolveHermesVersion(agentHome: string): Promise<string | null> {
         HERMES_HOME: agentHome,
       },
     });
-    const version = stdout.trim();
-    return version.length > 0 ? version : null;
+    const version = stdout
+      .trim()
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find((line) => line.length > 0);
+    return version ?? null;
   } catch (error) {
     console.warn('[agents] failed to resolve hermes version', {
       agentHome,
