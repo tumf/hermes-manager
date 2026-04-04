@@ -10,6 +10,11 @@
 - [x] Update docs (`docs/requirements.md`, `docs/design.md`) to describe `runtime/partials/`, `SOUL.src.md`, Files API changes, and the new Partials API/UI surface (verification: docs match the proposal scope and runtime layout)
 - [x] Run repo checks: `npm run test && npm run typecheck && npm run lint`
 
+## Acceptance #1 Failure Follow-up
+
+- [x] Remove or ignore the untracked `.cflx/` workspace artifact so `git status --porcelain` is clean during acceptance/archive checks
+- [x] Fix formatting for `.cflx/acceptance-state.json` or exclude `.cflx/` from repository formatting gates so `npm run format:check` passes in a clean workspace
+
 ## Future Work
 
 - `config.yaml` への partial 適用
