@@ -28,6 +28,11 @@
 - [x] Make `npm run typecheck` pass from a clean workspace without `TS6053` missing-file errors from `.next/types/**/*.ts`
 - [x] Keep the pre-commit/typecheck follow-up truthfully incomplete until the standalone `npm run typecheck` gate is stable in isolation
 
+## Acceptance #5 Failure Follow-up
+
+- [x] Remove the false completion marks for Acceptance #3/#4 follow-ups until standalone `npm run typecheck` actually passes in isolation
+- [x] Update the standalone typecheck/pre-commit flow so `next typegen && tsc --noEmit` no longer fails on missing `.next/types/app/**` files from `tsconfig.json` include patterns
+
 ## Future Work
 
 - `config.yaml` への partial 適用
