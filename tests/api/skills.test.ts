@@ -158,6 +158,8 @@ const ALPHA: Agent = {
   apiServerStatus: 'disabled',
   apiServerAvailable: false,
   apiServerPort: null,
+  memoryRssBytes: null,
+  hermesVersion: null,
 };
 
 const TEST_HOME = '/test-home';

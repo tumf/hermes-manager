@@ -30,6 +30,8 @@ const mockAgents = [
     name: 'Alpha Bot',
     description: 'alpha desc',
     tags: ['prod', 'ops'],
+    memoryRssBytes: 268435456,
+    hermesVersion: 'hermes 1.2.3',
   },
   {
     id: 2,
@@ -41,6 +43,8 @@ const mockAgents = [
     name: '',
     description: '',
     tags: [],
+    memoryRssBytes: null,
+    hermesVersion: null,
   },
 ];
 
@@ -143,6 +147,29 @@ describe('AgentsPage', () => {
     await waitFor(() => {
       expect(screen.getAllByText('Alpha Bot').length).toBeGreaterThan(0);
       expect(screen.getAllByText('beta222').length).toBeGreaterThan(0);
+    });
+  });
+
+  it('shows memory and hermes columns in table headers', async () => {
+    global.fetch = mockFetch();
+
+    render(<Home />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Memory')).toBeInTheDocument();
+      expect(screen.getByText('Hermes')).toBeInTheDocument();
+    });
+  });
+
+  it('shows per-agent process info with fallbacks', async () => {
+    global.fetch = mockFetch();
+
+    render(<Home />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('256.0 MB').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('hermes 1.2.3').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('--').length).toBeGreaterThan(0);
     });
   });
 
