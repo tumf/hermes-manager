@@ -23,6 +23,11 @@
 
 - [x] Fix the standalone typecheck gate so `npm run typecheck` passes reliably without depending on concurrent `npm run build` output under `.next/types`
 
+## Acceptance #4 Failure Follow-up
+
+- [x] Make `npm run typecheck` pass from a clean workspace without `TS6053` missing-file errors from `.next/types/**/*.ts`
+- [x] Keep the pre-commit/typecheck follow-up truthfully incomplete until the standalone `npm run typecheck` gate is stable in isolation
+
 ## Future Work
 
 - `config.yaml` への partial 適用
