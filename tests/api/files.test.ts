@@ -92,6 +92,8 @@ const AGENT: Agent = {
   apiServerStatus: 'disabled',
   apiServerAvailable: false,
   apiServerPort: null,
+  memoryRssBytes: null,
+  hermesVersion: null,
 };
 
 describe('GET /api/files', () => {

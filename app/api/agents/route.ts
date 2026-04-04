@@ -21,6 +21,8 @@ export async function GET() {
     name: a.name,
     description: a.description,
     tags: a.tags,
+    memoryRssBytes: a.memoryRssBytes,
+    hermesVersion: a.hermesVersion,
   }));
   return NextResponse.json(rows);
 }

@@ -5,6 +5,24 @@ import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('node:child_process', () => {
+  const execFile = vi.fn((...args: unknown[]) => {
+    const maybeCallback = args.at(-1);
+    if (typeof maybeCallback === 'function') {
+      (maybeCallback as (err: Error | null, stdout?: string, stderr?: string) => void)(
+        new Error('command unavailable'),
+        '',
+        '',
+      );
+    }
+  });
+
+  return {
+    execFile,
+    default: { execFile },
+  };
+});
+
 let tmpDir: string;
 
 beforeEach(() => {
@@ -39,6 +57,8 @@ describe('listAgents', () => {
     expect(agents[0].name).toBe('');
     expect(agents[0].description).toBe('');
     expect(agents[0].tags).toEqual([]);
+    expect(agents[0].memoryRssBytes).toBeNull();
+    expect(agents[0].hermesVersion).toBeNull();
   });
 
   it('reads metadata from meta.json when present', async () => {
@@ -80,6 +100,8 @@ describe('getAgent', () => {
     expect(agent!.agentId).toBe('my-agent');
     expect(agent!.home).toBe(agentDir);
     expect(agent!.enabled).toBe(false);
+    expect(agent!.memoryRssBytes).toBeNull();
+    expect(agent!.hermesVersion).toBeNull();
   });
 
   it('returns null for nonexistent agent', async () => {

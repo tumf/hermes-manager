@@ -1,4 +1,4 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: プロジェクト文書は現行アーキテクチャと整合しなければならない
 
