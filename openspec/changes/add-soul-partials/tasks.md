@@ -15,6 +15,10 @@
 - [x] Remove or ignore the untracked `.cflx/` workspace artifact so `git status --porcelain` is clean during acceptance/archive checks
 - [x] Fix formatting for `.cflx/acceptance-state.json` or exclude `.cflx/` from repository formatting gates so `npm run format:check` passes in a clean workspace
 
+## Acceptance #2 Failure Follow-up
+
+- [x] Fix the pre-commit/typecheck flow so `zsh .husky/pre-commit` passes from a clean checkout without requiring a prior `npm run build` to regenerate `.next/types`
+
 ## Future Work
 
 - `config.yaml` への partial 適用
