@@ -119,7 +119,7 @@ describe('createAgent', () => {
     const agent = await createAgent('new-agent', {
       memoryMd: '# Memory\n',
       userMd: '# User\n',
-      soulMd: '# Soul\n',
+      soulSrcMd: '# Soul\n',
       configYaml: 'name: default\n',
     });
 
@@ -127,6 +127,7 @@ describe('createAgent', () => {
     const home = agent.home;
     expect(fs.existsSync(path.join(home, 'memories', 'MEMORY.md'))).toBe(true);
     expect(fs.existsSync(path.join(home, 'memories', 'USER.md'))).toBe(true);
+    expect(fs.existsSync(path.join(home, 'SOUL.src.md'))).toBe(true);
     expect(fs.existsSync(path.join(home, 'SOUL.md'))).toBe(true);
     expect(fs.existsSync(path.join(home, 'config.yaml'))).toBe(true);
     expect(fs.existsSync(path.join(home, '.env'))).toBe(true);

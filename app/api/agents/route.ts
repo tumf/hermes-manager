@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
     templateNames?.memoryMd,
   );
   const userMdContent = resolveTemplateContent('memories/USER.md', agentId, templateNames?.userMd);
-  const soulMdContent = resolveTemplateContent('SOUL.md', agentId, templateNames?.soulMd);
+  const soulSrcMdContent = resolveTemplateContent('SOUL.md', agentId, templateNames?.soulMd);
   const configYamlContent = resolveTemplateContent(
     'config.yaml',
     agentId,
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
     {
       memoryMd: memoryMdContent,
       userMd: userMdContent,
-      soulMd: soulMdContent,
+      soulSrcMd: soulSrcMdContent,
       configYaml: configYamlContent,
     },
     {
