@@ -10,8 +10,8 @@ When an agent edits SOUL through partial mode, the Memory tab must insert shared
 **And**: shared partial `directory-structure` が存在する
 **And**: ユーザーのカーソルが SOUL source エディタ内の任意位置にある
 **When**: ユーザーが partial 挿入 UI から `directory-structure` を選択する
-**Then**: エディタはそのカーソル位置へ `{{partial:directory-structure}}` を挿入する
-**And**: システムは partial 挿入の前後に改行を自動追加しない
+**Then**: エディタはそのカーソル位置へ `{{partial:directory-structure}}` をそのまま挿入する
+**And**: システムは partial 挿入の前後に改行を自動追加しない（`{{partial:...}}` のようなラップは行わない）
 
 #### Scenario: Replace the current selection with a shared partial reference
 

@@ -2,7 +2,7 @@ import { FileText, Loader2, Save, Undo2 } from 'lucide-react';
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
-import { CodeEditor } from '@/src/components/code-editor';
+import { CodeEditor, type CodeEditorHandle } from '@/src/components/code-editor';
 import { Button } from '@/src/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
 import {
@@ -52,6 +52,7 @@ export const FileEditor = forwardRef<FileEditorHandle, FileEditorProps>(function
   const [templateName, setTemplateName] = useState('');
   const [savingTemplate, setSavingTemplate] = useState(false);
   const originalRef = useRef('');
+  const codeEditorRef = useRef<CodeEditorHandle>(null);
 
   const effectiveSavePath = savePath ?? filePath;
 
@@ -83,11 +84,7 @@ export const FileEditor = forwardRef<FileEditorHandle, FileEditorProps>(function
       isDirty: () => dirty,
       save,
       insertText: (text: string) => {
-        setContent((previous) => {
-          const next = `${previous}${text}`;
-          setDirty(next !== originalRef.current);
-          return next;
-        });
+        codeEditorRef.current?.insertTextAtSelection(text);
       },
     }),
     [dirty, save],
@@ -243,6 +240,7 @@ export const FileEditor = forwardRef<FileEditorHandle, FileEditorProps>(function
         ) : (
           <div className="relative flex min-h-0 flex-1 flex-col">
             <CodeEditor
+              ref={codeEditorRef}
               value={content}
               onChange={handleChange}
               filePath={filePath}
