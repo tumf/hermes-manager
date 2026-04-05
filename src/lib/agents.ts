@@ -10,6 +10,7 @@ import * as yaml from 'js-yaml';
 import { discoverApiServerStatus, type ApiServerStatus } from './gateway-discovery';
 import { parsePid, parseRunning } from './launchd';
 import { getRuntimeAgentsRootPath } from './runtime-paths';
+import { writeSoulSourceAndAssembled } from './soul-assembly';
 
 export interface AgentMeta {
   name: string;
@@ -283,7 +284,7 @@ export async function agentExists(agentId: string): Promise<boolean> {
  */
 export async function createAgent(
   agentId: string,
-  files: { memoryMd: string; userMd: string; soulMd: string; configYaml: string },
+  files: { memoryMd: string; userMd: string; soulSrcMd: string; configYaml: string },
   meta: Partial<AgentMeta> = {},
 ): Promise<Agent> {
   const home = getRuntimeAgentsRootPath(agentId);
@@ -291,7 +292,7 @@ export async function createAgent(
   await fsp.mkdir(path.join(home, 'memories'), { recursive: true });
   await fsp.writeFile(path.join(home, 'memories', 'MEMORY.md'), files.memoryMd);
   await fsp.writeFile(path.join(home, 'memories', 'USER.md'), files.userMd);
-  await fsp.writeFile(path.join(home, 'SOUL.md'), files.soulMd);
+  await writeSoulSourceAndAssembled(home, files.soulSrcMd);
   await fsp.writeFile(path.join(home, 'config.yaml'), files.configYaml);
   await fsp.writeFile(path.join(home, '.env'), '');
 
