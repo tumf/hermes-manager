@@ -4,15 +4,19 @@ import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
 import { yaml } from '@codemirror/lang-yaml';
 import { bracketMatching, defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language';
-import { EditorState } from '@codemirror/state';
+import { EditorSelection, EditorState } from '@codemirror/state';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { EditorView, keymap, lineNumbers } from '@codemirror/view';
-import { useCallback, useEffect, useRef } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from 'react';
 
 function langExtension(filePath: string) {
   if (filePath.endsWith('.md')) return markdown();
   if (filePath.endsWith('.yaml') || filePath.endsWith('.yml')) return yaml();
   return markdown();
+}
+
+export interface CodeEditorHandle {
+  insertTextAtSelection: (text: string) => void;
 }
 
 interface CodeEditorProps {
@@ -25,15 +29,10 @@ interface CodeEditorProps {
   readOnly?: boolean;
 }
 
-export function CodeEditor({
-  value,
-  onChange,
-  filePath,
-  className,
-  ariaLabel,
-  dark = true,
-  readOnly = false,
-}: CodeEditorProps) {
+export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(function CodeEditor(
+  { value, onChange, filePath, className, ariaLabel, dark = true, readOnly = false },
+  ref,
+) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -95,6 +94,34 @@ export function CodeEditor({
     }
   }, [value]);
 
+  useImperativeHandle(
+    ref,
+    () => ({
+      insertTextAtSelection: (text: string) => {
+        const view = viewRef.current;
+        if (!view || readOnly) return;
+
+        const changes = view.state.selection.ranges.map((range) => ({
+          from: range.from,
+          to: range.to,
+          insert: text,
+        }));
+
+        const primaryIndex = view.state.selection.mainIndex;
+        const primaryRange = view.state.selection.ranges[primaryIndex];
+        const anchor = primaryRange.from + text.length;
+
+        view.dispatch({
+          changes,
+          selection: EditorSelection.cursor(anchor),
+          scrollIntoView: true,
+        });
+        view.focus();
+      },
+    }),
+    [readOnly],
+  );
+
   return (
     <div
       ref={containerRef}
@@ -104,4 +131,4 @@ export function CodeEditor({
       aria-multiline="true"
     />
   );
-}
+});

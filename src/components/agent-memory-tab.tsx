@@ -142,7 +142,7 @@ export function AgentMemoryTab({ name }: AgentMemoryTabProps) {
   }, [partialModeEnabled]);
 
   function insertPartialReference(partialName: string) {
-    editorRef.current?.insertText(`\n{{partial:${partialName}}}\n`);
+    editorRef.current?.insertText(`{{partial:${partialName}}}`);
     toast.success(`Inserted partial: ${partialName}`);
   }
 

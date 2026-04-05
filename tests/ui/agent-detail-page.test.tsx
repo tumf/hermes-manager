@@ -15,25 +15,52 @@ vi.mock('sonner', () => ({
   },
 }));
 
-vi.mock('@/src/components/code-editor', () => ({
-  CodeEditor: ({
-    value,
-    onChange,
-    ariaLabel,
-  }: {
-    value: string;
-    onChange: (v: string) => void;
-    ariaLabel?: string;
-    filePath?: string;
-    className?: string;
-    readOnly?: boolean;
-  }) =>
-    React.createElement('textarea', {
+vi.mock('@/src/components/code-editor', () => {
+  const CodeEditor = React.forwardRef(function MockCodeEditor(
+    {
+      value,
+      onChange,
+      ariaLabel,
+      readOnly,
+    }: {
+      value: string;
+      onChange: (v: string) => void;
+      ariaLabel?: string;
+      filePath?: string;
+      className?: string;
+      readOnly?: boolean;
+    },
+    ref: React.ForwardedRef<{ insertTextAtSelection: (text: string) => void }>,
+  ) {
+    const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+
+    React.useImperativeHandle(
+      ref,
+      () => ({
+        insertTextAtSelection: (text: string) => {
+          if (readOnly) return;
+          const textarea = textareaRef.current;
+          if (!textarea) return;
+          const start = textarea.selectionStart ?? value.length;
+          const end = textarea.selectionEnd ?? value.length;
+          const nextValue = `${value.slice(0, start)}${text}${value.slice(end)}`;
+          onChange(nextValue);
+        },
+      }),
+      [onChange, readOnly, value],
+    );
+
+    return React.createElement('textarea', {
+      ref: textareaRef,
       value,
       onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => onChange(e.target.value),
       'aria-label': ariaLabel,
-    }),
-}));
+      readOnly,
+    });
+  });
+
+  return { CodeEditor };
+});
 
 let AgentDetailPage: React.ComponentType<{ params: Promise<{ id: string }> }>;
 
@@ -115,7 +142,7 @@ describe('Agent detail memory tab', () => {
     expect(toast.success).toHaveBeenCalledWith('Partial mode enabled');
   });
 
-  it('inserts partial reference via insert UI', async () => {
+  it('inserts partial reference at cursor position without forced newlines', async () => {
     global.fetch = createFetchRouter(buildAgentDetailRoutes({ partialModeEnabled: true }));
     window.history.replaceState(null, '', '#memory');
 
@@ -123,12 +150,48 @@ describe('Agent detail memory tab', () => {
       renderPage('alpha');
     });
 
+    const editor = (await screen.findByRole('textbox', {
+      name: 'Edit SOUL.src.md',
+    })) as HTMLTextAreaElement;
+
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'directory-structure' })).toBeInTheDocument();
     });
 
+    const cursor = '# Soul source\n\n'.length;
+    editor.setSelectionRange(cursor, cursor);
     fireEvent.click(screen.getByRole('button', { name: 'directory-structure' }));
 
+    expect(editor.value).toContain(
+      '# Soul source\n\n{{partial:directory-structure}}{{partial:directory-structure}}\n',
+    );
+    expect(editor.value).not.toContain(
+      '\n{{partial:directory-structure}}\n{{partial:directory-structure}}',
+    );
+    expect(toast.success).toHaveBeenCalledWith('Inserted partial: directory-structure');
+  });
+
+  it('replaces selected text when inserting partial reference', async () => {
+    global.fetch = createFetchRouter(buildAgentDetailRoutes({ partialModeEnabled: true }));
+    window.history.replaceState(null, '', '#memory');
+
+    await act(async () => {
+      renderPage('alpha');
+    });
+
+    const editor = (await screen.findByRole('textbox', {
+      name: 'Edit SOUL.src.md',
+    })) as HTMLTextAreaElement;
+
+    const selectedSnippet = '{{partial:directory-structure}}';
+    const start = editor.value.indexOf(selectedSnippet);
+    expect(start).toBeGreaterThanOrEqual(0);
+    const end = start + selectedSnippet.length;
+    editor.setSelectionRange(start, end);
+
+    fireEvent.click(screen.getByRole('button', { name: 'directory-structure' }));
+
+    expect(editor.value).toBe('# Soul source\n\n{{partial:directory-structure}}\n');
     expect(toast.success).toHaveBeenCalledWith('Inserted partial: directory-structure');
   });
 
