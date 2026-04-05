@@ -16,7 +16,7 @@ vi.mock('@/src/lib/agents', () => ({
   listAgents: vi.fn(async () => mockState.agents),
   getAgent: vi.fn(async (id: string) => mockState.agents.find((a) => a.agentId === id) ?? null),
   agentExists: vi.fn(async (id: string) => mockState.agents.some((a) => a.agentId === id)),
-  createAgent: vi.fn(async (agentId: string) => {
+  createAgent: vi.fn(async (agentId: string, _files?: Record<string, string>) => {
     const agent: Agent = {
       agentId,
       home: `/runtime/agents/${agentId}`,
@@ -155,11 +155,21 @@ describe('POST /api/agents', () => {
   });
 
   it('creates agent without body and returns 201 with auto-generated id', async () => {
+    const agentsLib = await import('../../src/lib/agents');
+
     const res = await POST(new NextRequest('http://localhost/api/agents', { method: 'POST' }));
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.agentId).toBe('abc1234');
     expect(body.label).toBe('ai.hermes.gateway.abc1234');
+
+    expect(vi.mocked(agentsLib.createAgent)).toHaveBeenCalledWith(
+      'abc1234',
+      expect.objectContaining({
+        soulSrcMd: '# Soul: abc1234\n',
+      }),
+      expect.any(Object),
+    );
   });
 
   it('accepts templates parameter in body', async () => {

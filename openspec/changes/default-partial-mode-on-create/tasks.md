@@ -1,10 +1,10 @@
 ## Implementation Tasks
 
-- [ ] Update agent creation flow to persist `SOUL.src.md` as the source-of-truth for new agents and generate assembled `SOUL.md` during creation (verification: `app/api/agents/route.ts`, `src/lib/agents.ts`)
-- [ ] Keep template resolution behavior intact while redirecting new-agent SOUL template output into `SOUL.src.md` initial content (verification: `app/api/agents/route.ts`, `src/lib/templates.ts`)
-- [ ] Preserve agent detail partial mode detection so newly created agents report `partialModeEnabled=true` without changing legacy agents (verification: `app/api/agents/[id]/route.ts`)
-- [ ] Add or update automated tests covering new-agent creation defaults, API shape, and initial Memory tab behavior (verification: `tests/api/agents.test.ts`, `tests/ui/agents-page.test.tsx`, related UI/API tests)
-- [ ] Run `npm run test`, `npm run typecheck`, and `npm run lint` after implementation (verification: command output)
+- [x] Update agent creation flow to persist `SOUL.src.md` as the source-of-truth for new agents and generate assembled `SOUL.md` during creation (verification: `app/api/agents/route.ts`, `src/lib/agents.ts`)
+- [x] Keep template resolution behavior intact while redirecting new-agent SOUL template output into `SOUL.src.md` initial content (verification: `app/api/agents/route.ts`, `src/lib/templates.ts`)
+- [x] Preserve agent detail partial mode detection so newly created agents report `partialModeEnabled=true` without changing legacy agents (verification: `app/api/agents/[id]/route.ts`)
+- [x] Add or update automated tests covering new-agent creation defaults, API shape, and initial Memory tab behavior (verification: `tests/api/agents.test.ts`, `tests/ui/agents-page.test.tsx`, related UI/API tests)
+- [x] Run `npm run test`, `npm run typecheck`, and `npm run lint` after implementation (verification: command output)
 
 ## Future Work
 
