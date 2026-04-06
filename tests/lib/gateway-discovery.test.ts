@@ -79,10 +79,11 @@ describe('gateway discovery', () => {
     await expect(discoverApiServerPort(agentHome)).resolves.toBe(18477);
   });
 
-  it('returns connected with default port when connected but no explicit port', async () => {
-    const agentHome = path.join(tmpDir, 'agent-default-port');
+  it('falls back to meta.json apiServerPort when state has no port', async () => {
+    const agentHome = path.join(tmpDir, 'agent-meta-port');
     await fsp.mkdir(agentHome, { recursive: true });
     await fsp.writeFile(path.join(agentHome, 'config.yaml'), 'platforms:\n  - api_server\n');
+    await fsp.writeFile(path.join(agentHome, 'meta.json'), JSON.stringify({ apiServerPort: 8645 }));
     await fsp.writeFile(
       path.join(agentHome, 'gateway_state.json'),
       JSON.stringify({
@@ -92,16 +93,41 @@ describe('gateway discovery', () => {
       }),
     );
 
-    expect(discoverApiServerStatus(agentHome)).toEqual({ status: 'connected', port: 8642 });
+    expect(discoverApiServerStatus(agentHome)).toEqual({ status: 'connected', port: 8645 });
   });
 
-  it('returns error when connected but port is invalid', async () => {
+  it('falls back to .env API_SERVER_PORT when state/meta have no valid port', async () => {
+    const runtimeDir = path.join(tmpDir, 'runtime');
+    const agentHome = path.join(runtimeDir, 'agents', 'agent-env-port');
+    const globalsDir = path.join(runtimeDir, 'globals');
+    await fsp.mkdir(agentHome, { recursive: true });
+    await fsp.mkdir(globalsDir, { recursive: true });
+    await fsp.writeFile(path.join(agentHome, 'config.yaml'), 'platforms:\n  - api_server\n');
+    await fsp.writeFile(path.join(globalsDir, '.env'), 'API_SERVER_PORT=19007\n');
+    await fsp.writeFile(
+      path.join(agentHome, 'gateway_state.json'),
+      JSON.stringify({
+        pid: 9999,
+        gateway_state: 'running',
+        api_server_port: 'broken',
+        platforms: { api_server: { state: 'connected' } },
+      }),
+    );
+
+    expect(discoverApiServerStatus(agentHome)).toEqual({ status: 'connected', port: 19007 });
+  });
+
+  it('returns error when connected but no valid port exists in state/meta/env', async () => {
     const runtimeDir = path.join(tmpDir, 'runtime');
     const agentHome = path.join(runtimeDir, 'agents', 'agent-error');
     const globalsDir = path.join(runtimeDir, 'globals');
     await fsp.mkdir(agentHome, { recursive: true });
     await fsp.mkdir(globalsDir, { recursive: true });
     await fsp.writeFile(path.join(agentHome, 'config.yaml'), 'platforms:\n  - api_server\n');
+    await fsp.writeFile(
+      path.join(agentHome, 'meta.json'),
+      JSON.stringify({ apiServerPort: 'bad' }),
+    );
     await fsp.writeFile(path.join(globalsDir, '.env'), 'API_SERVER_PORT=invalid\n');
     await fsp.writeFile(
       path.join(agentHome, 'gateway_state.json'),

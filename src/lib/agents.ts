@@ -288,11 +288,11 @@ export async function listAgents(): Promise<Agent[]> {
       enabled: config.enabled === true,
       createdAt: stat.birthtime,
       updatedAt: stat.mtime,
+      ...meta,
       apiServerStatus: discovery.status,
       apiServerAvailable: discovery.status === 'connected' && apiServerPort !== null,
       apiServerPort,
       ...processInfo,
-      ...meta,
     });
   }
 
@@ -324,11 +324,11 @@ export async function getAgent(agentId: string): Promise<Agent | null> {
       enabled: config.enabled === true,
       createdAt: stat.birthtime,
       updatedAt: stat.mtime,
+      ...meta,
       apiServerStatus: discovery.status,
       apiServerAvailable: discovery.status === 'connected' && apiServerPort !== null,
       apiServerPort,
       ...processInfo,
-      ...meta,
     };
   } catch {
     return null;
@@ -393,11 +393,11 @@ export async function createAgent(
     enabled: config.enabled === true,
     createdAt: stat.birthtime,
     updatedAt: stat.mtime,
+    ...normalizedMeta,
     apiServerStatus: discovery.status,
     apiServerAvailable: discovery.status === 'connected' && apiServerPort !== null,
     apiServerPort,
     ...PROCESS_INFO_PLACEHOLDER,
-    ...normalizedMeta,
   };
 }
 

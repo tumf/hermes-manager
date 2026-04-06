@@ -255,4 +255,53 @@ describe('Agent detail page', () => {
       expect(lastPutBody.agent).toBe('alpha');
     });
   });
+
+  it('shows auto-allocation guidance when api_server is disabled', async () => {
+    global.fetch = createFetchRouter(
+      buildAgentDetailRoutes({ apiServerStatus: 'disabled', partialModeEnabled: false }),
+    );
+    window.history.replaceState(null, '', '#chat');
+
+    await act(async () => {
+      renderPage('alpha');
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          'Chat を使うにはエージェントの api_server プラットフォームを有効にする必要があります。',
+        ),
+      ).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getAllByText(
+        (_, element) =>
+          (element?.textContent ?? '').includes('config.yaml') &&
+          (element?.textContent ?? '').includes('api_server') &&
+          (element?.textContent ?? '').includes('有効化する'),
+      ).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByText(/gateway を再起動/)).toBeInTheDocument();
+    expect(screen.queryByText(/API_SERVER_ENABLED=true/)).not.toBeInTheDocument();
+  });
+
+  it('shows meta port and gateway restart guidance when api_server status is error', async () => {
+    global.fetch = createFetchRouter(
+      buildAgentDetailRoutes({ apiServerStatus: 'error', partialModeEnabled: false }),
+    );
+    window.history.replaceState(null, '', '#chat');
+
+    await act(async () => {
+      renderPage('alpha');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('api_server のポートを確定できませんでした。')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/meta\.json/)).toBeInTheDocument();
+    expect(screen.getByText(/apiServerPort/)).toBeInTheDocument();
+    expect(screen.getByText(/hermes gateway restart/)).toBeInTheDocument();
+  });
 });
