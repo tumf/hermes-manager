@@ -73,14 +73,6 @@ async function ensureServiceBootstrapped(
   uid: number,
   apiServerPort: number | null,
 ): Promise<ExecResult> {
-  if (apiServerPort === null) {
-    return {
-      stdout: '',
-      stderr: 'apiServerPort is not configured for this agent',
-      code: 1,
-    };
-  }
-
   const plistContent = generatePlist(agentName, home, label, apiServerPort);
   const plistPath = getPlistPath(agentName);
 

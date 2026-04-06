@@ -12,3 +12,9 @@
 
 - 既存エージェントの `.env` ベース `API_SERVER_PORT` を `meta.json` に移行する支援コマンド
 - ポート再割当 UI / 修復 UI
+
+## Acceptance #1 Failure Follow-up
+
+- [x] `apiServerPort` 未設定エージェントの install 時は plist に `API_SERVER_ENABLED` / `API_SERVER_PORT` を含めないように `generatePlist` と `/api/launchd` を仕様どおり修正する
+- [x] `tests/api/launchd.test.ts` に `apiServerPort` 未設定時の非注入シナリオを追加する
+- [x] `docs/design.md` の launchd 実行モデル/API 設計を実装・spec と一致する内容へ補正する

@@ -24,6 +24,15 @@ export function generatePlist(
   const agentEnvPath = path.join(home, '.env');
   const logDir = path.join(home, 'logs');
 
+  const apiServerEnvBlock =
+    apiServerPort === null
+      ? ''
+      : `
+    <key>API_SERVER_ENABLED</key>
+    <string>true</string>
+    <key>API_SERVER_PORT</key>
+    <string>${apiServerPort}</string>`;
+
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -40,11 +49,7 @@ export function generatePlist(
   <key>EnvironmentVariables</key>
   <dict>
     <key>HERMES_HOME</key>
-    <string>${home}</string>
-    <key>API_SERVER_ENABLED</key>
-    <string>true</string>
-    <key>API_SERVER_PORT</key>
-    <string>${apiServerPort ?? ''}</string>
+    <string>${home}</string>${apiServerEnvBlock}
   </dict>
   <key>StandardOutPath</key>
   <string>${logDir}/gateway.log</string>
