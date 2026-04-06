@@ -261,4 +261,23 @@ describe('Agent detail memory tab', () => {
     expect(screen.getByText(/gateway を再起動/)).toBeInTheDocument();
     expect(screen.queryByText(/API_SERVER_ENABLED=true/)).not.toBeInTheDocument();
   });
+
+  it('shows meta port and gateway restart guidance when api_server status is error', async () => {
+    global.fetch = createFetchRouter(
+      buildAgentDetailRoutes({ apiServerStatus: 'error', partialModeEnabled: false }),
+    );
+    window.history.replaceState(null, '', '#chat');
+
+    await act(async () => {
+      renderPage('alpha');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('api_server のポートを確定できませんでした。')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/meta\.json/)).toBeInTheDocument();
+    expect(screen.getByText(/apiServerPort/)).toBeInTheDocument();
+    expect(screen.getByText(/hermes gateway restart/)).toBeInTheDocument();
+  });
 });

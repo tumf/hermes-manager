@@ -11,6 +11,11 @@
 
 - [x] `npm run typecheck` が単独実行でも `.next/types/**/*.ts` の欠落で失敗しないように、`tsconfig.json` / `next typegen` / `.next` 生成前提を整理する（verification: manual - `npm run typecheck` 成功）
 
+## Acceptance #2 Failure Follow-up
+
+- [x] `src/components/chat-tab.tsx` の `apiServerStatus === 'error'` ガイダンスを、ポート未確定時は `meta.json.apiServerPort` / gateway 再起動前提の運用が分かる文言へ更新する
+- [x] `tests/ui/agent-detail-page.test.tsx` などで `apiServerStatus === 'error'` の文言期待値を追加し、proposal の運用ガイダンスと整合することを検証する
+
 ## Future Work
 
 - gateway_state.json に常に `api_server_port` を書く Hermes 側の保証強化

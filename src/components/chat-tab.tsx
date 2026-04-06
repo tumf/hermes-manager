@@ -427,8 +427,14 @@ export function ChatTab({ name }: { name: string }) {
             </div>
           ) : apiServerStatus === 'error' ? (
             <div className="space-y-2 rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
-              <p className="font-medium">api_server 状態を取得できませんでした。</p>
-              <p className="text-xs">logs を確認するか、後で再試行してください。</p>
+              <p className="font-medium">api_server のポートを確定できませんでした。</p>
+              <p className="text-xs">
+                まず <code className="rounded bg-muted px-1">meta.json</code> の
+                <code className="rounded bg-muted px-1">apiServerPort</code> 割当を確認し、
+                <code className="rounded bg-muted px-1">hermes gateway restart</code>{' '}
+                で再反映してください。
+              </p>
+              <p className="text-xs">解決しない場合は logs を確認して原因を特定してください。</p>
             </div>
           ) : apiServerStatus === 'connected' ? (
             <>
