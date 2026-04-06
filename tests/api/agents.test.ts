@@ -16,26 +16,29 @@ vi.mock('@/src/lib/agents', () => ({
   listAgents: vi.fn(async () => mockState.agents),
   getAgent: vi.fn(async (id: string) => mockState.agents.find((a) => a.agentId === id) ?? null),
   agentExists: vi.fn(async (id: string) => mockState.agents.some((a) => a.agentId === id)),
-  createAgent: vi.fn(async (agentId: string) => {
-    const agent: Agent = {
-      agentId,
-      home: `/runtime/agents/${agentId}`,
-      label: `ai.hermes.gateway.${agentId}`,
-      enabled: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      name: '',
-      description: '',
-      tags: [],
-      apiServerStatus: 'disabled',
-      apiServerAvailable: false,
-      apiServerPort: null,
-      memoryRssBytes: null,
-      hermesVersion: null,
-    };
-    mockState.createdAgent = agent;
-    return agent;
-  }),
+  allocateApiServerPort: vi.fn(async () => 8642),
+  createAgent: vi.fn(
+    async (agentId: string, _files: unknown, meta?: { apiServerPort?: number }) => {
+      const agent: Agent = {
+        agentId,
+        home: `/runtime/agents/${agentId}`,
+        label: `ai.hermes.gateway.${agentId}`,
+        enabled: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        name: '',
+        description: '',
+        tags: [],
+        apiServerStatus: 'disabled',
+        apiServerAvailable: false,
+        apiServerPort: meta?.apiServerPort ?? null,
+        memoryRssBytes: null,
+        hermesVersion: null,
+      };
+      mockState.createdAgent = agent;
+      return agent;
+    },
+  ),
   updateAgentMeta: vi.fn(
     async (agentId: string, meta: { name: string; description: string; tags: string[] }) => {
       const agent = mockState.agents.find((a) => a.agentId === agentId);
@@ -162,14 +165,25 @@ describe('POST /api/agents', () => {
     const body = await res.json();
     expect(body.agentId).toBe('abc1234');
     expect(body.label).toBe('ai.hermes.gateway.abc1234');
+    expect(body.apiServerPort).toBe(8642);
 
     expect(vi.mocked(agentsLib.createAgent)).toHaveBeenCalledWith(
       'abc1234',
       expect.objectContaining({
         soulSrcMd: '# Soul: abc1234\n',
       }),
-      expect.any(Object),
+      expect.objectContaining({ apiServerPort: 8642 }),
     );
+  });
+
+  it('returns 409 when no api server ports are available', async () => {
+    const agentsLib = await import('../../src/lib/agents');
+    vi.mocked(agentsLib.allocateApiServerPort).mockRejectedValueOnce(new Error('port exhausted'));
+
+    const res = await POST(new NextRequest('http://localhost/api/agents', { method: 'POST' }));
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error).toContain('No available API server ports');
   });
 
   it('accepts templates parameter in body', async () => {

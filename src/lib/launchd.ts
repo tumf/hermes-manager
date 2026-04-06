@@ -13,7 +13,12 @@ export function getPlistPath(agentId: string): string {
   return path.join(os.homedir(), 'Library', 'LaunchAgents', `ai.hermes.gateway.${agentId}.plist`);
 }
 
-export function generatePlist(_agentId: string, home: string, label: string): string {
+export function generatePlist(
+  _agentId: string,
+  home: string,
+  label: string,
+  apiServerPort: number | null,
+): string {
   const runnerScriptPath = getProjectRootPath('scripts', 'run-agent-gateway.sh');
   const globalsEnvPath = getRuntimeGlobalsRootPath('.env');
   const agentEnvPath = path.join(home, '.env');
@@ -36,6 +41,10 @@ export function generatePlist(_agentId: string, home: string, label: string): st
   <dict>
     <key>HERMES_HOME</key>
     <string>${home}</string>
+    <key>API_SERVER_ENABLED</key>
+    <string>true</string>
+    <key>API_SERVER_PORT</key>
+    <string>${apiServerPort ?? ''}</string>
   </dict>
   <key>StandardOutPath</key>
   <string>${logDir}/gateway.log</string>

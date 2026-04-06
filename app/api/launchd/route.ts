@@ -71,8 +71,17 @@ async function ensureServiceBootstrapped(
   home: string,
   label: string,
   uid: number,
+  apiServerPort: number | null,
 ): Promise<ExecResult> {
-  const plistContent = generatePlist(agentName, home, label);
+  if (apiServerPort === null) {
+    return {
+      stdout: '',
+      stderr: 'apiServerPort is not configured for this agent',
+      code: 1,
+    };
+  }
+
+  const plistContent = generatePlist(agentName, home, label, apiServerPort);
   const plistPath = getPlistPath(agentName);
 
   fs.mkdirSync(path.dirname(plistPath), { recursive: true });
@@ -111,7 +120,13 @@ export async function POST(request: Request) {
   const uid = getUid();
 
   if (action === 'install') {
-    const result = await ensureServiceBootstrapped(agentName, home, label, uid);
+    const result = await ensureServiceBootstrapped(
+      agentName,
+      home,
+      label,
+      uid,
+      agentRow.apiServerPort,
+    );
     return NextResponse.json(result);
   }
 
@@ -130,7 +145,13 @@ export async function POST(request: Request) {
     const currentStatus = await runExecFile('launchctl', ['print', `gui/${uid}/${label}`]);
 
     if (isServiceMissing(currentStatus)) {
-      const bootstrapResult = await ensureServiceBootstrapped(agentName, home, label, uid);
+      const bootstrapResult = await ensureServiceBootstrapped(
+        agentName,
+        home,
+        label,
+        uid,
+        agentRow.apiServerPort,
+      );
       if (bootstrapResult.code !== 0) {
         return NextResponse.json(bootstrapResult, { status: 500 });
       }
@@ -165,7 +186,13 @@ export async function POST(request: Request) {
 
   if (action === 'restart') {
     // Ensure service is bootstrapped (writes plist + registers if needed)
-    const bootstrapResult = await ensureServiceBootstrapped(agentName, home, label, uid);
+    const bootstrapResult = await ensureServiceBootstrapped(
+      agentName,
+      home,
+      label,
+      uid,
+      agentRow.apiServerPort,
+    );
     if (bootstrapResult.code !== 0) {
       return NextResponse.json(bootstrapResult, { status: 500 });
     }

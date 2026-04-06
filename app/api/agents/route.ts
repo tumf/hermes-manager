@@ -3,7 +3,14 @@ import path from 'node:path';
 
 import { NextRequest, NextResponse } from 'next/server';
 
-import { agentExists, createAgent, deleteAgent, getAgent, listAgents } from '@/src/lib/agents';
+import {
+  agentExists,
+  allocateApiServerPort,
+  createAgent,
+  deleteAgent,
+  getAgent,
+  listAgents,
+} from '@/src/lib/agents';
 import { generateAgentId } from '@/src/lib/id';
 import { resolveTemplateContent } from '@/src/lib/templates';
 import { CreateAgentSchema } from '@/src/lib/validators/agents';
@@ -78,6 +85,19 @@ export async function POST(request: NextRequest) {
     templateNames?.configYaml,
   );
 
+  let apiServerPort: number;
+  try {
+    apiServerPort = await allocateApiServerPort();
+  } catch (error) {
+    console.warn('[api/agents] failed to allocate api server port', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return NextResponse.json(
+      { error: 'No available API server ports in range 8642-8699' },
+      { status: 409 },
+    );
+  }
+
   const agent = await createAgent(
     agentId,
     {
@@ -90,6 +110,7 @@ export async function POST(request: NextRequest) {
       name: meta?.name,
       description: meta?.description,
       tags: meta?.tags,
+      apiServerPort,
     },
   );
 
