@@ -7,6 +7,10 @@
 - [x] `docs/design.md` と必要な spec delta を実装方針に合わせて更新する（verification: manual - proposal/spec/design の記述整合を確認）
 - [x] `npm run test && npm run typecheck && npm run lint` を通す（verification: manual - 3 コマンド成功）
 
+## Acceptance #1 Failure Follow-up
+
+- [x] `npm run typecheck` が単独実行でも `.next/types/**/*.ts` の欠落で失敗しないように、`tsconfig.json` / `next typegen` / `.next` 生成前提を整理する（verification: manual - `npm run typecheck` 成功）
+
 ## Future Work
 
 - gateway_state.json に常に `api_server_port` を書く Hermes 側の保証強化
