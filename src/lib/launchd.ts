@@ -13,11 +13,25 @@ export function getPlistPath(agentId: string): string {
   return path.join(os.homedir(), 'Library', 'LaunchAgents', `ai.hermes.gateway.${agentId}.plist`);
 }
 
-export function generatePlist(_agentId: string, home: string, label: string): string {
+export function generatePlist(
+  _agentId: string,
+  home: string,
+  label: string,
+  apiServerPort: number | null,
+): string {
   const runnerScriptPath = getProjectRootPath('scripts', 'run-agent-gateway.sh');
   const globalsEnvPath = getRuntimeGlobalsRootPath('.env');
   const agentEnvPath = path.join(home, '.env');
   const logDir = path.join(home, 'logs');
+
+  const apiServerEnvBlock =
+    apiServerPort === null
+      ? ''
+      : `
+    <key>API_SERVER_ENABLED</key>
+    <string>true</string>
+    <key>API_SERVER_PORT</key>
+    <string>${apiServerPort}</string>`;
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -35,7 +49,7 @@ export function generatePlist(_agentId: string, home: string, label: string): st
   <key>EnvironmentVariables</key>
   <dict>
     <key>HERMES_HOME</key>
-    <string>${home}</string>
+    <string>${home}</string>${apiServerEnvBlock}
   </dict>
   <key>StandardOutPath</key>
   <string>${logDir}/gateway.log</string>

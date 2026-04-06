@@ -20,7 +20,8 @@ describe('generatePlist', () => {
   const name = 'alpha';
   const home = '/Users/me/Hermes/alpha';
   const label = 'ai.hermes.gateway.alpha';
-  const plist = generatePlist(name, home, label);
+  const plist = generatePlist(name, home, label, 8645);
+  const plistWithoutApiServer = generatePlist(name, home, label, null);
 
   it('contains the correct label', () => {
     expect(plist).toContain(`<string>${label}</string>`);
@@ -37,6 +38,18 @@ describe('generatePlist', () => {
   it('sets HERMES_HOME environment variable', () => {
     expect(plist).toContain('<key>HERMES_HOME</key>');
     expect(plist).toContain(`<string>${home}</string>`);
+  });
+
+  it('injects API_SERVER_ENABLED and API_SERVER_PORT environment variables', () => {
+    expect(plist).toContain('<key>API_SERVER_ENABLED</key>');
+    expect(plist).toContain('<string>true</string>');
+    expect(plist).toContain('<key>API_SERVER_PORT</key>');
+    expect(plist).toContain('<string>8645</string>');
+  });
+
+  it('does not inject API_SERVER_* variables when apiServerPort is not configured', () => {
+    expect(plistWithoutApiServer).not.toContain('<key>API_SERVER_ENABLED</key>');
+    expect(plistWithoutApiServer).not.toContain('<key>API_SERVER_PORT</key>');
   });
 
   it('sets WorkingDirectory to HERMES_HOME', () => {

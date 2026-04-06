@@ -16,7 +16,11 @@ export interface AgentMeta {
   name: string;
   description: string;
   tags: string[];
+  apiServerPort?: number | null;
 }
+
+const API_SERVER_PORT_MIN = 8642;
+const API_SERVER_PORT_MAX = 8699;
 
 export interface AgentProcessInfo {
   memoryRssBytes: number | null;
@@ -168,6 +172,13 @@ function readMetaJson(agentHome: string): AgentMeta {
       tags: Array.isArray(parsed.tags)
         ? parsed.tags.filter((tag): tag is string => typeof tag === 'string')
         : [],
+      apiServerPort:
+        typeof parsed.apiServerPort === 'number' &&
+        Number.isInteger(parsed.apiServerPort) &&
+        parsed.apiServerPort >= API_SERVER_PORT_MIN &&
+        parsed.apiServerPort <= API_SERVER_PORT_MAX
+          ? parsed.apiServerPort
+          : undefined,
     };
   } catch {
     return { ...DEFAULT_AGENT_META };
@@ -176,7 +187,66 @@ function readMetaJson(agentHome: string): AgentMeta {
 
 async function writeMetaJson(agentHome: string, meta: AgentMeta): Promise<void> {
   const metaPath = path.join(agentHome, 'meta.json');
-  await fsp.writeFile(metaPath, JSON.stringify(meta, null, 2), 'utf-8');
+  const payload: Record<string, unknown> = {
+    name: meta.name,
+    description: meta.description,
+    tags: meta.tags,
+  };
+  if (typeof meta.apiServerPort === 'number') {
+    payload.apiServerPort = meta.apiServerPort;
+  }
+  await fsp.writeFile(metaPath, JSON.stringify(payload, null, 2), 'utf-8');
+}
+
+function isApiServerPortInRange(value: unknown): value is number {
+  return (
+    typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value >= API_SERVER_PORT_MIN &&
+    value <= API_SERVER_PORT_MAX
+  );
+}
+
+export async function allocateApiServerPort(): Promise<number> {
+  const agentsRoot = getRuntimeAgentsRootPath();
+  let entries: string[];
+  try {
+    entries = await fsp.readdir(agentsRoot);
+  } catch {
+    entries = [];
+  }
+
+  const usedPorts = new Set<number>();
+  for (const entry of entries) {
+    const agentHome = path.join(agentsRoot, entry);
+    const stat = await fsp.stat(agentHome).catch(() => null);
+    if (!stat?.isDirectory()) {
+      continue;
+    }
+
+    const meta = readMetaJson(agentHome);
+    if (isApiServerPortInRange(meta.apiServerPort)) {
+      usedPorts.add(meta.apiServerPort);
+    }
+  }
+
+  for (let candidate = API_SERVER_PORT_MIN; candidate <= API_SERVER_PORT_MAX; candidate += 1) {
+    if (!usedPorts.has(candidate)) {
+      console.info('[agents] allocated api server port', {
+        candidate,
+        usedPortsCount: usedPorts.size,
+      });
+      return candidate;
+    }
+  }
+
+  const error = new Error('No available API server ports in range 8642-8699');
+  console.error('[agents] api server port allocation failed', {
+    min: API_SERVER_PORT_MIN,
+    max: API_SERVER_PORT_MAX,
+    usedPortsCount: usedPorts.size,
+  });
+  throw error;
 }
 
 /**
@@ -300,9 +370,15 @@ export async function createAgent(
     name: meta.name ?? '',
     description: meta.description ?? '',
     tags: Array.isArray(meta.tags) ? meta.tags : [],
+    apiServerPort: isApiServerPortInRange(meta.apiServerPort) ? meta.apiServerPort : undefined,
   };
 
-  if (normalizedMeta.name || normalizedMeta.description || normalizedMeta.tags.length > 0) {
+  if (
+    normalizedMeta.name ||
+    normalizedMeta.description ||
+    normalizedMeta.tags.length > 0 ||
+    typeof normalizedMeta.apiServerPort === 'number'
+  ) {
     await writeMetaJson(home, normalizedMeta);
   }
 
