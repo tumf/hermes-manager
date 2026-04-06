@@ -53,7 +53,8 @@ describe('POST /api/agents/[id]/chat', () => {
     expect(res.status).toBe(404);
   });
 
-  it('returns 503 when api_server unavailable', async () => {
+  it('returns 503 when api_server unavailable and does not call upstream', async () => {
+    global.fetch = vi.fn() as typeof fetch;
     mockState.agent = {
       home: '/runtime/agents/alpha',
       apiServerStatus: 'configured-needs-restart',
@@ -73,6 +74,7 @@ describe('POST /api/agents/[id]/chat', () => {
       apiServerStatus: 'configured-needs-restart',
       reason: 'api_server is configured but gateway restart is required',
     });
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
   it('proxies stream response', async () => {

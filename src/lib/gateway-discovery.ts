@@ -27,8 +27,6 @@ export interface ApiServerDiscovery {
   reason?: string;
 }
 
-const DEFAULT_API_SERVER_PORT = 8642;
-
 function readYamlObject(filePath: string): Record<string, unknown> {
   try {
     const raw = fs.readFileSync(filePath, 'utf-8');
@@ -119,26 +117,48 @@ export function isApiServerEnabled(agentHome: string): boolean {
   return isApiServerConfigured(agentHome);
 }
 
-function readApiServerPortFromStateOrEnv(
-  statePort: unknown,
-  env: Record<string, string>,
-): number | null {
-  if (typeof statePort === 'number') {
-    if (Number.isInteger(statePort) && statePort > 0 && statePort <= 65535) {
-      return statePort;
-    }
-    return null;
+function parseValidPort(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isInteger(value) && value > 0 && value <= 65535) {
+    return value;
   }
 
-  if (typeof env.API_SERVER_PORT === 'string') {
-    const port = Number(env.API_SERVER_PORT);
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const port = Number(value);
     if (Number.isInteger(port) && port > 0 && port <= 65535) {
       return port;
     }
-    return null;
   }
 
-  return DEFAULT_API_SERVER_PORT;
+  return null;
+}
+
+function readMetaJsonPort(agentHome: string): number | null {
+  const metaPath = path.join(agentHome, 'meta.json');
+  try {
+    const raw = fs.readFileSync(metaPath, 'utf-8');
+    const parsed = JSON.parse(raw) as { apiServerPort?: unknown };
+    return parseValidPort(parsed.apiServerPort);
+  } catch {
+    return null;
+  }
+}
+
+function readApiServerPort(
+  agentHome: string,
+  statePort: unknown,
+  env: Record<string, string>,
+): number | null {
+  const stateResolved = parseValidPort(statePort);
+  if (stateResolved !== null) {
+    return stateResolved;
+  }
+
+  const metaResolved = readMetaJsonPort(agentHome);
+  if (metaResolved !== null) {
+    return metaResolved;
+  }
+
+  return parseValidPort(env.API_SERVER_PORT);
 }
 
 export function discoverApiServerStatus(agentHome: string): ApiServerDiscovery {
@@ -169,7 +189,7 @@ export function discoverApiServerStatus(agentHome: string): ApiServerDiscovery {
   const globalEnv = readDotenv(globalsEnvPath);
   const localEnv = readDotenv(path.join(agentHome, '.env'));
   const env = { ...globalEnv, ...localEnv };
-  const port = readApiServerPortFromStateOrEnv(state.api_server_port, env);
+  const port = readApiServerPort(agentHome, state.api_server_port, env);
   if (typeof port === 'number') {
     return { status: 'connected', port };
   }

@@ -391,10 +391,8 @@ export function ChatTab({ name }: { name: string }) {
               </p>
               <ol className="list-inside list-decimal space-y-1 text-xs">
                 <li>
-                  エージェントの <code className="rounded bg-muted px-1">.env</code> に以下を追加：
-                  <pre className="mt-1 rounded bg-muted p-2 font-mono">
-                    {'API_SERVER_ENABLED=true'}
-                  </pre>
+                  config.yaml で <code className="rounded bg-muted px-1">api_server</code>{' '}
+                  プラットフォームを有効化する
                 </li>
                 <li>
                   gateway を再起動：{' '}
