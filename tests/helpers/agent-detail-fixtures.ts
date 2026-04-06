@@ -13,6 +13,7 @@ export type AgentDetailFixtureOptions = {
   apiServerStatus?: ApiServerStatus;
   launchdStartError?: string;
   partialModeEnabled?: boolean;
+  hermesVersion?: string | null;
 };
 
 const legacyFileContents: Record<string, string> = {
@@ -34,6 +35,8 @@ export function buildAgentDetailRoutes(options: AgentDetailFixtureOptions = {}):
   const apiServerStatus = options.apiServerStatus ?? 'connected';
   const apiServerAvailable = apiServerStatus === 'connected';
   const partialModeEnabled = options.partialModeEnabled ?? false;
+  const hermesVersion =
+    options.hermesVersion === undefined ? 'hermes 1.2.3' : options.hermesVersion;
   const envState = createEnvState({
     rows: [{ key: 'API_KEY', value: '***', masked: true, visibility: 'secure' }],
   });
@@ -108,6 +111,7 @@ export function buildAgentDetailRoutes(options: AgentDetailFixtureOptions = {}):
             description: 'test agent',
             tags: ['test'],
             home: '/runtime/agents/alpha',
+            hermesVersion,
           },
         ]);
       }

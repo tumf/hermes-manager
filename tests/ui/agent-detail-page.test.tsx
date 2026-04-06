@@ -83,7 +83,31 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('Agent detail memory tab', () => {
+describe('Agent detail page', () => {
+  it('shows Hermes version in header info area', async () => {
+    global.fetch = createFetchRouter(buildAgentDetailRoutes({ hermesVersion: 'hermes 1.2.3' }));
+
+    await act(async () => {
+      renderPage('alpha');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Hermes: hermes 1.2.3')).toBeInTheDocument();
+    });
+  });
+
+  it('shows Hermes fallback when version is unavailable', async () => {
+    global.fetch = createFetchRouter(buildAgentDetailRoutes({ hermesVersion: null }));
+
+    await act(async () => {
+      renderPage('alpha');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Hermes: --')).toBeInTheDocument();
+    });
+  });
+
   it('shows legacy SOUL editor by default', async () => {
     global.fetch = createFetchRouter(buildAgentDetailRoutes({ partialModeEnabled: false }));
     window.history.replaceState(null, '', '#memory');

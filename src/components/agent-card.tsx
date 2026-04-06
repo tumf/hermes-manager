@@ -96,7 +96,6 @@ export function AgentCard({ agent, busy, variant, onAction, onDelete, onCopy }: 
           <AgentStatusBadge running={agent.running} busy={busy} />
         </td>
         <td className="px-4 py-3 text-muted-foreground">{formatMemory(agent.memoryRssBytes)}</td>
-        <td className="px-4 py-3">{agent.hermesVersion || '--'}</td>
         <td className="px-4 py-3">
           <div className="flex items-center justify-end gap-2">
             <AgentActionButtons agent={agent} busy={busy} onAction={onAction} />
@@ -122,7 +121,6 @@ export function AgentCard({ agent, busy, variant, onAction, onDelete, onCopy }: 
                 <ActivitySquare className="size-3" />
                 Memory: {formatMemory(agent.memoryRssBytes)}
               </p>
-              <p>Hermes: {agent.hermesVersion || '--'}</p>
             </div>
           </div>
         </div>
