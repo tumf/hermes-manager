@@ -86,6 +86,9 @@ export default function AgentPage({ params }: AgentPageProps) {
                 ))}
               </div>
             ) : null}
+            <p className="mt-2 text-xs text-muted-foreground">
+              Hermes: {meta?.hermesVersion || '--'}
+            </p>
             {meta?.home && (
               <button
                 type="button"

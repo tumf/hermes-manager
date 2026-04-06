@@ -6,6 +6,7 @@ interface AgentMeta {
   description: string;
   tags: string[];
   home: string;
+  hermesVersion: string | null;
   apiServerAvailable: boolean;
   apiServerPort: number | null;
 }
@@ -44,6 +45,7 @@ export function useAgentMeta(agentId: string): UseAgentMetaResult {
         description?: string;
         tags?: string[];
         home?: string;
+        hermesVersion?: string | null;
         apiServerAvailable?: boolean;
         apiServerPort?: number | null;
       }>;
@@ -53,6 +55,7 @@ export function useAgentMeta(agentId: string): UseAgentMetaResult {
         description: current?.description ?? '',
         tags: current?.tags ?? [],
         home: current?.home ?? '',
+        hermesVersion: current?.hermesVersion ?? null,
         apiServerAvailable: current?.apiServerAvailable === true,
         apiServerPort: current?.apiServerPort ?? null,
       };
@@ -93,6 +96,7 @@ export function useAgentMeta(agentId: string): UseAgentMetaResult {
       setMeta({
         ...updated,
         home: meta?.home ?? '',
+        hermesVersion: meta?.hermesVersion ?? null,
         apiServerAvailable: meta?.apiServerAvailable ?? false,
         apiServerPort: meta?.apiServerPort ?? null,
       });
@@ -111,6 +115,7 @@ export function useAgentMeta(agentId: string): UseAgentMetaResult {
     agentId,
     meta?.apiServerAvailable,
     meta?.apiServerPort,
+    meta?.hermesVersion,
     meta?.home,
     metaDraft.description,
     metaDraft.name,
