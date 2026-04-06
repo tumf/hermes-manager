@@ -150,14 +150,14 @@ describe('AgentsPage', () => {
     });
   });
 
-  it('shows memory and hermes columns in table headers', async () => {
+  it('shows memory column in table headers', async () => {
     global.fetch = mockFetch();
 
     render(<Home />);
 
     await waitFor(() => {
       expect(screen.getByText('Memory')).toBeInTheDocument();
-      expect(screen.getByText('Hermes')).toBeInTheDocument();
+      expect(screen.queryByText('Hermes')).not.toBeInTheDocument();
     });
   });
 
@@ -168,7 +168,7 @@ describe('AgentsPage', () => {
 
     await waitFor(() => {
       expect(screen.getAllByText('256.0 MB').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('hermes 1.2.3').length).toBeGreaterThan(0);
+      expect(screen.queryByText('hermes 1.2.3')).not.toBeInTheDocument();
       expect(screen.getAllByText('--').length).toBeGreaterThan(0);
     });
   });
