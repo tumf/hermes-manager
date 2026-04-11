@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { EnvKeyCombobox } from '@/src/components/env-key-combobox';
+import { useLocale } from '@/src/components/locale-provider';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,6 +49,7 @@ function displayValue(row: EnvRow) {
 }
 
 export default function GlobalsPage() {
+  const { t } = useLocale();
   const [rows, setRows] = useState<EnvRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [knownSecureValues, setKnownSecureValues] = useState<Record<string, string>>({});
@@ -71,11 +73,11 @@ export default function GlobalsPage() {
         return next;
       });
     } catch {
-      toast.error('Failed to load variables');
+      toast.error(t.globals.failedToSave);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void fetchRows();
@@ -89,10 +91,10 @@ export default function GlobalsPage() {
       if (!res.ok) {
         throw new Error('delete failed');
       }
-      toast.success(`"${key}" deleted`);
+      toast.success(t.globals.deleted(key));
       await fetchRows();
     } catch {
-      toast.error(`Failed to delete "${key}"`);
+      toast.error(t.globals.failedToDelete(key));
     }
   }
 
@@ -113,10 +115,8 @@ export default function GlobalsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Global Variables</h1>
-        <p className="text-sm text-muted-foreground">
-          Environment variables shared across all agents.
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">{t.globals.title}</h1>
+        <p className="text-sm text-muted-foreground">{t.globals.subtitle}</p>
       </div>
 
       <AddRowForm
@@ -129,16 +129,16 @@ export default function GlobalsPage() {
             });
             if (!res.ok) {
               const d = await res.json().catch(() => ({}));
-              toast.error(typeof d.error === 'string' ? d.error : 'Failed');
+              toast.error(typeof d.error === 'string' ? d.error : t.globals.failedToSave);
               return;
             }
             if (visibility === 'secure') {
               setKnownSecureValues((prev) => ({ ...prev, [key]: value }));
             }
-            toast.success(`"${key}" saved`);
+            toast.success(t.globals.saved(key));
             await fetchRows();
           } catch {
-            toast.error('Failed to save variable');
+            toast.error(t.globals.failedToSave);
           }
         }}
       />
@@ -164,10 +164,8 @@ export default function GlobalsPage() {
             <div className="mb-3 rounded-full bg-muted p-3">
               <Plus className="size-6 text-muted-foreground" />
             </div>
-            <p className="text-sm font-medium">No variables yet</p>
-            <p className="text-xs text-muted-foreground">
-              Add your first environment variable above.
-            </p>
+            <p className="text-sm font-medium">{t.globals.noVariables}</p>
+            <p className="text-xs text-muted-foreground">{t.globals.addFirstVariable}</p>
           </CardContent>
         </Card>
       )}
@@ -185,7 +183,7 @@ export default function GlobalsPage() {
                       onClick={() => {
                         if (!r.masked) {
                           void navigator.clipboard.writeText(r.value);
-                          toast.success(`Copied ${r.key}`);
+                          toast.success(t.globals.copied(r.key));
                         }
                       }}
                       title={r.masked ? undefined : 'Click to copy'}
@@ -194,7 +192,7 @@ export default function GlobalsPage() {
                     </div>
                     <div className="mt-1">
                       <Badge variant={r.visibility === 'secure' ? 'secondary' : 'muted'}>
-                        {r.visibility}
+                        {r.visibility === 'secure' ? t.globals.secure : t.globals.plain}
                       </Badge>
                     </div>
                   </div>
@@ -218,10 +216,14 @@ export default function GlobalsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/50">
-                  <th className="px-4 py-3 text-left font-medium">Key</th>
-                  <th className="px-4 py-3 text-left font-medium">Value</th>
-                  <th className="px-4 py-3 text-left font-medium">Visibility</th>
-                  <th className="w-28 px-4 py-3 text-right font-medium">Actions</th>
+                  <th className="px-4 py-3 text-left font-medium">{t.globals.keyHeader}</th>
+                  <th className="px-4 py-3 text-left font-medium">{t.globals.valueHeader}</th>
+                  <th className="px-4 py-3 text-left font-medium">
+                    {t.globals.visibilityHeader}
+                  </th>
+                  <th className="w-28 px-4 py-3 text-right font-medium">
+                    {t.globals.actionsHeader}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -233,7 +235,7 @@ export default function GlobalsPage() {
                       onClick={() => {
                         if (!r.masked) {
                           void navigator.clipboard.writeText(r.value);
-                          toast.success(`Copied ${r.key}`);
+                          toast.success(t.globals.copied(r.key));
                         }
                       }}
                       title={r.masked ? undefined : 'Click to copy'}
@@ -242,19 +244,19 @@ export default function GlobalsPage() {
                     </td>
                     <td className="px-4 py-3">
                       <Badge variant={r.visibility === 'secure' ? 'secondary' : 'muted'}>
-                        {r.visibility}
+                        {r.visibility === 'secure' ? t.globals.secure : t.globals.plain}
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <EditRowDialog
-                      row={r}
-                      knownSecureValue={knownSecureValues[r.key]}
-                      onSaveSecureValue={(nextValue) => {
-                        setKnownSecureValues((prev) => ({ ...prev, [r.key]: nextValue }));
-                      }}
-                      onSaved={fetchRows}
-                    />
+                          row={r}
+                          knownSecureValue={knownSecureValues[r.key]}
+                          onSaveSecureValue={(nextValue) => {
+                            setKnownSecureValues((prev) => ({ ...prev, [r.key]: nextValue }));
+                          }}
+                          onSaved={fetchRows}
+                        />
                         <DeleteButton keyName={r.key} onDelete={handleDelete} />
                       </div>
                     </td>
@@ -266,7 +268,7 @@ export default function GlobalsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">.env preview</CardTitle>
+              <CardTitle className="text-sm">{t.globals.envPreview}</CardTitle>
             </CardHeader>
             <CardContent>
               <pre className="rounded-md bg-muted/50 p-3 font-mono text-xs leading-relaxed">
@@ -285,6 +287,7 @@ function AddRowForm({
 }: {
   onAdd: (key: string, value: string, visibility: EnvVisibility) => Promise<void>;
 }) {
+  const { t } = useLocale();
   const [key, setKey] = useState('');
   const [value, setValue] = useState('');
   const [visibility, setVisibility] = useState<EnvVisibility>('plain');
@@ -294,7 +297,7 @@ function AddRowForm({
     e.preventDefault();
     const trimmed = key.trim();
     if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(trimmed)) {
-      toast.error('Invalid key: must match [A-Za-z_][A-Za-z0-9_]*');
+      toast.error(t.globals.invalidKey);
       return;
     }
     setBusy(true);
@@ -324,14 +327,14 @@ function AddRowForm({
         className="h-11 rounded-md border border-input bg-background px-3 text-sm"
         value={visibility}
         onChange={(e) => setVisibility(e.target.value as EnvVisibility)}
-        aria-label="Visibility"
+        aria-label={t.globals.visibilityHeader}
       >
-        <option value="plain">plain</option>
-        <option value="secure">secure</option>
+        <option value="plain">{t.globals.plain}</option>
+        <option value="secure">{t.globals.secure}</option>
       </select>
       <Button type="submit" disabled={busy} className="h-11 gap-2">
         <Plus className="size-4" />
-        {busy ? 'Saving...' : 'Save'}
+        {busy ? t.globals.save + '...' : t.globals.save}
       </Button>
     </form>
   );
@@ -348,6 +351,7 @@ function EditRowDialog({
   onSaveSecureValue: (nextValue: string) => void;
   onSaved: () => Promise<void>;
 }) {
+  const { t } = useLocale();
   const [value, setValue] = useState('');
   const [visibility, setVisibility] = useState<EnvVisibility>(row.visibility);
   const [saving, setSaving] = useState(false);
@@ -357,34 +361,32 @@ function EditRowDialog({
       <DialogTrigger asChild>
         <Button variant="ghost" size="icon" className="size-8">
           <Edit className="size-4" />
-          <span className="sr-only">Edit {row.key}</span>
+          <span className="sr-only">{t.common.edit} {row.key}</span>
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Edit {row.key}</DialogTitle>
-          <DialogDescription>
-            Secure values are masked. Enter a new value to change the runtime value.
-          </DialogDescription>
+          <DialogTitle>{t.common.edit} {row.key}</DialogTitle>
+          <DialogDescription>{t.globals.secureDescription}</DialogDescription>
         </DialogHeader>
         <Input
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          placeholder={row.masked ? 'Enter new value (optional)' : row.value}
+          placeholder={row.masked ? t.globals.enterNewValue : row.value}
           aria-label={`${row.key} value`}
         />
         <select
           className="h-11 rounded-md border border-input bg-background px-3 text-sm"
           value={visibility}
           onChange={(e) => setVisibility(e.target.value as EnvVisibility)}
-          aria-label="Visibility"
+          aria-label={t.globals.visibilityHeader}
         >
-          <option value="plain">plain</option>
-          <option value="secure">secure</option>
+          <option value="plain">{t.globals.plain}</option>
+          <option value="secure">{t.globals.secure}</option>
         </select>
         <DialogFooter>
           <DialogClose asChild>
-            <Button variant="outline">Cancel</Button>
+            <Button variant="outline">{t.globals.cancel}</Button>
           </DialogClose>
           <DialogClose asChild>
             <Button
@@ -399,7 +401,7 @@ function EditRowDialog({
                         ? (knownSecureValue ?? '')
                         : row.value;
                   if (nextValue.length === 0) {
-                    toast.error('Secure value is hidden. Enter a new value to update visibility.');
+                    toast.error(t.globals.secureValueHidden);
                     return;
                   }
 
@@ -417,16 +419,16 @@ function EditRowDialog({
                     onSaveSecureValue(nextValue);
                   }
 
-                  toast.success(`"${row.key}" updated`);
+                  toast.success(t.globals.updated(row.key));
                   await onSaved();
                 } catch {
-                  toast.error(`Failed to update "${row.key}"`);
+                  toast.error(t.globals.failedToUpdate(row.key));
                 } finally {
                   setSaving(false);
                 }
               }}
             >
-              Save
+              {t.globals.save}
             </Button>
           </DialogClose>
         </DialogFooter>
@@ -442,6 +444,8 @@ function DeleteButton({
   keyName: string;
   onDelete: (key: string) => Promise<void>;
 }) {
+  const { t } = useLocale();
+
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
@@ -451,23 +455,21 @@ function DeleteButton({
           className="size-8 text-destructive hover:text-destructive"
         >
           <Trash2 className="size-4" />
-          <span className="sr-only">Delete {keyName}</span>
+          <span className="sr-only">{t.common.delete} {keyName}</span>
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete &quot;{keyName}&quot;?</AlertDialogTitle>
-          <AlertDialogDescription>
-            This variable will be removed from all agents that reference it.
-          </AlertDialogDescription>
+          <AlertDialogTitle>{t.globals.deleteTitle(keyName)}</AlertDialogTitle>
+          <AlertDialogDescription>{t.globals.deleteDescription}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel>{t.globals.cancel}</AlertDialogCancel>
           <AlertDialogAction
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             onClick={() => void onDelete(keyName)}
           >
-            Delete
+            {t.globals.delete}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

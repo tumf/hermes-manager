@@ -6,6 +6,7 @@ import '@testing-library/jest-dom';
 import { ChatTab } from '../../src/components/chat-tab';
 import { buildChatFixtureRoutes } from '../helpers/chat-fixtures';
 import { createFetchRouter } from '../helpers/fetch-router';
+import { LocaleProvider } from '@/src/components/locale-provider';
 
 function mockFetch() {
   return createFetchRouter(
@@ -22,7 +23,11 @@ describe('chat input UI', () => {
   });
 
   it('sends message with textarea and enter key', async () => {
-    render(<ChatTab name="alpha" />);
+    render(
+      <LocaleProvider initialLocale="en">
+        <ChatTab name="alpha" />
+      </LocaleProvider>,
+    );
 
     await screen.findByText('Session A');
     const input = screen.getByLabelText('Chat message');

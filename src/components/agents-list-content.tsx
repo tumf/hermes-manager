@@ -3,6 +3,7 @@
 import { Plus } from 'lucide-react';
 
 import { AgentCard, type ActionType, type AgentWithStatus } from '@/src/components/agent-card';
+import { useLocale } from '@/src/components/locale-provider';
 import { Card, CardContent, CardHeader } from '@/src/components/ui/card';
 import { Skeleton } from '@/src/components/ui/skeleton';
 
@@ -23,6 +24,8 @@ export function AgentsListContent({
   onDelete,
   onCopy,
 }: AgentsListContentProps) {
+  const { t } = useLocale();
+
   if (loading) {
     return (
       <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
@@ -45,8 +48,8 @@ export function AgentsListContent({
           <div className="mb-3 rounded-full bg-muted p-3">
             <Plus className="size-6 text-muted-foreground" />
           </div>
-          <p className="text-sm font-medium">No agents yet</p>
-          <p className="text-xs text-muted-foreground">Create your first agent to get started.</p>
+          <p className="text-sm font-medium">{t.agentsList.noAgentsTitle}</p>
+          <p className="text-xs text-muted-foreground">{t.agentsList.noAgentsSubtitle}</p>
         </CardContent>
       </Card>
     );
@@ -72,12 +75,12 @@ export function AgentsListContent({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50">
-              <th className="px-4 py-3 text-left font-medium">Name</th>
-              <th className="px-4 py-3 text-left font-medium">Label</th>
-              <th className="px-4 py-3 text-left font-medium">Tags</th>
-              <th className="px-4 py-3 text-left font-medium">Status</th>
-              <th className="px-4 py-3 text-left font-medium">Memory</th>
-              <th className="px-4 py-3 text-right font-medium">Actions</th>
+              <th className="px-4 py-3 text-left font-medium">{t.agentsList.columns.name}</th>
+              <th className="px-4 py-3 text-left font-medium">{t.agentsList.columns.label}</th>
+              <th className="px-4 py-3 text-left font-medium">{t.agentsList.columns.tags}</th>
+              <th className="px-4 py-3 text-left font-medium">{t.agentsList.columns.status}</th>
+              <th className="px-4 py-3 text-left font-medium">{t.agentsList.columns.memory}</th>
+              <th className="px-4 py-3 text-right font-medium">{t.agentsList.columns.actions}</th>
             </tr>
           </thead>
           <tbody>

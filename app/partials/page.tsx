@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 import { CodeEditor } from '@/src/components/code-editor';
+import { useLocale } from '@/src/components/locale-provider';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,6 +39,7 @@ interface PartialRow {
 const PARTIAL_NAME_PATTERN = /^[a-zA-Z0-9_-]+$/;
 
 export default function PartialsPage() {
+  const { t } = useLocale();
   const [rows, setRows] = useState<PartialRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -61,11 +63,11 @@ export default function PartialsPage() {
       const payload = (await response.json()) as PartialRow[];
       setRows(payload);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to load partials');
+      toast.error(error instanceof Error ? error.message : t.partials.failedToSave);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void fetchPartials();
@@ -92,7 +94,7 @@ export default function PartialsPage() {
   const persistPartial = useCallback(async () => {
     const normalizedName = formName.trim();
     if (!PARTIAL_NAME_PATTERN.test(normalizedName)) {
-      toast.error('Partial name must only contain alphanumeric, underscore, or hyphen');
+      toast.error(t.partials.invalidName);
       return false;
     }
 
@@ -106,11 +108,11 @@ export default function PartialsPage() {
 
       if (!response.ok) {
         const body = (await response.json().catch(() => ({}))) as { error?: string };
-        toast.error(body.error ?? 'Failed to save partial');
+        toast.error(body.error ?? t.partials.failedToSave);
         return false;
       }
 
-      toast.success(`Saved partial: ${normalizedName}`);
+      toast.success(t.partials.savedPartial(normalizedName));
       setInitialFormName(normalizedName);
       setInitialFormContent(formContent);
       setDialogOpen(false);
@@ -119,7 +121,7 @@ export default function PartialsPage() {
     } finally {
       setSaving(false);
     }
-  }, [editingName, fetchPartials, formContent, formName]);
+  }, [editingName, fetchPartials, formContent, formName, t]);
 
   async function handleSave(event?: React.FormEvent) {
     event?.preventDefault();
@@ -153,14 +155,14 @@ export default function PartialsPage() {
         usedBy?: string[];
       };
       if (response.status === 409 && Array.isArray(body.usedBy)) {
-        toast.error(`Partial is in use by: ${body.usedBy.join(', ')}`);
+        toast.error(t.partials.inUseBy(body.usedBy.join(', ')));
       } else {
-        toast.error(body.error ?? 'Failed to delete partial');
+        toast.error(body.error ?? t.partials.failedToDelete);
       }
       return;
     }
 
-    toast.success(`Deleted partial: ${name}`);
+    toast.success(t.partials.deletedPartial(name));
     await fetchPartials();
   }
 
@@ -168,15 +170,16 @@ export default function PartialsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Partials</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t.partials.title}</h1>
           <p className="text-sm text-muted-foreground">
-            Manage shared SOUL partials stored under{' '}
-            <code className="text-xs">runtime/partials</code>.
+            {t.partials.subtitle.split('runtime/partials')[0]}
+            <code className="text-xs">runtime/partials</code>
+            {t.partials.subtitle.split('runtime/partials')[1] ?? ''}
           </p>
         </div>
         <Button onClick={openCreateDialog} className="gap-1.5">
           <Plus className="size-4" />
-          New Partial
+          {t.partials.newPartial}
         </Button>
       </div>
 
@@ -190,7 +193,7 @@ export default function PartialsPage() {
       {!loading && rows.length === 0 && (
         <Card>
           <CardContent className="p-6 text-sm text-muted-foreground">
-            No partials found.
+            {t.partials.noPartials}
           </CardContent>
         </Card>
       )}
@@ -203,7 +206,7 @@ export default function PartialsPage() {
                 <CardTitle className="font-mono text-base">{row.name}</CardTitle>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {row.usedBy.length === 0 ? (
-                    <Badge variant="outline">unused</Badge>
+                    <Badge variant="outline">{t.partials.unused}</Badge>
                   ) : (
                     row.usedBy.map((agentId) => <Badge key={agentId}>{agentId}</Badge>)
                   )}
@@ -232,19 +235,18 @@ export default function PartialsPage() {
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Delete partial &quot;{row.name}&quot;?</AlertDialogTitle>
+                      <AlertDialogTitle>{t.partials.deleteTitle(row.name)}</AlertDialogTitle>
                       <AlertDialogDescription>
-                        This removes the shared partial file. Deletion is blocked if any agent
-                        currently uses it.
+                        {t.partials.deleteDescription}
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogCancel>{t.partials.cancel}</AlertDialogCancel>
                       <AlertDialogAction
                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         onClick={() => void handleDelete(row.name)}
                       >
-                        Delete
+                        {t.partials.delete}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
@@ -263,17 +265,19 @@ export default function PartialsPage() {
         <DialogContent className="h-[min(95dvh,52rem)] max-w-4xl">
           <form onSubmit={handleSave} className="flex min-h-0 flex-1 flex-col">
             <DialogHeader>
-              <DialogTitle>{editingName ? 'Edit partial' : 'Create partial'}</DialogTitle>
+              <DialogTitle>
+                {editingName ? t.partials.editPartial : t.partials.createPartial}
+              </DialogTitle>
               <DialogDescription>
                 {editingName
-                  ? `Update content for partial "${editingName}".`
-                  : 'Create a reusable SOUL partial snippet.'}
+                  ? t.partials.editDescription(editingName)
+                  : t.partials.createDescription}
               </DialogDescription>
             </DialogHeader>
             <div className="mt-4 flex min-h-0 flex-1 flex-col gap-4">
               <div className="shrink-0">
                 <label htmlFor="partial-name" className="mb-1.5 block text-sm font-medium">
-                  Name
+                  {t.partials.nameLabel}
                 </label>
                 <Input
                   id="partial-name"
@@ -286,16 +290,16 @@ export default function PartialsPage() {
               <div className="flex min-h-0 flex-1 flex-col rounded-md border">
                 <div className="flex shrink-0 items-center justify-between gap-3 border-b px-4 py-3">
                   <div>
-                    <p className="text-sm font-medium">Content</p>
+                    <p className="text-sm font-medium">{t.partials.contentLabel}</p>
                     {dirty && (
                       <span className="text-[10px] text-orange-500" aria-live="polite">
-                        unsaved
+                        {t.partials.unsaved}
                       </span>
                     )}
                     <p className="text-xs text-muted-foreground">Markdown editor</p>
                   </div>
                   <Button type="submit" size="sm" disabled={saving || !dirty} className="gap-1.5">
-                    {saving ? 'Saving...' : 'Save'}
+                    {saving ? t.partials.saving : t.partials.save}
                   </Button>
                 </div>
                 <div className="flex min-h-0 flex-1 flex-col p-3">
@@ -304,11 +308,15 @@ export default function PartialsPage() {
                     onChange={setFormContent}
                     filePath="partial.md"
                     className="min-h-0 w-full flex-1 overflow-hidden rounded-md border border-input"
-                    ariaLabel="Content"
+                    ariaLabel={t.partials.contentLabel}
                   />
                   <div className="mt-1.5 flex items-center justify-end gap-3 text-[10px] text-muted-foreground/70">
-                    <span>{contentLineCount} lines</span>
-                    <span>{contentCharCount.toLocaleString()} chars</span>
+                    <span>
+                      {contentLineCount} {t.partials.lines}
+                    </span>
+                    <span>
+                      {contentCharCount.toLocaleString()} {t.partials.chars}
+                    </span>
                   </div>
                 </div>
               </div>

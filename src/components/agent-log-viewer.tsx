@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { useLocale } from '@/src/components/locale-provider';
 import { Button } from '@/src/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
 import { Skeleton } from '@/src/components/ui/skeleton';
@@ -9,6 +10,7 @@ interface AgentLogViewerProps {
 }
 
 export function AgentLogViewer({ name }: AgentLogViewerProps) {
+  const { t } = useLocale();
   const [lines, setLines] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFile, setActiveFile] = useState('gateway.log');
@@ -46,7 +48,7 @@ export function AgentLogViewer({ name }: AgentLogViewerProps) {
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between gap-3">
-        <CardTitle className="text-sm">Logs</CardTitle>
+        <CardTitle className="text-sm">{t.logs.title}</CardTitle>
         <div className="flex gap-1">
           {logFiles.map((f) => (
             <Button
@@ -69,7 +71,7 @@ export function AgentLogViewer({ name }: AgentLogViewerProps) {
             ref={logRef}
             className="rounded-md bg-muted/50 p-3 font-mono text-xs leading-relaxed"
           >
-            {lines.length ? lines.join('\n') : '(empty)'}
+            {lines.length ? lines.join('\n') : t.logs.empty}
           </pre>
         )}
       </CardContent>

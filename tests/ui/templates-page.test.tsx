@@ -4,6 +4,8 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 
 import '@testing-library/jest-dom';
 
+import { LocaleProvider } from '@/src/components/locale-provider';
+
 vi.mock('sonner', () => ({
   toast: {
     success: vi.fn(),
@@ -92,7 +94,11 @@ describe('TemplatesPage', () => {
   it('renders template groups by file', async () => {
     global.fetch = createFetchMock();
 
-    render(<TemplatesPage />);
+    render(
+      <LocaleProvider initialLocale="en">
+        <TemplatesPage />
+      </LocaleProvider>,
+    );
 
     await waitFor(() => {
       expect(screen.getByText('AGENTS.md')).toBeInTheDocument();
@@ -107,7 +113,11 @@ describe('TemplatesPage', () => {
     const fetchMock = createFetchMock();
     global.fetch = fetchMock;
 
-    render(<TemplatesPage />);
+    render(
+      <LocaleProvider initialLocale="en">
+        <TemplatesPage />
+      </LocaleProvider>,
+    );
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /Add Template File/i })).toBeInTheDocument();
@@ -141,7 +151,11 @@ describe('TemplatesPage', () => {
   it('shows editor status metadata in the dialog', async () => {
     global.fetch = createFetchMock();
 
-    render(<TemplatesPage />);
+    render(
+      <LocaleProvider initialLocale="en">
+        <TemplatesPage />
+      </LocaleProvider>,
+    );
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /Add Template File/i })).toBeInTheDocument();
@@ -160,7 +174,11 @@ describe('TemplatesPage', () => {
     const fetchMock = createFetchMock();
     global.fetch = fetchMock;
 
-    render(<TemplatesPage />);
+    render(
+      <LocaleProvider initialLocale="en">
+        <TemplatesPage />
+      </LocaleProvider>,
+    );
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /Add Template File/i })).toBeInTheDocument();

@@ -1,5 +1,6 @@
 import { Loader2, Play, RotateCcw, Square } from 'lucide-react';
 
+import { useLocale } from '@/src/components/locale-provider';
 import { Badge } from '@/src/components/ui/badge';
 import { Button } from '@/src/components/ui/button';
 
@@ -18,6 +19,7 @@ export function AgentStatusHeader({
   actionBusy,
   onAction,
 }: AgentStatusHeaderProps) {
+  const { t } = useLocale();
   const running = Boolean(status?.running);
 
   if (statusLoading) {
@@ -35,14 +37,14 @@ export function AgentStatusHeader({
           />
         )}
         {actionBusy === 'start'
-          ? 'Starting…'
+          ? t.agentStatus.starting
           : actionBusy === 'stop'
-            ? 'Stopping…'
+            ? t.agentStatus.stopping
             : actionBusy === 'restart'
-              ? 'Restarting…'
+              ? t.agentStatus.restarting
               : running
-                ? 'Running'
-                : 'Stopped'}
+                ? t.agentStatus.running
+                : t.agentStatus.stopped}
       </Badge>
 
       {running ? (
@@ -58,7 +60,7 @@ export function AgentStatusHeader({
             ) : (
               <Square className="size-3.5" />
             )}
-            Stop
+            {t.agentStatus.stop}
           </Button>
           <Button
             variant="outline"
@@ -71,7 +73,7 @@ export function AgentStatusHeader({
             ) : (
               <RotateCcw className="size-3.5" />
             )}
-            Restart
+            {t.agentStatus.restart}
           </Button>
         </>
       ) : (
@@ -81,7 +83,7 @@ export function AgentStatusHeader({
           ) : (
             <Play className="size-3.5" />
           )}
-          Start
+          {t.agentStatus.start}
         </Button>
       )}
     </div>

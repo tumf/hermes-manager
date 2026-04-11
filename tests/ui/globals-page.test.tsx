@@ -4,6 +4,8 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 
 import '@testing-library/jest-dom';
 
+import { LocaleProvider } from '@/src/components/locale-provider';
+
 vi.mock('sonner', () => ({
   toast: {
     success: vi.fn(),
@@ -62,7 +64,11 @@ describe('GlobalsPage', () => {
     const fetchMock = createFetchMock();
     global.fetch = fetchMock;
 
-    render(<GlobalsPage />);
+    render(
+      <LocaleProvider initialLocale="en">
+        <GlobalsPage />
+      </LocaleProvider>,
+    );
 
     const keyCombobox = await screen.findByRole('combobox', { name: /env key/i });
     expect(keyCombobox).toHaveTextContent('KEY_NAME');

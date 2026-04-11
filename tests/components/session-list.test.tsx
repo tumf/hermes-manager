@@ -6,6 +6,7 @@ import '@testing-library/jest-dom';
 import { ChatTab } from '../../src/components/chat-tab';
 import { buildChatFixtureRoutes } from '../helpers/chat-fixtures';
 import { createFetchRouter } from '../helpers/fetch-router';
+import { LocaleProvider } from '@/src/components/locale-provider';
 
 function mockFetch() {
   return createFetchRouter(
@@ -38,7 +39,11 @@ describe('session list UI', () => {
   });
 
   it('renders session list and source filter', async () => {
-    render(<ChatTab name="alpha" />);
+    render(
+      <LocaleProvider initialLocale="en">
+        <ChatTab name="alpha" />
+      </LocaleProvider>,
+    );
 
     expect(await screen.findByText('Session A')).toBeInTheDocument();
     expect(screen.getByText('Session B')).toBeInTheDocument();

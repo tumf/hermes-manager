@@ -7,6 +7,7 @@ import '@testing-library/jest-dom';
 
 import { buildAgentDetailRoutes } from '../helpers/agent-detail-fixtures';
 import { createFetchRouter } from '../helpers/fetch-router';
+import { LocaleProvider } from '@/src/components/locale-provider';
 
 vi.mock('sonner', () => ({
   toast: {
@@ -66,9 +67,11 @@ let AgentDetailPage: React.ComponentType<{ params: Promise<{ id: string }> }>;
 
 function renderPage(name: string) {
   return render(
-    <Suspense fallback={<div>Loading...</div>}>
-      <AgentDetailPage params={Promise.resolve({ id: name })} />
-    </Suspense>,
+    <LocaleProvider initialLocale="en">
+      <Suspense fallback={<div>Loading...</div>}>
+        <AgentDetailPage params={Promise.resolve({ id: name })} />
+      </Suspense>
+    </LocaleProvider>,
   );
 }
 
@@ -301,9 +304,7 @@ describe('Agent detail page', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(
-          'Chat を使うにはエージェントの api_server プラットフォームを有効にする必要があります。',
-        ),
+        screen.getByText('To use Chat, you need to enable the api_server platform for this agent.'),
       ).toBeInTheDocument();
     });
 
@@ -311,11 +312,10 @@ describe('Agent detail page', () => {
       screen.getAllByText(
         (_, element) =>
           (element?.textContent ?? '').includes('config.yaml') &&
-          (element?.textContent ?? '').includes('api_server') &&
-          (element?.textContent ?? '').includes('有効化する'),
+          (element?.textContent ?? '').includes('api_server'),
       ).length,
     ).toBeGreaterThan(0);
-    expect(screen.getByText(/gateway を再起動/)).toBeInTheDocument();
+    expect(screen.getByText(/hermes gateway restart/)).toBeInTheDocument();
     expect(screen.queryByText(/API_SERVER_ENABLED=true/)).not.toBeInTheDocument();
   });
 
@@ -330,7 +330,7 @@ describe('Agent detail page', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText('api_server に接続できませんでした。')).toBeInTheDocument();
+      expect(screen.getByText('Could not connect to api_server.')).toBeInTheDocument();
     });
 
     expect(screen.getByText(/hermes gateway restart/)).toBeInTheDocument();

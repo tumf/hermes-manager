@@ -5,6 +5,8 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 
 import '@testing-library/jest-dom';
 
+import { LocaleProvider } from '@/src/components/locale-provider';
+
 vi.mock('sonner', () => ({
   toast: {
     success: vi.fn(),
@@ -106,7 +108,11 @@ describe('PartialsPage', () => {
   it('renders partial list and usage badges', async () => {
     global.fetch = createFetchMock();
 
-    render(<PartialsPage />);
+    render(
+      <LocaleProvider initialLocale="en">
+        <PartialsPage />
+      </LocaleProvider>,
+    );
 
     await waitFor(() => {
       expect(screen.getByText('shared-rules')).toBeInTheDocument();
@@ -119,7 +125,11 @@ describe('PartialsPage', () => {
     const fetchMock = createFetchMock();
     global.fetch = fetchMock;
 
-    render(<PartialsPage />);
+    render(
+      <LocaleProvider initialLocale="en">
+        <PartialsPage />
+      </LocaleProvider>,
+    );
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /New Partial/i })).toBeInTheDocument();
@@ -152,7 +162,11 @@ describe('PartialsPage', () => {
   it('shows delete-blocked state when partial is used', async () => {
     global.fetch = createFetchMock();
 
-    render(<PartialsPage />);
+    render(
+      <LocaleProvider initialLocale="en">
+        <PartialsPage />
+      </LocaleProvider>,
+    );
 
     await waitFor(() => {
       expect(screen.getByLabelText('Delete shared-rules')).toBeInTheDocument();
@@ -169,7 +183,11 @@ describe('PartialsPage', () => {
   it('shows editor status metadata in the dialog', async () => {
     global.fetch = createFetchMock();
 
-    render(<PartialsPage />);
+    render(
+      <LocaleProvider initialLocale="en">
+        <PartialsPage />
+      </LocaleProvider>,
+    );
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /New Partial/i })).toBeInTheDocument();
@@ -188,7 +206,11 @@ describe('PartialsPage', () => {
     const fetchMock = createFetchMock();
     global.fetch = fetchMock;
 
-    render(<PartialsPage />);
+    render(
+      <LocaleProvider initialLocale="en">
+        <PartialsPage />
+      </LocaleProvider>,
+    );
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /New Partial/i })).toBeInTheDocument();

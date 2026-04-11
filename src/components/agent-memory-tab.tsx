@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { FileEditor, type FileEditorHandle } from '@/src/components/agent-file-editor';
+import { useLocale } from '@/src/components/locale-provider';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,10 +19,10 @@ import { Button } from '@/src/components/ui/button';
 const MEMORY_FILES = ['SOUL', 'memories/MEMORY.md', 'memories/USER.md'] as const;
 type MemoryFile = (typeof MEMORY_FILES)[number];
 
-const FILE_DESCRIPTIONS: Record<MemoryFile, string> = {
-  SOUL: "Contains the agent's personality, tone, and communication style",
-  'memories/MEMORY.md': 'Stores long-term memory and reusable context for this agent',
-  'memories/USER.md': 'Captures user profile, preferences, and communication hints',
+const FILE_DESCRIPTION_KEYS: Record<MemoryFile, 'soul' | 'memory' | 'user'> = {
+  SOUL: 'soul',
+  'memories/MEMORY.md': 'memory',
+  'memories/USER.md': 'user',
 };
 
 interface AgentMemoryTabProps {
@@ -34,6 +35,7 @@ interface PartialEntry {
 }
 
 export function AgentMemoryTab({ name }: AgentMemoryTabProps) {
+  const { t } = useLocale();
   const [selectedFile, setSelectedFile] = useState<MemoryFile>(MEMORY_FILES[0]);
   const [pendingFile, setPendingFile] = useState<MemoryFile | null>(null);
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
@@ -99,7 +101,7 @@ export function AgentMemoryTab({ name }: AgentMemoryTabProps) {
         `/api/files?agent=${encodeURIComponent(name)}&path=${encodeURIComponent('SOUL.md')}`,
       );
       if (!soulResponse.ok) {
-        toast.error('Failed to read SOUL.md');
+        toast.error(t.memory.failedToReadSoul);
         return;
       }
       const soulPayload = (await soulResponse.json()) as { content?: string };
@@ -118,14 +120,14 @@ export function AgentMemoryTab({ name }: AgentMemoryTabProps) {
         const errorBody = (await sourceWriteResponse.json().catch(() => ({}))) as {
           error?: string;
         };
-        toast.error(errorBody.error ?? 'Failed to enable partial mode');
+        toast.error(errorBody.error ?? t.memory.failedToEnablePartials);
         return;
       }
 
       setPartialModeEnabled(true);
       setSelectedFile('SOUL');
       await loadPartials();
-      toast.success('Partial mode enabled');
+      toast.success(t.memory.partialModeEnabled);
     } finally {
       setEnablingPartials(false);
     }
@@ -143,7 +145,7 @@ export function AgentMemoryTab({ name }: AgentMemoryTabProps) {
 
   function insertPartialReference(partialName: string) {
     editorRef.current?.insertText(`{{partial:${partialName}}}`);
-    toast.success(`Inserted partial: ${partialName}`);
+    toast.success(t.memory.insertedPartial(partialName));
   }
 
   const activeFilePath = selectedFile === 'SOUL' ? soulFilePath : selectedFile;
@@ -172,17 +174,17 @@ export function AgentMemoryTab({ name }: AgentMemoryTabProps) {
             </Button>
           ))}
         </div>
-        <p className="text-xs text-muted-foreground">{FILE_DESCRIPTIONS[selectedFile]}</p>
+        <p className="text-xs text-muted-foreground">
+          {t.memory.descriptions[FILE_DESCRIPTION_KEYS[selectedFile]]}
+        </p>
       </div>
 
       {selectedFile === 'SOUL' && !partialModeEnabled && (
         <div className="rounded-md border bg-muted/30 p-3">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-medium">Enable shared partial mode</p>
-              <p className="text-xs text-muted-foreground">
-                Create SOUL.src.md from current SOUL.md and switch to source-based editing.
-              </p>
+              <p className="text-sm font-medium">{t.memory.enablePartialMode}</p>
+              <p className="text-xs text-muted-foreground">{t.memory.enablePartialDescription}</p>
             </div>
             <Button
               size="sm"
@@ -191,7 +193,7 @@ export function AgentMemoryTab({ name }: AgentMemoryTabProps) {
               className="gap-1.5"
             >
               <Sparkles className="size-3.5" />
-              {enablingPartials ? 'Enabling...' : 'Enable Partials'}
+              {enablingPartials ? t.memory.enabling : t.memory.enablePartials}
             </Button>
           </div>
         </div>
@@ -200,19 +202,19 @@ export function AgentMemoryTab({ name }: AgentMemoryTabProps) {
       {selectedFile === 'SOUL' && partialModeEnabled && (
         <div className="rounded-md border bg-muted/30 p-3">
           <div className="mb-2 flex items-center justify-between gap-3">
-            <p className="text-sm font-medium">Insert shared partial</p>
+            <p className="text-sm font-medium">{t.memory.insertPartial}</p>
             <Button
               size="sm"
               variant="outline"
               onClick={() => void loadPartials()}
               disabled={loadingPartials}
             >
-              Refresh
+              {t.memory.refresh}
             </Button>
           </div>
           <div className="flex flex-wrap gap-2">
             {partials.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No partials available.</p>
+              <p className="text-xs text-muted-foreground">{t.memory.noPartials}</p>
             ) : (
               partials.map((partial) => (
                 <Button
@@ -259,19 +261,18 @@ export function AgentMemoryTab({ name }: AgentMemoryTabProps) {
       <AlertDialog open={discardDialogOpen} onOpenChange={setDiscardDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
-            <AlertDialogDescription>
-              You have unsaved changes in the current file. Switching tabs will discard your
-              changes.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{t.dialogs.unsavedChanges.title}</AlertDialogTitle>
+            <AlertDialogDescription>{t.dialogs.unsavedChanges.description}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setPendingFile(null)}>Keep Editing</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setPendingFile(null)}>
+              {t.dialogs.unsavedChanges.keepEditing}
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDiscard}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Discard Changes
+              {t.dialogs.unsavedChanges.discardChanges}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

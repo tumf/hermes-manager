@@ -1,24 +1,35 @@
 'use client';
 
-import { Bot, FileText, Globe, Menu, Moon, Sun, ToyBrick } from 'lucide-react';
+import { Bot, FileText, Globe, Languages, Menu, Moon, Sun, ToyBrick } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import React, { useEffect, useState } from 'react';
 
+import { useLocale } from '@/src/components/locale-provider';
 import { Button } from '@/src/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/src/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetTrigger } from '@/src/components/ui/sheet';
+import { LOCALE_LABELS, SUPPORTED_LOCALES, type Locale } from '@/src/lib/i18n';
 import { cn } from '@/src/lib/utils';
 
-const navItems = [
-  { href: '/', label: 'Agents', icon: Bot },
-  { href: '/globals', label: 'Globals', icon: Globe },
-  { href: '/templates', label: 'Templates', icon: FileText },
-  { href: '/partials', label: 'Partials', icon: ToyBrick },
+type NavKey = 'agents' | 'globals' | 'templates' | 'partials';
+
+const navItems: { href: string; key: NavKey; icon: typeof Bot }[] = [
+  { href: '/', key: 'agents', icon: Bot },
+  { href: '/globals', key: 'globals', icon: Globe },
+  { href: '/templates', key: 'templates', icon: FileText },
+  { href: '/partials', key: 'partials', icon: ToyBrick },
 ];
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const { t } = useLocale();
 
   return (
     <nav aria-label="Main navigation" className="flex flex-col gap-1">
@@ -37,7 +48,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             )}
           >
             <item.icon className="size-4 shrink-0" />
-            {item.label}
+            {t.appShell.nav[item.key]}
           </Link>
         );
       })}
@@ -47,6 +58,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 
 function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
+  const { t } = useLocale();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
@@ -60,16 +72,47 @@ function ThemeToggle() {
       size="icon"
       className="size-9"
       onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-      aria-label="Toggle theme"
+      aria-label={t.appShell.toggleTheme}
     >
       {resolvedTheme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
     </Button>
   );
 }
 
+function LanguageSwitcher() {
+  const { locale, setLocale, t } = useLocale();
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-9"
+          aria-label={t.appShell.languageSwitcher}
+        >
+          <Languages className="size-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {SUPPORTED_LOCALES.map((loc) => (
+          <DropdownMenuItem
+            key={loc}
+            onClick={() => setLocale(loc as Locale)}
+            className={cn(locale === loc && 'bg-accent')}
+          >
+            {LOCALE_LABELS[loc]}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const { t } = useLocale();
 
   // Close sheet on route change
   useEffect(() => {
@@ -82,13 +125,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <aside className="hidden w-64 shrink-0 border-r border-border bg-sidebar md:flex md:flex-col">
         <div className="flex h-14 items-center gap-2 border-b border-border px-4">
           <Bot className="size-5 text-primary" />
-          <span className="text-sm font-semibold tracking-tight">Hermes Agents</span>
+          <span className="text-sm font-semibold tracking-tight">{t.appShell.brand}</span>
         </div>
         <div className="flex flex-1 flex-col gap-4 p-4">
           <NavLinks />
         </div>
-        <div className="border-t border-border p-4">
+        <div className="flex items-center gap-1 border-t border-border p-4">
           <ThemeToggle />
+          <LanguageSwitcher />
         </div>
       </aside>
 
@@ -96,26 +140,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-border bg-background px-4 md:hidden">
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-9" aria-label="Open menu">
+            <Button variant="ghost" size="icon" className="size-9" aria-label={t.appShell.openMenu}>
               <Menu className="size-5" />
             </Button>
           </SheetTrigger>
           <SheetContent side="left">
             <div className="flex items-center gap-2 pb-6 pt-2">
               <Bot className="size-5 text-primary" />
-              <span className="text-sm font-semibold">Hermes Agents</span>
+              <span className="text-sm font-semibold">{t.appShell.brand}</span>
             </div>
             <NavLinks onNavigate={() => setOpen(false)} />
-            <div className="mt-auto pt-6">
+            <div className="mt-auto flex items-center gap-1 pt-6">
               <ThemeToggle />
+              <LanguageSwitcher />
             </div>
           </SheetContent>
         </Sheet>
 
         <div className="flex flex-1 items-center gap-2">
           <Bot className="size-5 text-primary" />
-          <span className="text-sm font-semibold tracking-tight">Hermes Agents</span>
+          <span className="text-sm font-semibold tracking-tight">{t.appShell.brand}</span>
         </div>
+        <LanguageSwitcher />
         <ThemeToggle />
       </header>
 
