@@ -38,6 +38,47 @@ describe('allocateApiServerPort', () => {
     expect(allocated).toBe(8643);
   });
 
+  it('considers legacy .env port assignments as used', async () => {
+    await fs.mkdir(path.join(tmpDir, 'runtime', 'agents', 'legacy'), { recursive: true });
+    await fs.writeFile(
+      path.join(tmpDir, 'runtime', 'agents', 'legacy', '.env'),
+      'API_SERVER_PORT=8642\n',
+      'utf-8',
+    );
+
+    const { allocateApiServerPort } = await import('../../src/lib/agents');
+    const allocated = await allocateApiServerPort();
+
+    expect(allocated).toBe(8643);
+  });
+
+  it('considers both meta.json and .env ports as used', async () => {
+    await fs.mkdir(path.join(tmpDir, 'runtime', 'agents', 'meta-agent'), { recursive: true });
+    await fs.mkdir(path.join(tmpDir, 'runtime', 'agents', 'env-agent'), { recursive: true });
+    await fs.writeFile(
+      path.join(tmpDir, 'runtime', 'agents', 'meta-agent', 'meta.json'),
+      JSON.stringify({ name: 'M', description: '', tags: [], apiServerPort: 8642 }),
+      'utf-8',
+    );
+    await fs.writeFile(
+      path.join(tmpDir, 'runtime', 'agents', 'env-agent', '.env'),
+      'API_SERVER_PORT=8643\n',
+      'utf-8',
+    );
+
+    const { allocateApiServerPort } = await import('../../src/lib/agents');
+    const allocated = await allocateApiServerPort();
+
+    expect(allocated).toBe(8644);
+  });
+
+  it('returns 8642 when no agents directory exists', async () => {
+    const { allocateApiServerPort } = await import('../../src/lib/agents');
+    const allocated = await allocateApiServerPort();
+
+    expect(allocated).toBe(8642);
+  });
+
   it('throws when all ports in range are exhausted', async () => {
     for (let port = 8642; port <= 8699; port += 1) {
       const agentId = `agent-${port}`;
