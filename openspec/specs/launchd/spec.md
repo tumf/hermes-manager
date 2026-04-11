@@ -1,17 +1,16 @@
 ## Requirements
 
-### Requirement: launchd lifecycle management API
+### Requirement: local service lifecycle management API
 
-Implement a server-side API to manage macOS launchd services associated with Hermes agents.
+Implement a server-side API to manage local OS service supervisors associated with Hermes agents.
 
-- Endpoint: POST /api/launchd
-- Request body: { agent: string, action: 'install'|'uninstall'|'start'|'stop'|'status' }
+- Endpoint: POST /api/launchd (legacy path retained for compatibility)
+- Request body: { agent: string, action: 'install'|'uninstall'|'start'|'stop'|'restart'|'status' }
 - Execution: Use child_process.execFile for all system calls (no shell injection)
-- Agent resolution: Look up agent by name in SQLite to obtain home and label.
-- Plist path: ~/Library/LaunchAgents/ai.hermes.gateway.{name}.plist
-- ProgramArguments: dotenvx run -f {HERMES_HOME}/.env -f {PROJECT}/runtime/globals/.env -- hermes gateway
-- EnvironmentVariables: HERMES_HOME={home}
-- Stdout/Err: {home}/logs/gateway.log and {home}/logs/gateway.error.log
+- Agent resolution: look up the agent in the filesystem-backed runtime model to obtain home and service label/unit name
+- On macOS, the implementation uses launchctl, plist generation, and ~/Library/LaunchAgents
+- On Linux, the implementation uses systemctl --user, systemd user-unit generation, and the per-user unit directory
+- Agent service definitions on both platforms preserve HERMES_HOME, working directory, stdout/stderr log destinations, and optional API_SERVER_ENABLED / API_SERVER_PORT
 
 #### Scenario: install action writes plist and bootstraps
 
