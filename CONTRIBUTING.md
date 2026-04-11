@@ -99,7 +99,7 @@ npm run test:e2e
 
 - Keep README / CONTRIBUTING focused on high-level guidance only, and link detailed rules to `AGENTS.md` and `docs/`
 - If implementation and documentation differ, resolve the discrepancy before requesting review
-- Rules about test boundaries must be documented in this file and in `README.md` (English) / `README_ja.md` (Japanese)
+- Rules about test boundaries must be documented in this file and in `README.md` (English) / `README.ja.md` (Japanese)
 - If a change affects trust boundaries, hosting, or operator workflows, update the relevant docs in the same change
 
 ## 7. Support and Security
