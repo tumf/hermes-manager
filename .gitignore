@@ -4,6 +4,8 @@ out
 coverage
 .env
 .env.local
+.env.*
+!.env.example
 .env.*.local
 .DS_Store
 tsconfig.tsbuildinfo
