@@ -162,6 +162,45 @@ describe('PUT /api/files', () => {
     );
   });
 
+  it('strips zero-width spaces before writing memory files', async () => {
+    const req = makeReq('http://localhost/api/files', {
+      method: 'PUT',
+      body: JSON.stringify({
+        agent: 'alpha',
+        path: 'memories/MEMORY.md',
+        content: '# Me\u200Bmory\n',
+      }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const res = await PUT(req);
+    expect(res.status).toBe(200);
+    expect(vi.mocked(fs.writeFile)).toHaveBeenCalledWith(
+      '/runtime/agents/alpha/memories/MEMORY.md.tmp',
+      '# Memory\n',
+      'utf-8',
+    );
+  });
+
+  it('strips zero-width spaces before writing SOUL source files', async () => {
+    const req = makeReq('http://localhost/api/files', {
+      method: 'PUT',
+      body: JSON.stringify({
+        agent: 'alpha',
+        path: 'SOUL.src.md',
+        content: '# Soul\n\n{{par\u200Btial:shared-rules}}',
+      }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const res = await PUT(req);
+    expect(res.status).toBe(200);
+    expect(mockState.sourceWritePayload).toEqual({
+      agentHome: '/runtime/agents/alpha',
+      source: '# Soul\n\n{{partial:shared-rules}}',
+    });
+  });
+
   it('rejects direct SOUL.md write when SOUL.src.md exists', async () => {
     mockState.hasSoulSource = true;
 

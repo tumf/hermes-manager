@@ -42,7 +42,7 @@ describe('gateway discovery', () => {
     expect(result.port).toBeNull();
   });
 
-  it('returns starting when gateway running but platform not connected', async () => {
+  it('returns starting when gateway running and api_server is still connecting', async () => {
     const agentHome = path.join(tmpDir, 'agent-starting');
     await fsp.mkdir(agentHome, { recursive: true });
     await fsp.writeFile(path.join(agentHome, 'config.yaml'), 'platforms:\n  - api_server\n');
@@ -57,6 +57,26 @@ describe('gateway discovery', () => {
 
     const result = discoverApiServerStatus(agentHome);
     expect(result.status).toBe('starting');
+    expect(result.reason).toContain('connecting');
+    expect(result.port).toBeNull();
+  });
+
+  it('returns error when gateway running but api_server is disconnected', async () => {
+    const agentHome = path.join(tmpDir, 'agent-disconnected');
+    await fsp.mkdir(agentHome, { recursive: true });
+    await fsp.writeFile(path.join(agentHome, 'config.yaml'), 'platforms:\n  - api_server\n');
+    await fsp.writeFile(
+      path.join(agentHome, 'gateway_state.json'),
+      JSON.stringify({
+        pid: 9999,
+        gateway_state: 'running',
+        platforms: { api_server: { state: 'disconnected' } },
+      }),
+    );
+
+    const result = discoverApiServerStatus(agentHome);
+    expect(result.status).toBe('error');
+    expect(result.reason).toContain('disconnected');
     expect(result.port).toBeNull();
   });
 
@@ -96,7 +116,7 @@ describe('gateway discovery', () => {
     expect(discoverApiServerStatus(agentHome)).toEqual({ status: 'connected', port: 8645 });
   });
 
-  it('falls back to .env API_SERVER_PORT when state/meta have no valid port', async () => {
+  it('does not fall back to .env API_SERVER_PORT (only state/meta are used)', async () => {
     const runtimeDir = path.join(tmpDir, 'runtime');
     const agentHome = path.join(runtimeDir, 'agents', 'agent-env-port');
     const globalsDir = path.join(runtimeDir, 'globals');
@@ -114,21 +134,20 @@ describe('gateway discovery', () => {
       }),
     );
 
-    expect(discoverApiServerStatus(agentHome)).toEqual({ status: 'connected', port: 19007 });
+    // .env port is ignored — no valid state/meta port means error
+    const result = discoverApiServerStatus(agentHome);
+    expect(result.status).toBe('error');
+    expect(result.port).toBeNull();
   });
 
-  it('returns error when connected but no valid port exists in state/meta/env', async () => {
-    const runtimeDir = path.join(tmpDir, 'runtime');
-    const agentHome = path.join(runtimeDir, 'agents', 'agent-error');
-    const globalsDir = path.join(runtimeDir, 'globals');
+  it('returns error when connected but no valid port exists in state/meta', async () => {
+    const agentHome = path.join(tmpDir, 'agent-error');
     await fsp.mkdir(agentHome, { recursive: true });
-    await fsp.mkdir(globalsDir, { recursive: true });
     await fsp.writeFile(path.join(agentHome, 'config.yaml'), 'platforms:\n  - api_server\n');
     await fsp.writeFile(
       path.join(agentHome, 'meta.json'),
       JSON.stringify({ apiServerPort: 'bad' }),
     );
-    await fsp.writeFile(path.join(globalsDir, '.env'), 'API_SERVER_PORT=invalid\n');
     await fsp.writeFile(
       path.join(agentHome, 'gateway_state.json'),
       JSON.stringify({

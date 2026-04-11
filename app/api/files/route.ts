@@ -7,6 +7,7 @@ import { z } from 'zod';
 
 import { getAgent } from '@/src/lib/agents';
 import { SoulAssemblyError, writeSoulSourceAndAssembled } from '@/src/lib/soul-assembly';
+import { stripZeroWidthSpace } from '@/src/lib/text-sanitizer';
 
 const AllowedPathEnum = z.enum([
   'SOUL.md',
@@ -88,7 +89,8 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: parseResult.error.errors[0].message }, { status: 400 });
   }
 
-  const { agent: agentName, path: filePath, content } = parseResult.data;
+  const { agent: agentName, path: filePath } = parseResult.data;
+  const content = stripZeroWidthSpace(parseResult.data.content);
 
   const agent = await getAgent(agentName);
   if (!agent) {

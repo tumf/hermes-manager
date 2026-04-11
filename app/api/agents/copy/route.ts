@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { NextRequest, NextResponse } from 'next/server';
 
-import { agentExists, getAgent } from '@/src/lib/agents';
+import { agentExists, allocateApiServerPort, getAgent } from '@/src/lib/agents';
 import { PLATFORM_TOKEN_KEYS } from '@/src/lib/constants';
 import { clearTokenValues } from '@/src/lib/dotenv-parser';
 import { generateAgentId } from '@/src/lib/id';
@@ -12,7 +12,7 @@ import { CopyAgentSchema } from '@/src/lib/validators/agents';
 
 const MAX_ID_RETRIES = 5;
 
-async function updateCopiedMetaName(toHome: string): Promise<void> {
+async function updateCopiedMetaNameAndPort(toHome: string, apiServerPort: number): Promise<void> {
   const metaPath = path.join(toHome, 'meta.json');
   try {
     const content = await fs.readFile(metaPath, 'utf-8');
@@ -23,22 +23,36 @@ async function updateCopiedMetaName(toHome: string): Promise<void> {
     };
 
     const baseName = typeof parsed.name === 'string' ? parsed.name.trim() : '';
-    if (!baseName) {
-      return;
-    }
-
-    const copiedName = baseName.endsWith(' (Copy)') ? baseName : `${baseName} (Copy)`;
+    const copiedName = baseName
+      ? baseName.endsWith(' (Copy)')
+        ? baseName
+        : `${baseName} (Copy)`
+      : '';
     const normalized = {
       name: copiedName,
       description: typeof parsed.description === 'string' ? parsed.description : '',
       tags: Array.isArray(parsed.tags)
         ? parsed.tags.filter((tag): tag is string => typeof tag === 'string')
         : [],
+      apiServerPort,
     };
 
     await fs.writeFile(metaPath, JSON.stringify(normalized, null, 2), 'utf-8');
   } catch {
-    // meta.json is optional for copied agents
+    await fs.writeFile(
+      metaPath,
+      JSON.stringify(
+        {
+          name: '',
+          description: '',
+          tags: [],
+          apiServerPort,
+        },
+        null,
+        2,
+      ),
+      'utf-8',
+    );
   }
 }
 
@@ -78,6 +92,16 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  let apiServerPort: number;
+  try {
+    apiServerPort = await allocateApiServerPort();
+  } catch {
+    return NextResponse.json(
+      { error: 'No available API server ports in range 8642-8699' },
+      { status: 409 },
+    );
+  }
+
   const toHome = getRuntimeAgentsRootPath(newAgentId);
   await fs.cp(sourceAgent.home, toHome, {
     recursive: true,
@@ -89,7 +113,7 @@ export async function POST(request: NextRequest) {
 
   const copiedEnvPath = `${toHome}/.env`;
   await clearTokenValues(copiedEnvPath, PLATFORM_TOKEN_KEYS);
-  await updateCopiedMetaName(toHome);
+  await updateCopiedMetaNameAndPort(toHome, apiServerPort);
 
   const newAgent = await getAgent(newAgentId);
   return NextResponse.json(newAgent, { status: 201 });

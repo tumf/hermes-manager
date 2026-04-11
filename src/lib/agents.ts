@@ -35,6 +35,7 @@ export interface Agent extends AgentMeta, AgentProcessInfo {
   createdAt: Date;
   updatedAt: Date;
   apiServerStatus: ApiServerStatus;
+  apiServerStatusReason?: string;
   apiServerAvailable: boolean;
   apiServerPort: number | null;
 }
@@ -207,6 +208,24 @@ function isApiServerPortInRange(value: unknown): value is number {
   );
 }
 
+/**
+ * Parse API_SERVER_PORT from .env file.
+ * Handles legacy values like "8644\n" or "8644".
+ */
+function parseEnvApiServerPort(content: string): number | null {
+  for (const line of content.split(/\r?\n/)) {
+    if (line.startsWith('API_SERVER_PORT=')) {
+      const value = line.slice('API_SERVER_PORT='.length);
+      const trimmed = value.replace(/^"|"$/g, '').trim();
+      const num = Number.parseInt(trimmed, 10);
+      if (Number.isInteger(num) && num >= API_SERVER_PORT_MIN && num <= API_SERVER_PORT_MAX) {
+        return num;
+      }
+    }
+  }
+  return null;
+}
+
 export async function allocateApiServerPort(): Promise<number> {
   const agentsRoot = getRuntimeAgentsRootPath();
   let entries: string[];
@@ -224,9 +243,22 @@ export async function allocateApiServerPort(): Promise<number> {
       continue;
     }
 
+    // Check meta.json first
     const meta = readMetaJson(agentHome);
     if (isApiServerPortInRange(meta.apiServerPort)) {
       usedPorts.add(meta.apiServerPort);
+    }
+
+    // Also check .env for legacy port assignments
+    try {
+      const envPath = path.join(agentHome, '.env');
+      const envContent = await fsp.readFile(envPath, 'utf-8');
+      const envPort = parseEnvApiServerPort(envContent);
+      if (envPort !== null) {
+        usedPorts.add(envPort);
+      }
+    } catch {
+      // .env might not exist — that's fine
     }
   }
 
@@ -279,7 +311,7 @@ export async function listAgents(): Promise<Agent[]> {
     const config = readConfigYaml(agentHome);
     const meta = readMetaJson(agentHome);
     const discovery = discoverApiServerStatus(agentHome);
-    const apiServerPort = discovery.port;
+    const apiServerPort = discovery.port ?? meta.apiServerPort ?? null;
     const processInfo = await resolveAgentProcessInfo(name, agentHome);
     agents.push({
       agentId: name,
@@ -290,6 +322,7 @@ export async function listAgents(): Promise<Agent[]> {
       updatedAt: stat.mtime,
       ...meta,
       apiServerStatus: discovery.status,
+      apiServerStatusReason: discovery.reason,
       apiServerAvailable: discovery.status === 'connected' && apiServerPort !== null,
       apiServerPort,
       ...processInfo,
@@ -315,7 +348,7 @@ export async function getAgent(agentId: string): Promise<Agent | null> {
     const config = readConfigYaml(agentHome);
     const meta = readMetaJson(agentHome);
     const discovery = discoverApiServerStatus(agentHome);
-    const apiServerPort = discovery.port;
+    const apiServerPort = discovery.port ?? meta.apiServerPort ?? null;
     const processInfo = await resolveAgentProcessInfo(agentId, agentHome);
     return {
       agentId,
@@ -326,6 +359,7 @@ export async function getAgent(agentId: string): Promise<Agent | null> {
       updatedAt: stat.mtime,
       ...meta,
       apiServerStatus: discovery.status,
+      apiServerStatusReason: discovery.reason,
       apiServerAvailable: discovery.status === 'connected' && apiServerPort !== null,
       apiServerPort,
       ...processInfo,
@@ -395,6 +429,7 @@ export async function createAgent(
     updatedAt: stat.mtime,
     ...normalizedMeta,
     apiServerStatus: discovery.status,
+    apiServerStatusReason: discovery.reason,
     apiServerAvailable: discovery.status === 'connected' && apiServerPort !== null,
     apiServerPort,
     ...PROCESS_INFO_PLACEHOLDER,
@@ -410,8 +445,17 @@ export async function updateAgentMeta(agentId: string, meta: AgentMeta): Promise
     }
 
     await fsp.access(path.join(agentHome, 'config.yaml'));
-    await writeMetaJson(agentHome, meta);
-    return meta;
+    const existingMeta = readMetaJson(agentHome);
+    const nextMeta: AgentMeta = {
+      name: meta.name,
+      description: meta.description,
+      tags: meta.tags,
+      apiServerPort: isApiServerPortInRange(meta.apiServerPort)
+        ? meta.apiServerPort
+        : existingMeta.apiServerPort,
+    };
+    await writeMetaJson(agentHome, nextMeta);
+    return nextMeta;
   } catch {
     return null;
   }
@@ -427,6 +471,7 @@ export async function readAgentMeta(agentId: string): Promise<AgentMeta | null> 
     name: agent.name,
     description: agent.description,
     tags: agent.tags,
+    apiServerPort: agent.apiServerPort,
   };
 }
 

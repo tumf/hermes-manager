@@ -6,7 +6,7 @@ import { promisify } from 'node:util';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { getAgent } from '@/src/lib/agents';
+import { allocateApiServerPort, getAgent, readAgentMeta, updateAgentMeta } from '@/src/lib/agents';
 import {
   generatePlist,
   getPlistPath,
@@ -79,12 +79,42 @@ async function ensureServiceBootstrapped(
   fs.mkdirSync(path.dirname(plistPath), { recursive: true });
   fs.writeFileSync(plistPath, plistContent, 'utf8');
 
+  // Always reload the job so launchd picks up the regenerated plist.
   const check = await runExecFile('launchctl', ['print', `gui/${uid}/${label}`]);
   if (check.code === 0) {
-    return check;
+    const bootout = await runExecFile('launchctl', ['bootout', `gui/${uid}/${label}`]);
+    if (bootout.code !== 0 && !isServiceMissing(bootout)) {
+      return bootout;
+    }
+    // Wait for launchd to fully release the old job before re-bootstrapping
+    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 
   return runExecFile('launchctl', ['bootstrap', `gui/${uid}`, plistPath]);
+}
+
+async function ensureAgentApiServerPort(agentName: string): Promise<number | null> {
+  const agentMeta = await readAgentMeta(agentName);
+  if (!agentMeta) {
+    return null;
+  }
+
+  if (typeof agentMeta.apiServerPort === 'number') {
+    return agentMeta.apiServerPort;
+  }
+
+  const apiServerPort = await allocateApiServerPort();
+  const updated = await updateAgentMeta(agentName, {
+    ...agentMeta,
+    apiServerPort,
+  });
+
+  if (typeof updated?.apiServerPort === 'number') {
+    return updated.apiServerPort;
+  }
+
+  const refreshedMeta = await readAgentMeta(agentName);
+  return typeof refreshedMeta?.apiServerPort === 'number' ? refreshedMeta.apiServerPort : null;
 }
 
 export async function POST(request: Request) {
@@ -110,6 +140,20 @@ export async function POST(request: Request) {
 
   const { home, label } = agentRow;
   const uid = getUid();
+  const ensuredApiServerPort =
+    action === 'install' || action === 'start' || action === 'restart'
+      ? await ensureAgentApiServerPort(agentName)
+      : agentRow.apiServerPort;
+
+  if (
+    (action === 'install' || action === 'start' || action === 'restart') &&
+    ensuredApiServerPort === null
+  ) {
+    return NextResponse.json(
+      { error: 'Failed to resolve api server port for agent' },
+      { status: 500 },
+    );
+  }
 
   if (action === 'install') {
     const result = await ensureServiceBootstrapped(
@@ -117,7 +161,7 @@ export async function POST(request: Request) {
       home,
       label,
       uid,
-      agentRow.apiServerPort,
+      ensuredApiServerPort,
     );
     return NextResponse.json(result);
   }
@@ -134,19 +178,16 @@ export async function POST(request: Request) {
   }
 
   if (action === 'start') {
-    const currentStatus = await runExecFile('launchctl', ['print', `gui/${uid}/${label}`]);
-
-    if (isServiceMissing(currentStatus)) {
-      const bootstrapResult = await ensureServiceBootstrapped(
-        agentName,
-        home,
-        label,
-        uid,
-        agentRow.apiServerPort,
-      );
-      if (bootstrapResult.code !== 0) {
-        return NextResponse.json(bootstrapResult, { status: 500 });
-      }
+    // Always regenerate plist so that meta.json changes (e.g. apiServerPort) are reflected
+    const bootstrapResult = await ensureServiceBootstrapped(
+      agentName,
+      home,
+      label,
+      uid,
+      ensuredApiServerPort,
+    );
+    if (bootstrapResult.code !== 0) {
+      return NextResponse.json(bootstrapResult, { status: 500 });
     }
 
     const result = await runExecFile('launchctl', ['start', label]);
@@ -183,7 +224,7 @@ export async function POST(request: Request) {
       home,
       label,
       uid,
-      agentRow.apiServerPort,
+      ensuredApiServerPort,
     );
     if (bootstrapResult.code !== 0) {
       return NextResponse.json(bootstrapResult, { status: 500 });

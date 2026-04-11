@@ -40,15 +40,36 @@ vi.mock('@/src/lib/agents', () => ({
     },
   ),
   updateAgentMeta: vi.fn(
-    async (agentId: string, meta: { name: string; description: string; tags: string[] }) => {
+    async (
+      agentId: string,
+      meta: { name: string; description: string; tags: string[]; apiServerPort?: number | null },
+    ) => {
       const agent = mockState.agents.find((a) => a.agentId === agentId);
       if (!agent) return null;
       agent.name = meta.name;
       agent.description = meta.description;
       agent.tags = meta.tags;
-      return meta;
+      if (typeof meta.apiServerPort === 'number') {
+        agent.apiServerPort = meta.apiServerPort;
+      }
+      return {
+        name: meta.name,
+        description: meta.description,
+        tags: meta.tags,
+        apiServerPort: agent.apiServerPort,
+      };
     },
   ),
+  readAgentMeta: vi.fn(async (agentId: string) => {
+    const agent = mockState.agents.find((a) => a.agentId === agentId);
+    if (!agent) return null;
+    return {
+      name: agent.name,
+      description: agent.description,
+      tags: agent.tags,
+      apiServerPort: agent.apiServerPort,
+    };
+  }),
   deleteAgent: vi.fn(async () => undefined),
 }));
 
@@ -331,7 +352,44 @@ describe('PUT /api/agents/[id]/meta', () => {
     const res = await META_PUT(req, { params: Promise.resolve({ id: 'abc1234' }) });
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body).toEqual({ name: '新名前', description: '説明', tags: ['prod'] });
+    expect(body).toEqual({
+      name: '新名前',
+      description: '説明',
+      tags: ['prod'],
+      apiServerPort: null,
+    });
+  });
+
+  it('preserves apiServerPort when updating metadata', async () => {
+    mockState.agents = [
+      {
+        agentId: 'abc1234',
+        home: '/runtime/agents/abc1234',
+        label: 'ai.hermes.gateway.abc1234',
+        enabled: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        name: 'Old',
+        description: 'Old desc',
+        tags: ['old'],
+        apiServerStatus: 'disabled',
+        apiServerAvailable: false,
+        apiServerPort: 8647,
+        memoryRssBytes: null,
+        hermesVersion: null,
+      },
+    ];
+
+    const req = makeReq('http://localhost/api/agents/abc1234/meta', {
+      method: 'PUT',
+      body: JSON.stringify({ name: '新名前', description: '説明', tags: ['prod'] }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const res = await META_PUT(req, { params: Promise.resolve({ id: 'abc1234' }) });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.apiServerPort).toBe(8647);
   });
 
   it('returns 404 when agent not found', async () => {
@@ -381,6 +439,38 @@ describe('POST /api/agents/copy', () => {
 
     const res = await COPY_POST(req);
     expect(res.status).toBe(201);
+  });
+
+  it('returns 409 when no api server ports are available for copy', async () => {
+    const agentsLib = await import('../../src/lib/agents');
+    vi.mocked(agentsLib.allocateApiServerPort).mockRejectedValueOnce(new Error('port exhausted'));
+    mockState.agents = [
+      {
+        agentId: 'delta11',
+        home: '/runtime/agents/delta11',
+        label: 'ai.hermes.gateway.delta11',
+        enabled: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        name: '',
+        description: '',
+        tags: [],
+        apiServerStatus: 'disabled',
+        apiServerAvailable: false,
+        apiServerPort: null,
+        memoryRssBytes: null,
+        hermesVersion: null,
+      },
+    ];
+
+    const req = makeReq('http://localhost/api/agents/copy', {
+      method: 'POST',
+      body: JSON.stringify({ from: 'delta11' }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const res = await COPY_POST(req);
+    expect(res.status).toBe(409);
   });
 
   it('calls fs.cp recursively', async () => {
@@ -487,6 +577,46 @@ describe('POST /api/agents/copy', () => {
       expect.stringContaining('My Bot (Copy)'),
       'utf-8',
     );
+    const metaWrite = vi
+      .mocked(fs.writeFile)
+      .mock.calls.find((call) => String(call[0]).includes('/runtime/agents/abc1234/meta.json'));
+    expect(metaWrite?.[1]).toContain('"apiServerPort": 8642');
+  });
+
+  it('creates meta.json with apiServerPort when copied agent had no meta', async () => {
+    mockState.agents = [
+      {
+        agentId: 'delta11',
+        home: '/runtime/agents/delta11',
+        label: 'ai.hermes.gateway.delta11',
+        enabled: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        name: '',
+        description: '',
+        tags: [],
+        apiServerStatus: 'disabled',
+        apiServerAvailable: false,
+        apiServerPort: null,
+        memoryRssBytes: null,
+        hermesVersion: null,
+      },
+    ];
+
+    vi.mocked(fs.readFile).mockRejectedValueOnce(new Error('ENOENT') as never);
+
+    const req = makeReq('http://localhost/api/agents/copy', {
+      method: 'POST',
+      body: JSON.stringify({ from: 'delta11' }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    await COPY_POST(req);
+
+    const metaWrite = vi
+      .mocked(fs.writeFile)
+      .mock.calls.find((call) => String(call[0]).includes('/runtime/agents/abc1234/meta.json'));
+    expect(metaWrite?.[1]).toContain('"apiServerPort": 8642');
   });
 
   it('returns 404 if source agent not found', async () => {

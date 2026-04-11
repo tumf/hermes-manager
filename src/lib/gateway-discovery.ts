@@ -123,7 +123,13 @@ function parseValidPort(value: unknown): number | null {
   }
 
   if (typeof value === 'string' && value.trim().length > 0) {
-    const port = Number(value);
+    // Strip surrounding quotes and literal \n that dotenvx may inject
+    const cleaned = value
+      .trim()
+      .replace(/^["']|["']$/g, '')
+      .replace(/\\n/g, '')
+      .trim();
+    const port = Number(cleaned);
     if (Number.isInteger(port) && port > 0 && port <= 65535) {
       return port;
     }
@@ -143,22 +149,13 @@ function readMetaJsonPort(agentHome: string): number | null {
   }
 }
 
-function readApiServerPort(
-  agentHome: string,
-  statePort: unknown,
-  env: Record<string, string>,
-): number | null {
+function readApiServerPort(agentHome: string, statePort: unknown): number | null {
   const stateResolved = parseValidPort(statePort);
   if (stateResolved !== null) {
     return stateResolved;
   }
 
-  const metaResolved = readMetaJsonPort(agentHome);
-  if (metaResolved !== null) {
-    return metaResolved;
-  }
-
-  return parseValidPort(env.API_SERVER_PORT);
+  return readMetaJsonPort(agentHome);
 }
 
 export function discoverApiServerStatus(agentHome: string): ApiServerDiscovery {
@@ -177,19 +174,18 @@ export function discoverApiServerStatus(agentHome: string): ApiServerDiscovery {
     };
   }
 
-  if (state.platforms?.api_server?.state !== 'connected') {
+  const platformState = state.platforms?.api_server?.state ?? 'unknown';
+  if (platformState !== 'connected') {
+    // 'disconnected' is a permanent failure — classify as error, not starting
+    const isTransient = platformState === 'connecting' || platformState === 'starting';
     return {
-      status: 'starting',
+      status: isTransient ? 'starting' : 'error',
       port: null,
-      reason: `api_server platform state is ${state.platforms?.api_server?.state ?? 'unknown'}`,
+      reason: `api_server platform state is ${platformState}`,
     };
   }
 
-  const globalsEnvPath = path.resolve(agentHome, '..', '..', 'globals', '.env');
-  const globalEnv = readDotenv(globalsEnvPath);
-  const localEnv = readDotenv(path.join(agentHome, '.env'));
-  const env = { ...globalEnv, ...localEnv };
-  const port = readApiServerPort(agentHome, state.api_server_port, env);
+  const port = readApiServerPort(agentHome, state.api_server_port);
   if (typeof port === 'number') {
     return { status: 'connected', port };
   }
