@@ -18,6 +18,10 @@
 - [x] Rename references in `AGENTS.md`, `CONTRIBUTING.md`, `SECURITY.md`, `package.json`, `.env.example`, `.wt/setup`
 - [x] Verify: typecheck passes, lint passes, 363 tests pass, build succeeds
 
+## Acceptance #2 Failure Follow-up
+
+- [ ] Update `restart` script (line 4) to use new service label `ai.hermes.manager` instead of `ai.hermes.agents-webapp`
+
 ## Future Work
 
 - GitHub repository slug を実際に rename する
