@@ -130,6 +130,7 @@ export function AddAgentDialog({ templates, onOpen, onCreated }: AddAgentDialogP
       </DialogTrigger>
       <DialogContent>
         <form
+          className="flex min-h-0 flex-1 flex-col"
           onSubmit={(event) => {
             event.preventDefault();
             void handleAdd();
@@ -141,7 +142,7 @@ export function AddAgentDialog({ templates, onOpen, onCreated }: AddAgentDialogP
               Create a new agent with an auto-generated ID and optional template selection.
             </DialogDescription>
           </DialogHeader>
-          <div className="mt-4 space-y-4">
+          <div className="mt-4 min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
             <LabeledInput
               id="agent-name"
               label="Display Name"

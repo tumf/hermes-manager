@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom';
 
 import { AgentEnvTab } from '../../src/components/agent-env-tab';
+import { DialogFooter } from '../../src/components/ui/dialog';
 import { buildGetEnvRoute, buildPostEnvRoute, createEnvState } from '../helpers/env-helpers';
 import { createFetchRouter } from '../helpers/fetch-router';
 
@@ -33,5 +34,18 @@ describe('AgentEnvTab', () => {
     const dialog = await screen.findByRole('dialog');
     const visibilitySelect = within(dialog).getByLabelText('Visibility') as HTMLSelectElement;
     expect(visibilitySelect.value).toBe('secure');
+  });
+
+  it('DialogFooter keeps a separated non-scrolling action bar layout', () => {
+    const { container } = render(
+      <DialogFooter>
+        <button type="button">Cancel</button>
+        <button type="button">Save</button>
+      </DialogFooter>,
+    );
+
+    expect(container.firstChild).toHaveClass('shrink-0');
+    expect(container.firstChild).toHaveClass('border-t');
+    expect(container.firstChild).not.toHaveClass('sticky');
   });
 });

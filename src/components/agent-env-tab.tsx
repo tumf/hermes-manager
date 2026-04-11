@@ -227,70 +227,74 @@ function AgentEnvEditDialog({
         </Button>
       </DialogTrigger>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Edit {row.key}</DialogTitle>
-          <DialogDescription>Update value and visibility.</DialogDescription>
-        </DialogHeader>
-        <Input
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder={row.masked ? 'Enter new value (optional)' : row.value}
-          aria-label={`${row.key} value`}
-        />
-        <select
-          value={visibility}
-          onChange={(e) => setVisibility(e.target.value as EnvVisibility)}
-          className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-          aria-label="Visibility"
-        >
-          <option value="plain">plain</option>
-          <option value="secure">secure</option>
-        </select>
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="outline">Cancel</Button>
-          </DialogClose>
-          <DialogClose asChild>
-            <Button
-              disabled={saving || (value.length === 0 && visibility === row.visibility)}
-              onClick={async () => {
-                setSaving(true);
-                try {
-                  const payload: {
-                    agent: string;
-                    key: string;
-                    visibility: EnvVisibility;
-                    value?: string;
-                  } = {
-                    agent: agentName,
-                    key: row.key,
-                    visibility,
-                  };
-                  if (value.length > 0) {
-                    payload.value = value;
-                  }
-
-                  const res = await fetch('/api/env', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
-                  });
-                  if (!res.ok) {
-                    throw new Error('save failed');
-                  }
-                  toast.success(`Updated ${row.key}`);
-                  await onSaved();
-                } catch {
-                  toast.error(`Failed to update ${row.key}`);
-                } finally {
-                  setSaving(false);
-                }
-              }}
+        <div className="flex min-h-0 flex-1 flex-col">
+          <DialogHeader>
+            <DialogTitle>Edit {row.key}</DialogTitle>
+            <DialogDescription>Update value and visibility.</DialogDescription>
+          </DialogHeader>
+          <div className="mt-4 min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
+            <Input
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              placeholder={row.masked ? 'Enter new value (optional)' : row.value}
+              aria-label={`${row.key} value`}
+            />
+            <select
+              value={visibility}
+              onChange={(e) => setVisibility(e.target.value as EnvVisibility)}
+              className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+              aria-label="Visibility"
             >
-              Save
-            </Button>
-          </DialogClose>
-        </DialogFooter>
+              <option value="plain">plain</option>
+              <option value="secure">secure</option>
+            </select>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <DialogClose asChild>
+              <Button
+                disabled={saving || (value.length === 0 && visibility === row.visibility)}
+                onClick={async () => {
+                  setSaving(true);
+                  try {
+                    const payload: {
+                      agent: string;
+                      key: string;
+                      visibility: EnvVisibility;
+                      value?: string;
+                    } = {
+                      agent: agentName,
+                      key: row.key,
+                      visibility,
+                    };
+                    if (value.length > 0) {
+                      payload.value = value;
+                    }
+
+                    const res = await fetch('/api/env', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(payload),
+                    });
+                    if (!res.ok) {
+                      throw new Error('save failed');
+                    }
+                    toast.success(`Updated ${row.key}`);
+                    await onSaved();
+                  } catch {
+                    toast.error(`Failed to update ${row.key}`);
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+              >
+                Save
+              </Button>
+            </DialogClose>
+          </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );

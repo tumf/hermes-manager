@@ -17,6 +17,7 @@ import {
 } from '@/src/components/ui/dialog';
 import { Input } from '@/src/components/ui/input';
 import { Skeleton } from '@/src/components/ui/skeleton';
+import { cn } from '@/src/lib/utils';
 
 const FILE_PATH_TO_TEMPLATE_FILE: Record<string, string> = {
   'SOUL.md': 'SOUL.md',
@@ -38,10 +39,11 @@ interface FileEditorProps {
   savePath?: string;
   readOnly?: boolean;
   hideTemplateButton?: boolean;
+  className?: string;
 }
 
 export const FileEditor = forwardRef<FileEditorHandle, FileEditorProps>(function FileEditor(
-  { name, filePath, label, savePath, readOnly = false, hideTemplateButton = false },
+  { name, filePath, label, savePath, readOnly = false, hideTemplateButton = false, className },
   ref,
 ) {
   const [content, setContent] = useState('');
@@ -164,7 +166,7 @@ export const FileEditor = forwardRef<FileEditorHandle, FileEditorProps>(function
   const charCount = content.length;
 
   return (
-    <Card className="flex h-[calc(100dvh-14rem)] flex-col">
+    <Card className={cn('flex h-[calc(100dvh-14rem)] flex-col', className)}>
       <CardHeader className="shrink-0 flex-row items-center justify-between gap-3 pb-2">
         <div className="flex items-center gap-2">
           <CardTitle className="font-mono text-xs">{label}</CardTitle>
@@ -190,29 +192,33 @@ export const FileEditor = forwardRef<FileEditorHandle, FileEditorProps>(function
                 </Button>
               </DialogTrigger>
               <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Save as Template</DialogTitle>
-                  <DialogDescription>
-                    Save the current content of {label} as a reusable template.
-                  </DialogDescription>
-                </DialogHeader>
-                <Input
-                  value={templateName}
-                  onChange={(e) => setTemplateName(e.target.value)}
-                  placeholder="template-name"
-                  aria-label="Template name"
-                />
-                <DialogFooter>
-                  <DialogClose asChild>
-                    <Button variant="outline">Cancel</Button>
-                  </DialogClose>
-                  <Button
-                    onClick={() => void saveAsTemplate()}
-                    disabled={savingTemplate || !templateName.trim()}
-                  >
-                    {savingTemplate ? 'Saving...' : 'Save'}
-                  </Button>
-                </DialogFooter>
+                <div className="flex min-h-0 flex-1 flex-col">
+                  <DialogHeader>
+                    <DialogTitle>Save as Template</DialogTitle>
+                    <DialogDescription>
+                      Save the current content of {label} as a reusable template.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-1">
+                    <Input
+                      value={templateName}
+                      onChange={(e) => setTemplateName(e.target.value)}
+                      placeholder="template-name"
+                      aria-label="Template name"
+                    />
+                  </div>
+                  <DialogFooter>
+                    <DialogClose asChild>
+                      <Button variant="outline">Cancel</Button>
+                    </DialogClose>
+                    <Button
+                      onClick={() => void saveAsTemplate()}
+                      disabled={savingTemplate || !templateName.trim()}
+                    >
+                      {savingTemplate ? 'Saving...' : 'Save'}
+                    </Button>
+                  </DialogFooter>
+                </div>
               </DialogContent>
             </Dialog>
           )}
