@@ -7,14 +7,9 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { allocateApiServerPort, getAgent, readAgentMeta, updateAgentMeta } from '@/src/lib/agents';
-import {
-  generatePlist,
-  getPlistPath,
-  isServiceMissing,
-  parsePid,
-  parseRunning,
-  type ExecResult,
-} from '@/src/lib/launchd';
+import type { ExecResult } from '@/src/lib/launchd';
+import type { ServiceAdapter } from '@/src/lib/service-manager';
+import { getServiceAdapter } from '@/src/lib/service-manager';
 
 const execFileAsync = promisify(execFile);
 
@@ -41,19 +36,32 @@ function getUid(): number {
   return process.getuid ? process.getuid() : 501;
 }
 
+function getAdapter(): ServiceAdapter {
+  return getServiceAdapter();
+}
+
+function getServiceUnitName(adapter: ServiceAdapter, agentName: string, label: string): string {
+  if (adapter.type === 'systemd') {
+    return `ai.hermes.gateway.${agentName}.service`;
+  }
+  return label;
+}
+
 const POLL_INTERVAL = 500;
 const POLL_TIMEOUT = 10_000;
 
 async function waitForState(
   target: 'running' | 'stopped',
+  adapter: ServiceAdapter,
   uid: number,
   label: string,
 ): Promise<{ running: boolean; pid: number | null; timedOut: boolean }> {
   const deadline = Date.now() + POLL_TIMEOUT;
   while (Date.now() < deadline) {
-    const r = await runExecFile('launchctl', ['print', `gui/${uid}/${label}`]);
-    const running = parseRunning(r.stdout);
-    const pid = parsePid(r.stdout);
+    const statusCmd = adapter.buildStatusCommand(label, uid);
+    const r = await runExecFile(statusCmd[0], statusCmd.slice(1));
+    const running = adapter.parseRunning(r.stdout);
+    const pid = adapter.parsePid(r.stdout);
     if (target === 'running' && running && pid !== null) {
       return { running: true, pid, timedOut: false };
     }
@@ -62,35 +70,56 @@ async function waitForState(
     }
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL));
   }
-  const r = await runExecFile('launchctl', ['print', `gui/${uid}/${label}`]);
-  return { running: parseRunning(r.stdout), pid: parsePid(r.stdout), timedOut: true };
+  const statusCmd = adapter.buildStatusCommand(label, uid);
+  const r = await runExecFile(statusCmd[0], statusCmd.slice(1));
+  return {
+    running: adapter.parseRunning(r.stdout),
+    pid: adapter.parsePid(r.stdout),
+    timedOut: true,
+  };
 }
 
 async function ensureServiceBootstrapped(
+  adapter: ServiceAdapter,
   agentName: string,
   home: string,
   label: string,
   uid: number,
   apiServerPort: number | null,
 ): Promise<ExecResult> {
-  const plistContent = generatePlist(agentName, home, label, apiServerPort);
-  const plistPath = getPlistPath(agentName);
+  const content = adapter.generateServiceDefinition(agentName, home, label, apiServerPort);
+  const defPath = adapter.getServiceDefinitionPath(agentName);
 
-  fs.mkdirSync(path.dirname(plistPath), { recursive: true });
-  fs.writeFileSync(plistPath, plistContent, 'utf8');
+  fs.mkdirSync(path.dirname(defPath), { recursive: true });
+  fs.writeFileSync(defPath, content, 'utf8');
 
-  // Always reload the job so launchd picks up the regenerated plist.
-  const check = await runExecFile('launchctl', ['print', `gui/${uid}/${label}`]);
-  if (check.code === 0) {
-    const bootout = await runExecFile('launchctl', ['bootout', `gui/${uid}/${label}`]);
-    if (bootout.code !== 0 && !isServiceMissing(bootout)) {
-      return bootout;
+  const cmds = adapter.buildInstallCommands(agentName, label);
+
+  if (adapter.type === 'launchd') {
+    const check = await runExecFile(cmds.pre[0][0], cmds.pre[0].slice(1));
+    if (check.code === 0) {
+      const unitName = getServiceUnitName(adapter, agentName, label);
+      const bootout = await runExecFile('launchctl', ['bootout', `gui/${uid}/${unitName}`]);
+      if (bootout.code !== 0 && !adapter.isServiceMissing(bootout)) {
+        return bootout;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
-    // Wait for launchd to fully release the old job before re-bootstrapping
-    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 
-  return runExecFile('launchctl', ['bootstrap', `gui/${uid}`, plistPath]);
+  const bootstrapResult = await runExecFile(cmds.bootstrap[0], cmds.bootstrap.slice(1));
+  if (bootstrapResult.code !== 0) {
+    return bootstrapResult;
+  }
+
+  for (const postCmd of cmds.post) {
+    const postResult = await runExecFile(postCmd[0], postCmd.slice(1));
+    if (postResult.code !== 0) {
+      return postResult;
+    }
+  }
+
+  return bootstrapResult;
 }
 
 async function ensureAgentApiServerPort(agentName: string): Promise<number | null> {
@@ -132,14 +161,15 @@ export async function POST(request: Request) {
 
   const { agent: agentName, action } = parsed.data;
 
-  // Look up agent from filesystem
   const agentRow = await getAgent(agentName);
   if (!agentRow) {
     return NextResponse.json({ error: `Agent "${agentName}" not found` }, { status: 404 });
   }
 
+  const adapter = getAdapter();
   const { home, label } = agentRow;
   const uid = getUid();
+  const unitName = getServiceUnitName(adapter, agentName, label);
   const ensuredApiServerPort =
     action === 'install' || action === 'start' || action === 'restart'
       ? await ensureAgentApiServerPort(agentName)
@@ -157,29 +187,42 @@ export async function POST(request: Request) {
 
   if (action === 'install') {
     const result = await ensureServiceBootstrapped(
+      adapter,
       agentName,
       home,
       label,
       uid,
       ensuredApiServerPort,
     );
-    return NextResponse.json(result);
+    return NextResponse.json({ ...result, manager: adapter.type });
   }
 
   if (action === 'uninstall') {
-    const result = await runExecFile('launchctl', ['bootout', `gui/${uid}/${label}`]);
-    const plistPath = getPlistPath(agentName);
+    const cmds = adapter.buildUninstallCommands(agentName, label);
+
+    for (const preCmd of cmds.pre) {
+      await runExecFile(preCmd[0], preCmd.slice(1));
+    }
+
+    const result = await runExecFile(cmds.remove[0], cmds.remove.slice(1));
+
+    const defPath = adapter.getServiceDefinitionPath(agentName);
     try {
-      fs.unlinkSync(plistPath);
+      fs.unlinkSync(defPath);
     } catch {
       // Ignore if already removed
     }
-    return NextResponse.json(result);
+
+    for (const postCmd of cmds.post) {
+      await runExecFile(postCmd[0], postCmd.slice(1));
+    }
+
+    return NextResponse.json({ ...result, manager: adapter.type });
   }
 
   if (action === 'start') {
-    // Always regenerate plist so that meta.json changes (e.g. apiServerPort) are reflected
     const bootstrapResult = await ensureServiceBootstrapped(
+      adapter,
       agentName,
       home,
       label,
@@ -190,36 +233,46 @@ export async function POST(request: Request) {
       return NextResponse.json(bootstrapResult, { status: 500 });
     }
 
-    const result = await runExecFile('launchctl', ['start', label]);
+    const startCmd = adapter.buildStartCommand(unitName);
+    const result = await runExecFile(startCmd[0], startCmd.slice(1));
     if (result.code !== 0) {
-      return NextResponse.json({ ...result, running: false }, { status: 500 });
+      return NextResponse.json(
+        { ...result, running: false, manager: adapter.type },
+        { status: 500 },
+      );
     }
-    const state = await waitForState('running', uid, label);
+    const state = await waitForState('running', adapter, uid, unitName);
     return NextResponse.json({
       ...result,
       running: state.running,
       pid: state.pid,
       timedOut: state.timedOut,
+      manager: adapter.type,
     });
   }
 
   if (action === 'stop') {
-    const result = await runExecFile('launchctl', ['stop', label]);
+    const stopCmd = adapter.buildStopCommand(unitName);
+    const result = await runExecFile(stopCmd[0], stopCmd.slice(1));
     if (result.code !== 0) {
-      return NextResponse.json({ ...result, running: true }, { status: 500 });
+      return NextResponse.json(
+        { ...result, running: true, manager: adapter.type },
+        { status: 500 },
+      );
     }
-    const state = await waitForState('stopped', uid, label);
+    const state = await waitForState('stopped', adapter, uid, unitName);
     return NextResponse.json({
       ...result,
       running: state.running,
       pid: state.pid,
       timedOut: state.timedOut,
+      manager: adapter.type,
     });
   }
 
   if (action === 'restart') {
-    // Ensure service is bootstrapped (writes plist + registers if needed)
     const bootstrapResult = await ensureServiceBootstrapped(
+      adapter,
       agentName,
       home,
       label,
@@ -230,15 +283,18 @@ export async function POST(request: Request) {
       return NextResponse.json(bootstrapResult, { status: 500 });
     }
 
-    // kickstart -k kills the existing process and restarts it atomically
-    const result = await runExecFile('launchctl', ['kickstart', '-kp', `gui/${uid}/${label}`]);
+    const restartCmd = adapter.buildRestartCommand(unitName, uid);
+    const result = await runExecFile(restartCmd[0], restartCmd.slice(1));
     if (result.code !== 0) {
-      return NextResponse.json({ ...result, running: false }, { status: 500 });
+      return NextResponse.json(
+        { ...result, running: false, manager: adapter.type },
+        { status: 500 },
+      );
     }
-    const state = await waitForState('running', uid, label);
+    const state = await waitForState('running', adapter, uid, unitName);
     if (!state.running) {
       return NextResponse.json(
-        { ...result, running: false, pid: null, timedOut: state.timedOut },
+        { ...result, running: false, pid: null, timedOut: state.timedOut, manager: adapter.type },
         { status: 500 },
       );
     }
@@ -247,13 +303,15 @@ export async function POST(request: Request) {
       running: state.running,
       pid: state.pid,
       timedOut: state.timedOut,
+      manager: adapter.type,
     });
   }
 
   // action === 'status'
-  const result = await runExecFile('launchctl', ['print', `gui/${uid}/${label}`]);
-  const running = parseRunning(result.stdout);
-  const pid = parsePid(result.stdout);
+  const statusCmd = adapter.buildStatusCommand(unitName, uid);
+  const result = await runExecFile(statusCmd[0], statusCmd.slice(1));
+  const running = adapter.parseRunning(result.stdout);
+  const pid = adapter.parsePid(result.stdout);
   return NextResponse.json({
     running,
     pid,
@@ -261,5 +319,6 @@ export async function POST(request: Request) {
     stdout: result.stdout,
     stderr: result.stderr,
     code: result.code,
+    manager: adapter.type,
   });
 }

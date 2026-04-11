@@ -4,13 +4,13 @@
 
 ## 1. 背景/目的
 
-- mini 上で多数の Hermes Agent (hermes-agent) を launchd で常駐運用する。
+- ローカルホスト上で多数の Hermes Agent (hermes-agent) を OS サービスマネージャ（macOS: launchd、Linux: systemd）で常駐運用する。
 - エージェントごとの HERMES_HOME を標準構造で管理し、設定・メモリ・スキル・実行・ログを Web UI から操作可能にする。
 - イントラネット運用前提（認証なし）、安全なローカル権限内での制御に限定。
 
 ## 2. 用語
 
-- Agent: Hermes gateway を launchd で常駐させる単位。HERMES_HOME は {PROJECT_ROOT}/runtime/agents/{id}。id はシステムが自動生成する `[0-9a-z]{7}` のランダム文字列。
+- Agent: Hermes gateway を OS サービスマネージャ（macOS: launchd / Linux: systemd）で常駐させる単位。HERMES_HOME は {PROJECT_ROOT}/runtime/agents/{id}。id はシステムが自動生成する `[0-9a-z]{7}` のランダム文字列。
 - Global Vars: 全エージェント共通で参照する .env 値。runtime/globals/.env に生成され、dotenvx -f で積み上げる。
 - Skill: ~/.agents/skills 以下のスキル（階層ディレクトリ可）。HERMES_HOME/skills へディレクトリをコピーして管理。スキルディレクトリ内に SKILL.md が存在するもののみ選択可能。
 - Launchd Label: ai.hermes.gateway.{agent_id}
@@ -18,7 +18,7 @@
 ## 3. スコープ
 
 - in scope:
-  - エージェント管理: 追加/削除/コピー、launchd install/start/stop/status
+  - エージェント管理: 追加/削除/コピー、サービス install/start/stop/restart/status（macOS: launchd / Linux: systemd）
   - メモリ/設定ファイルの編集: SOUL.md, memories/MEMORY.md, memories/USER.md, config.yaml
   - 変数管理: HERMES_HOME/.env CRUD、グローバル変数 CRUD と runtime/globals/.env 再生成
   - スキル管理: ~/.agents/skills から {HERMES_HOME}/skills へのディレクトリコピー/削除
@@ -39,7 +39,7 @@
 ## 5. 機能要件（FR）
 
 - FR-1 Agents API: GET/POST/DELETE/copy（id 自動生成 `[0-9a-z]{7}`、標準ファイル作成、DB 登録、POST はボディ不要。新規作成と copy は必ず 8642〜8699 の未使用 `apiServerPort` を agent metadata に保持する）
-- FR-2 Launchd API: install/uninstall/start/stop/status（child_process.execFile、stdout/err/code返却。install/start/restart 時に `apiServerPort` 未設定の legacy/misconfigured agent は未使用ポートを補完保存してから plist を再生成する）
+- FR-2 Service API: install/uninstall/start/stop/restart/status（child_process.execFile、stdout/err/code返却。エンドポイントは `/api/launchd` を互換パスとして維持。macOS では launchctl + plist、Linux では systemctl --user + systemd unit を使用。install/start/restart 時に `apiServerPort` 未設定の legacy/misconfigured agent は未使用ポートを補完保存してからサービス定義を再生成する）
 - FR-3 Files API: SOUL.md / SOUL.src.md / memories/MEMORY.md / memories/USER.md / config.yaml の read/put（YAML 構文検証、原子書き込み、partial mode では SOUL.src.md 保存時に SOUL.md を再生成）
 - FR-4 Env API: agent .env CRUD、resolved（global+agent マージ）、各変数に `visibility`（plain/secure）を保持し secure は管理表示でマスク
 - FR-5 Globals API: CRUD、`visibility`（plain/secure）を保持、secure は管理表示でマスクしつつ runtime/globals/.env は実値で再生成
@@ -56,7 +56,7 @@
 
 - NFR-1 パフォーマンス: 一覧 100 agents 程度で体感遅延 < 200ms（キャッシュ/並列取得）
 - NFR-2 安全性: パス正規化と zod で入力検証、execFile でシェルインジェクション回避
-- NFR-3 可用性: アプリ自体も launchd 常駐、障害復旧は再起動で完結
+- NFR-3 可用性: アプリ自体も OS サービスマネージャ（macOS: launchd / Linux: systemd）で常駐、障害復旧は再起動で完結
 - NFR-4 運用性: ログファイルは runtime/logs および agent logs/ に分離、restic バックアップ対象
 - NFR-5 テスト容易性: API は関数分離しユニット可能、UI はコンポーネント単位でテスト
 
@@ -64,7 +64,7 @@
 
 - イントラネットのみ。外部公開禁止。Caddy は mini 内部ドメインのみ。
 - ファイル操作は {PROJECT_ROOT} と HERMES_HOME 配下に限定。パス走査保護。
-- launchctl 操作は child_process.execFile のみ使用。
+- サービスマネージャ操作（launchctl / systemctl）は child_process.execFile のみ使用。
 
 ## 8. 運用要件
 
@@ -75,7 +75,7 @@
 
 ## 9. 制約/前提
 
-- Node >= 20, macOS launchd 環境、dotenvx インストール済
+- Node >= 20, macOS launchd または Linux systemd 環境、dotenvx インストール済
 - HERMES_HOME 構造: runtime/agents/{id}/{SOUL.md, config.yaml, .env, logs/, memories/MEMORY.md, memories/USER.md}
 
 ## 10. 受け入れ基準（抜粋）
