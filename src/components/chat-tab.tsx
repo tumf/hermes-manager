@@ -1,45 +1,16 @@
 'use client';
 
 import { Bot, ChevronRight, Menu, MessageSquare, Plus, Terminal, Wrench, X } from 'lucide-react';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { toast } from 'sonner';
 
 import { useLocale } from '@/src/components/locale-provider';
 import { Button } from '@/src/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
 import { Skeleton } from '@/src/components/ui/skeleton';
 import { Textarea } from '@/src/components/ui/textarea';
+import { useChatFlow } from '@/src/hooks/use-chat-flow';
 import { cn } from '@/src/lib/utils';
-
-type Session = {
-  id: string;
-  source: string | null;
-  title: string | null;
-  started_at: string;
-  message_count: number;
-};
-
-type Message = {
-  session_id?: string;
-  role: string;
-  content: string;
-  timestamp?: string;
-  tool_name?: string | null;
-  optimistic?: boolean;
-};
-
-type ApiServerStatus = 'disabled' | 'configured-needs-restart' | 'starting' | 'connected' | 'error';
-
-type AgentMeta = {
-  agentId: string;
-  apiServerStatus?: ApiServerStatus;
-  apiServerStatusReason?: string;
-  apiServerAvailable?: boolean;
-  apiServerPort?: number | null;
-};
-
-type ChatStatus = 'ready' | 'submitted' | 'streaming' | 'error';
 
 function sourceIcon(source: string | null) {
   if (source === 'telegram') return MessageSquare;
@@ -50,110 +21,38 @@ function sourceIcon(source: string | null) {
 
 export function ChatTab({ name }: { name: string }) {
   const { t } = useLocale();
-  const [sourceFilter, setSourceFilter] = useState('all');
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [loadingSessions, setLoadingSessions] = useState(true);
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [loadingMessages, setLoadingMessages] = useState(false);
-  const [message, setMessage] = useState('');
-  const [status, setStatus] = useState<ChatStatus>('ready');
-  const [lastUserMessage, setLastUserMessage] = useState<string | null>(null);
-  const [apiServerStatus, setApiServerStatus] = useState<ApiServerStatus>('disabled');
-  const [apiServerStatusReason, setApiServerStatusReason] = useState<string | null>(null);
-  const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
+  const {
+    sourceFilter,
+    setSourceFilter,
+    sessions,
+    loadingSessions,
+    selectedSessionId,
+    setSelectedSessionId,
+    visibleMessages,
+    loadingMessages,
+    message,
+    setMessage,
+    status,
+    lastUserMessage,
+    apiServerStatus,
+    apiServerStatusReason,
+    isAutoScrollEnabled,
+    setIsAutoScrollEnabled,
+    isMobileSessionsOpen,
+    setIsMobileSessionsOpen,
+    collapsedTools,
+    sourceOptions,
+    toggleToolCollapse,
+    startNewChat,
+    submitMessage,
+    stopStreaming,
+    messages,
+  } = useChatFlow(name);
+
   const [messagesViewportHeight, setMessagesViewportHeight] = useState<number | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
-  const streamAbortRef = useRef<AbortController | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
   const inputComposerRef = useRef<HTMLDivElement | null>(null);
-  const [isMobileSessionsOpen, setIsMobileSessionsOpen] = useState(false);
-
-  const [collapsedTools, setCollapsedTools] = useState<Set<number>>(new Set());
-
-  const visibleMessages = useMemo(
-    () => messages.filter((msg) => !(msg.role === 'assistant' && !msg.content.trim())),
-    [messages],
-  );
-  function toggleToolCollapse(idx: number) {
-    setCollapsedTools((prev) => {
-      const next = new Set(prev);
-      if (next.has(idx)) next.delete(idx);
-      else next.add(idx);
-      return next;
-    });
-  }
-
-  async function loadAgentMeta() {
-    try {
-      const res = await fetch(`/api/agents/${encodeURIComponent(name)}`);
-      if (!res.ok) throw new Error('failed to load agent meta');
-      const data = (await res.json()) as AgentMeta;
-      setApiServerStatusReason(data.apiServerStatusReason ?? null);
-      if (data.apiServerStatus) {
-        setApiServerStatus(data.apiServerStatus);
-        return;
-      }
-      setApiServerStatus(data.apiServerAvailable === true ? 'connected' : 'disabled');
-    } catch {
-      setApiServerStatus('error');
-      setApiServerStatusReason('failed to load agent metadata');
-    }
-  }
-
-  async function loadSessions() {
-    setLoadingSessions(true);
-    try {
-      const params = new URLSearchParams();
-      if (sourceFilter !== 'all') params.set('source', sourceFilter);
-      const res = await fetch(
-        `/api/agents/${encodeURIComponent(name)}/sessions?${params.toString()}`,
-      );
-      if (!res.ok) throw new Error('failed to load sessions');
-      const data: Session[] = await res.json();
-      setSessions(data);
-      if (data.length > 0 && !selectedSessionId) {
-        setSelectedSessionId(data[0].id);
-      }
-      if (data.length === 0) {
-        setSelectedSessionId(null);
-        setMessages([]);
-      }
-    } catch {
-      toast.error(t.chat.failedToLoadSessions);
-    } finally {
-      setLoadingSessions(false);
-    }
-  }
-
-  async function loadMessages(sessionId: string) {
-    setLoadingMessages(true);
-    try {
-      const res = await fetch(
-        `/api/agents/${encodeURIComponent(name)}/sessions/${encodeURIComponent(sessionId)}/messages`,
-      );
-      if (!res.ok) throw new Error('failed to load messages');
-      const data: Message[] = await res.json();
-      setMessages(data);
-    } catch {
-      toast.error(t.chat.failedToLoadMessages);
-    } finally {
-      setLoadingMessages(false);
-    }
-  }
-
-  useEffect(() => {
-    void Promise.all([loadAgentMeta(), loadSessions()]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [name, sourceFilter]);
-
-  useEffect(() => {
-    if (selectedSessionId) {
-      void loadMessages(selectedSessionId);
-      setIsMobileSessionsOpen(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSessionId]);
 
   useEffect(() => {
     if (!isAutoScrollEnabled) return;
@@ -161,12 +60,6 @@ export function ChatTab({ name }: { name: string }) {
     if (!node) return;
     node.scrollTop = node.scrollHeight;
   }, [messages, isAutoScrollEnabled]);
-
-  useEffect(() => {
-    return () => {
-      streamAbortRef.current?.abort();
-    };
-  }, []);
 
   useLayoutEffect(() => {
     function updateMessagesViewportHeight() {
@@ -195,132 +88,6 @@ export function ChatTab({ name }: { name: string }) {
     status,
   ]);
 
-  const sourceOptions = useMemo(() => ['all', 'tool', 'telegram', 'cli'], []);
-
-  function parseSseChunk(buffer: string): { events: string[]; rest: string } {
-    const events: string[] = [];
-    const blocks = buffer.split('\n\n');
-    const rest = blocks.pop() ?? '';
-
-    for (const block of blocks) {
-      const lines = block.split('\n');
-      for (const line of lines) {
-        if (!line.startsWith('data:')) continue;
-        events.push(line.slice(5).trim());
-      }
-    }
-
-    return { events, rest };
-  }
-
-  async function submitMessage(messageToSend?: string) {
-    const text = (messageToSend ?? message).trim();
-    if (!text || status === 'submitted' || status === 'streaming') return;
-
-    setStatus('submitted');
-    setLastUserMessage(text);
-
-    const optimisticUser: Message = {
-      role: 'user',
-      content: text,
-      optimistic: true,
-    };
-    const optimisticAssistant: Message = {
-      role: 'assistant',
-      content: '',
-      optimistic: true,
-    };
-
-    setMessages((prev) => [...prev, optimisticUser, optimisticAssistant]);
-    if (!messageToSend) {
-      setMessage('');
-    }
-
-    const abortController = new AbortController();
-    streamAbortRef.current = abortController;
-
-    try {
-      const res = await fetch(`/api/agents/${encodeURIComponent(name)}/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text }),
-        signal: abortController.signal,
-      });
-
-      if (!res.ok || !res.body) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error((err as { error?: string }).error ?? 'failed to send message');
-      }
-
-      setStatus('streaming');
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const parsed = parseSseChunk(buffer);
-        buffer = parsed.rest;
-
-        for (const evt of parsed.events) {
-          if (evt === '[DONE]') {
-            setStatus('ready');
-            await loadSessions();
-            if (selectedSessionId) {
-              await loadMessages(selectedSessionId);
-            }
-            return;
-          }
-
-          try {
-            const json = JSON.parse(evt) as {
-              choices?: Array<{ delta?: { content?: string } }>;
-            };
-            const delta = json.choices?.[0]?.delta?.content ?? '';
-            if (!delta) continue;
-
-            setMessages((prev) => {
-              if (prev.length === 0) return prev;
-              const next = [...prev];
-              const lastIndex = next.length - 1;
-              const last = next[lastIndex];
-              if (last.role !== 'assistant') return prev;
-              next[lastIndex] = {
-                ...last,
-                content: `${last.content}${delta}`,
-              };
-              return next;
-            });
-          } catch {
-            // ignore non-JSON SSE lines
-          }
-        }
-      }
-
-      setStatus('ready');
-      await loadSessions();
-      if (selectedSessionId) {
-        await loadMessages(selectedSessionId);
-      }
-    } catch (e) {
-      if (abortController.signal.aborted) {
-        setStatus('ready');
-        return;
-      }
-      setStatus('error');
-      toast.error(e instanceof Error ? e.message : t.chat.failedToSendMessage);
-    }
-  }
-
-  function stopStreaming() {
-    streamAbortRef.current?.abort();
-    streamAbortRef.current = null;
-    setStatus('ready');
-  }
-
   const sessionsPanel = (
     <>
       <CardHeader>
@@ -331,12 +98,7 @@ export function ChatTab({ name }: { name: string }) {
               size="sm"
               variant="outline"
               className="h-7 gap-1 text-xs"
-              onClick={() => {
-                setSelectedSessionId(null);
-                setMessages([]);
-                setStatus('ready');
-                setIsMobileSessionsOpen(false);
-              }}
+              onClick={startNewChat}
             >
               <Plus className="size-3" />
               {t.chat.newChat}
