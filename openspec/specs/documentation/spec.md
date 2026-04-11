@@ -112,7 +112,7 @@ Retained browser-driven tests MUST prefer waiting on observable application stat
 
 #### Scenario: Requirements document reflects filesystem-based runtime design
 
-**Given** 設計文書と実装がファイルシステムベースを前提としている  
-**When** 要件定義の運用要件を参照する  
-**Then** `app.db` や `better-sqlite3` のような旧ストレージ前提は記載されていない  
+**Given** 設計文書と実装がファイルシステムベースを前提としている
+**When** 要件定義の運用要件を参照する
+**Then** `app.db` や `better-sqlite3` のような旧ストレージ前提は記載されていない
 **And** runtime ディレクトリ運用と整合する内容になっている
