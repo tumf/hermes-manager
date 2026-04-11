@@ -1,12 +1,12 @@
 openapi: 3.1.0
 info:
-  title: Hermes Agents WebApp API
+  title: Hermes Manager API
   version: 1.0.0
   description: File-system based Hermes agent management API
 servers:
   - url: http://localhost:18470
     description: Local development
-  - url: https://hermes-agents.mini.tumf.dev
+  - url: https://hermes-manager.mini.tumf.dev
     description: Production (mini)
 
 paths:

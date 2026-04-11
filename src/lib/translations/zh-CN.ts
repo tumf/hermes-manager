@@ -2,7 +2,7 @@ import type { TranslationDictionary } from './types';
 
 export const zhCN: TranslationDictionary = {
   appShell: {
-    brand: 'Hermes Agents',
+    brand: 'Hermes Manager',
     nav: { agents: '代理', globals: '全局变量', templates: '模板', partials: '部件' },
     openMenu: '打开菜单',
     closeMenu: '关闭菜单',

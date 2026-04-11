@@ -1,10 +1,10 @@
-# Hermes Agents WebApp
+# Hermes Manager
 
 [![日本語](https://img.shields.io/badge/%E6%97%A5%E6%9C%AC%E8%AA%9E-blue?style=flat-square)](./README.ja.md) [![English](https://img.shields.io/badge/English-blue?style=flat-square)](./README.md) [![简体中文](https://img.shields.io/badge/%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-blue?style=flat-square)](./README.zh-CN.md) [![Español](https://img.shields.io/badge/Espa%C3%B1ol-blue?style=flat-square)](./README.es.md) [![Português%20(BR)](<https://img.shields.io/badge/Portugu%C3%AAs%20(BR)-blue?style=flat-square>)](./README.pt-BR.md) [![한국어](https://img.shields.io/badge/%ED%95%9C%EA%B5%AD%EC%96%B4-blue?style=flat-square)](./README.ko.md) [![Français](https://img.shields.io/badge/Fran%C3%A7ais-blue?style=flat-square)](./README.fr.md) [![Deutsch](https://img.shields.io/badge/Deutsch-blue?style=flat-square)](./README.de.md) [![Русский](https://img.shields.io/badge/%D0%A0%D1%83%D1%81%D1%81%D0%BA%D0%B8%D0%B9-blue?style=flat-square)](./README.ru.md) [![Tiếng%20Việt](https://img.shields.io/badge/Ti%E1%BA%BFng%20Vi%E1%BB%87t-blue?style=flat-square)](./README.vi.md)
 
-![Ảnh chụp màn hình Hermes Agents WebApp](./docs/images/ss-agents-1.png)
+![Ảnh chụp màn hình Hermes Manager](./docs/images/ss-agents-1.png)
 
-Hermes Agents WebApp là ứng dụng Next.js để quản lý tập trung các Hermes Agent vận hành trong môi trường mini từ giao diện web.
+Hermes Manager là ứng dụng Next.js để quản lý tập trung các Hermes Agent vận hành trong môi trường mini từ giao diện web.
 Ứng dụng tích hợp tạo, nhân bản, xóa, điều khiển khởi động/dừng, chỉnh sửa cấu hình, quản lý biến môi trường, quản lý kỹ năng, thao tác cron job, kiểm tra lịch sử trò chuyện và xem log.
 
 Giao diện web hỗ trợ 10 ngôn ngữ sau:
@@ -24,7 +24,7 @@ Bạn có thể chuyển đổi ngôn ngữ từ bộ chuyển ngôn ngữ trong
 
 Lưu ý: chỉ giao diện ứng dụng được bản địa hóa. Nội dung vận hành như `SOUL.md`, tệp bộ nhớ, log và bản ghi trò chuyện không được dịch tự động.
 
-> **Ứng dụng mạng tin cậy** — Hermes Agents WebApp được thiết kế để vận hành trong mạng tin cậy/intranet. Ứng dụng không bao gồm xác thực internet công cộng hoặc kiểm soát truy cập đa thuê bao. Nếu triển khai bên ngoài mạng tin cậy, hãy thêm lớp xác thực và kiểm soát truy cập của riêng bạn.
+> **Ứng dụng mạng tin cậy** — Hermes Manager được thiết kế để vận hành trong mạng tin cậy/intranet. Ứng dụng không bao gồm xác thực internet công cộng hoặc kiểm soát truy cập đa thuê bao. Nếu triển khai bên ngoài mạng tin cậy, hãy thêm lớp xác thực và kiểm soát truy cập của riêng bạn.
 
 Để biết các quy tắc vận hành chi tiết và chính sách thiết kế, tham khảo:
 
@@ -51,11 +51,11 @@ Lưu ý: chỉ giao diện ứng dụng được bản địa hóa. Nội dung v
 
 ### Danh sách Agent
 
-![Ảnh chụp màn hình Hermes Agents WebApp](./docs/images/ss-agents-1.png)
+![Ảnh chụp màn hình Hermes Manager](./docs/images/ss-agents-1.png)
 
 ### Quản lý bộ nhớ
 
-![Màn hình quản lý bộ nhớ Hermes Agents](./docs/images/ss-agent_memory-1.png)
+![Màn hình quản lý bộ nhớ Hermes Manager](./docs/images/ss-agent_memory-1.png)
 
 ## Công nghệ sử dụng
 
@@ -110,7 +110,7 @@ npm run build
 ## Cấu trúc thư mục (tổng quan)
 
 ```text
-hermes-agents/
+hermes-manager/
 ├── app/                    # Next.js App Router (UI / API)
 ├── components/             # Component UI chia sẻ
 ├── src/lib/                # Helper hệ thống tệp/Env/SkillLink

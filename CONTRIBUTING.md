@@ -1,6 +1,6 @@
 # Contributing
 
-Thank you for contributing to hermes-agents.
+Thank you for contributing to hermes-manager.
 This document outlines the minimum workflow from proposal through implementation and verification.
 
 For detailed development rules and design guidance, always refer to the following documents:
