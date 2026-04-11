@@ -4,7 +4,7 @@
 
 For usage questions, setup problems, or general discussion:
 
-- start with `README.md` / `README_ja.md`
+- start with `README.md` / `README.ja.md`
 - review `CONTRIBUTING.md` if you plan to send a patch
 - open a GitHub issue for reproducible bugs or documentation gaps
 

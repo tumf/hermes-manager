@@ -50,7 +50,7 @@ For detailed operational rules and design policies, refer to the following:
 ## Documentation Map
 
 - Overview: this `README.md`
-- Japanese README: [`README_ja.md`](./README_ja.md)
+- Japanese README: [`README.ja.md`](./README.ja.md)
 - Development workflow and repository rules: [`AGENTS.md`](./AGENTS.md)
 - Requirements: [`docs/requirements.md`](./docs/requirements.md)
 - Architecture / API design: [`docs/design.md`](./docs/design.md)
