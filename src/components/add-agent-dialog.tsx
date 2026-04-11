@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
+import { useLocale } from '@/src/components/locale-provider';
 import { Button } from '@/src/components/ui/button';
 import {
   Dialog,
@@ -36,6 +37,7 @@ interface AddAgentDialogProps {
 }
 
 export function AddAgentDialog({ templates, onOpen, onCreated }: AddAgentDialogProps) {
+  const { t } = useLocale();
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
   const [templateMemoryMd, setTemplateMemoryMd] = useState('default');
@@ -100,14 +102,16 @@ export function AddAgentDialog({ templates, onOpen, onCreated }: AddAgentDialogP
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        toast.error(typeof data.error === 'string' ? data.error : 'Failed to create');
+        toast.error(
+          typeof data.error === 'string' ? data.error : t.dialogs.addAgent.failedToCreate,
+        );
         return;
       }
 
       const created = await res.json();
       resetForm();
       setOpen(false);
-      toast.success(`Agent "${created.agentId}" created`);
+      toast.success(t.dialogs.addAgent.created(created.agentId));
       await onCreated();
     } finally {
       setBusy(false);
@@ -125,7 +129,7 @@ export function AddAgentDialog({ templates, onOpen, onCreated }: AddAgentDialogP
       <DialogTrigger asChild>
         <Button className="h-11 gap-2">
           <Plus className="size-4" />
-          Add Agent
+          {t.agentsList.addAgent}
         </Button>
       </DialogTrigger>
       <DialogContent>
@@ -137,56 +141,54 @@ export function AddAgentDialog({ templates, onOpen, onCreated }: AddAgentDialogP
           }}
         >
           <DialogHeader>
-            <DialogTitle>Add Agent</DialogTitle>
-            <DialogDescription>
-              Create a new agent with an auto-generated ID and optional template selection.
-            </DialogDescription>
+            <DialogTitle>{t.dialogs.addAgent.title}</DialogTitle>
+            <DialogDescription>{t.dialogs.addAgent.description}</DialogDescription>
           </DialogHeader>
           <div className="mt-4 min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
             <LabeledInput
               id="agent-name"
-              label="Display Name"
+              label={t.dialogs.addAgent.displayName}
               value={name}
               onChange={setName}
-              placeholder="My Bot"
+              placeholder={t.dialogs.addAgent.namePlaceholder}
             />
             <LabeledInput
               id="agent-description"
-              label="Description"
+              label={t.dialogs.addAgent.descriptionField}
               value={description}
               onChange={setDescription}
-              placeholder="用途やメモ"
+              placeholder={t.dialogs.addAgent.descriptionPlaceholder}
             />
             <LabeledInput
               id="agent-tags"
-              label="Tags (comma separated)"
+              label={t.dialogs.addAgent.tagsField}
               value={tags}
               onChange={setTags}
-              placeholder="prod, monitor"
+              placeholder={t.dialogs.addAgent.tagsPlaceholder}
             />
             <TemplateSelect
-              label="memories/MEMORY.md Template"
+              label={t.dialogs.addAgent.memoryMdTemplate}
               id="tpl-memory-md"
               value={templateMemoryMd}
               onValueChange={setTemplateMemoryMd}
               templates={memoryMdTemplates}
             />
             <TemplateSelect
-              label="memories/USER.md Template"
+              label={t.dialogs.addAgent.userMdTemplate}
               id="tpl-user-md"
               value={templateUserMd}
               onValueChange={setTemplateUserMd}
               templates={userMdTemplates}
             />
             <TemplateSelect
-              label="SOUL.md Template"
+              label={t.dialogs.addAgent.soulMdTemplate}
               id="tpl-soul-md"
               value={templateSoulMd}
               onValueChange={setTemplateSoulMd}
               templates={soulMdTemplates}
             />
             <TemplateSelect
-              label="config.yaml Template"
+              label={t.dialogs.addAgent.configYamlTemplate}
               id="tpl-config-yaml"
               value={templateConfigYaml}
               onValueChange={setTemplateConfigYaml}
@@ -196,11 +198,11 @@ export function AddAgentDialog({ templates, onOpen, onCreated }: AddAgentDialogP
           <DialogFooter className="mt-6">
             <DialogClose asChild>
               <Button type="button" variant="outline">
-                Cancel
+                {t.dialogs.addAgent.cancel}
               </Button>
             </DialogClose>
             <Button type="submit" disabled={busy}>
-              {busy ? 'Creating...' : 'Create'}
+              {busy ? t.dialogs.addAgent.creating : t.dialogs.addAgent.create}
             </Button>
           </DialogFooter>
         </form>

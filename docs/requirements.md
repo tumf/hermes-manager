@@ -50,6 +50,7 @@
 - FR-10 Templates API: テンプレート CRUD（GET/POST/PUT/DELETE）、fileType + name で UNIQUE 制約。エージェント作成時のテンプレート選択、default テンプレートへのフォールバック、既存ファイルからの Save as Template
 - FR-11 Partials API: 共有 partial CRUD（`/api/partials`）、`runtime/partials/{name}.md` 保存、`usedBy` 逆引き、利用中削除の 409 拒否、partial 更新時の参照 agent `SOUL.md` 再生成
 - FR-12 Memory UI partial mode: agent ごとの partial mode 有効化（`SOUL.md`→`SOUL.src.md`）、partial 挿入、assembled `SOUL.md` の read-only 確認
+- FR-13 UI ローカライゼーション: `ja`, `en`, `zh-CN`, `es`, `pt-BR`, `vi`, `ko`, `ru`, `fr`, `de` の 10 言語をサポート。共有 app shell にLanguage Switcherを配置し、選択した locale を localStorage に永続化。`document.documentElement.lang` を有効 locale に同期。翻訳キー未定義時はデフォルト locale にフォールバック。operator 生成コンテンツ（SOUL.md、メモリ、ログ、チャット転写等）は翻訳対象外
 
 ## 6. 非機能要件（NFR）
 
@@ -93,3 +94,4 @@
 - /templates テンプレート管理（fileType 別グループ、追加/編集/削除）
 - /partials 共有 partial 管理（一覧・作成・編集・削除・usedBy 表示）
 - /agents/[id] Metadata / Memory / Config / Env / Skills / Cron / Chat / Logs タブ（Memory タブは partial mode 有効化、SOUL.src.md 編集、assembled SOUL.md 確認、Save as Template ボタン付き）
+- 全ページ共通: Language Switcher による多言語 UI 切替（10 言語対応）

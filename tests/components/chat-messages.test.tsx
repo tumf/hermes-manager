@@ -6,6 +6,7 @@ import '@testing-library/jest-dom';
 import { ChatTab } from '../../src/components/chat-tab';
 import { buildChatFixtureRoutes } from '../helpers/chat-fixtures';
 import { createFetchRouter } from '../helpers/fetch-router';
+import { LocaleProvider } from '@/src/components/locale-provider';
 
 function mockFetch() {
   return createFetchRouter(
@@ -99,7 +100,11 @@ describe('chat messages UI', () => {
   });
 
   it('renders role based chat bubbles', async () => {
-    render(<ChatTab name="alpha" />);
+    render(
+      <LocaleProvider initialLocale="en">
+        <ChatTab name="alpha" />
+      </LocaleProvider>,
+    );
 
     expect(await screen.findByText('hello')).toBeInTheDocument();
     expect(screen.getByText('hi')).toBeInTheDocument();
@@ -109,7 +114,11 @@ describe('chat messages UI', () => {
   });
 
   it('collapses tool calls by default', async () => {
-    render(<ChatTab name="alpha" />);
+    render(
+      <LocaleProvider initialLocale="en">
+        <ChatTab name="alpha" />
+      </LocaleProvider>,
+    );
 
     expect(await screen.findByText('search')).toBeInTheDocument();
     expect(screen.queryByText('{"query":"ping"}')).not.toBeInTheDocument();
@@ -119,7 +128,11 @@ describe('chat messages UI', () => {
   });
 
   it('keeps only chat history scrollable and leaves the composer visible in the viewport', async () => {
-    render(<ChatTab name="alpha" />);
+    render(
+      <LocaleProvider initialLocale="en">
+        <ChatTab name="alpha" />
+      </LocaleProvider>,
+    );
 
     const messagesScroll = await screen.findByTestId('chat-messages-scroll');
     const composer = screen.getByTestId('chat-input-composer');

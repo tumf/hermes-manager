@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import { Toaster } from 'sonner';
 
 import { AppShell } from '@/src/components/app-shell';
+import { LocaleProvider } from '@/src/components/locale-provider';
 import { ThemeProvider } from '@/src/components/theme-provider';
 import { TooltipProvider } from '@/src/components/ui/tooltip';
 
@@ -37,7 +38,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="ja" suppressHydrationWarning>
+    <html lang="ja" suppressHydrationWarning id="html-root">
       <body
         className={`${geistSans.variable} ${geistMono.variable} min-h-dvh bg-background font-sans text-foreground antialiased`}
       >
@@ -47,10 +48,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           enableSystem
           disableTransitionOnChange
         >
-          <TooltipProvider delayDuration={300}>
-            <AppShell>{children}</AppShell>
-            <Toaster richColors closeButton position="bottom-right" />
-          </TooltipProvider>
+          <LocaleProvider>
+            <TooltipProvider delayDuration={300}>
+              <AppShell>{children}</AppShell>
+              <Toaster richColors closeButton position="bottom-right" />
+            </TooltipProvider>
+          </LocaleProvider>
         </ThemeProvider>
       </body>
     </html>

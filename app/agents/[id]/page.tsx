@@ -13,6 +13,7 @@ import { AgentMetadataCard } from '@/src/components/agent-metadata-card';
 import { AgentStatusHeader } from '@/src/components/agent-status-header';
 import { ChatTab } from '@/src/components/chat-tab';
 import { CronTab } from '@/src/components/cron-tab';
+import { useLocale } from '@/src/components/locale-provider';
 import { SkillsTab } from '@/src/components/skills-tab';
 import { Badge } from '@/src/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/src/components/ui/tabs';
@@ -26,6 +27,7 @@ interface AgentPageProps {
 
 export default function AgentPage({ params }: AgentPageProps) {
   const { id: name } = use(params);
+  const { t } = useLocale();
 
   const {
     status,
@@ -61,7 +63,7 @@ export default function AgentPage({ params }: AgentPageProps) {
           className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ChevronLeft className="size-4" />
-          Agents
+          {t.agentDetail.backToAgents}
         </Link>
       </div>
 
@@ -94,7 +96,7 @@ export default function AgentPage({ params }: AgentPageProps) {
               </div>
             ) : null}
             <p className="mt-2 text-xs text-muted-foreground">
-              Hermes: {meta?.hermesVersion || '--'}
+              {t.agentDetail.hermesVersion}: {meta?.hermesVersion || '--'}
             </p>
             {meta?.home && (
               <button
@@ -102,7 +104,7 @@ export default function AgentPage({ params }: AgentPageProps) {
                 className="mt-2 inline-flex items-center gap-1 font-mono text-[9px] text-muted-foreground/60 transition-colors hover:text-foreground"
                 onClick={() => {
                   void navigator.clipboard.writeText(meta.home);
-                  toast.success('Copied HERMES_HOME');
+                  toast.success(t.agentDetail.copiedHome);
                 }}
                 title="Click to copy HERMES_HOME"
               >
@@ -133,35 +135,35 @@ export default function AgentPage({ params }: AgentPageProps) {
         <TabsList className="w-full justify-start overflow-x-auto">
           <TabsTrigger value="metadata" className="gap-1.5">
             <Settings className="size-3.5" />
-            <span className="hidden sm:inline">Metadata</span>
+            <span className="hidden sm:inline">{t.agentDetail.tabs.metadata}</span>
           </TabsTrigger>
           <TabsTrigger value="memory" className="gap-1.5">
             <FileText className="size-3.5" />
-            <span className="hidden sm:inline">Memory</span>
+            <span className="hidden sm:inline">{t.agentDetail.tabs.memory}</span>
           </TabsTrigger>
           <TabsTrigger value="config" className="gap-1.5">
             <Settings className="size-3.5" />
-            <span className="hidden sm:inline">Config</span>
+            <span className="hidden sm:inline">{t.agentDetail.tabs.config}</span>
           </TabsTrigger>
           <TabsTrigger value="env" className="gap-1.5">
             <Settings className="size-3.5" />
-            <span className="hidden sm:inline">Env</span>
+            <span className="hidden sm:inline">{t.agentDetail.tabs.env}</span>
           </TabsTrigger>
           <TabsTrigger value="skills" className="gap-1.5">
             <Settings className="size-3.5" />
-            <span className="hidden sm:inline">Skills</span>
+            <span className="hidden sm:inline">{t.agentDetail.tabs.skills}</span>
           </TabsTrigger>
           <TabsTrigger value="cron" className="gap-1.5">
             <Clock className="size-3.5" />
-            <span className="hidden sm:inline">Cron</span>
+            <span className="hidden sm:inline">{t.agentDetail.tabs.cron}</span>
           </TabsTrigger>
           <TabsTrigger value="chat" className="gap-1.5">
             <MessageCircle className="size-3.5" />
-            <span className="hidden sm:inline">Chat</span>
+            <span className="hidden sm:inline">{t.agentDetail.tabs.chat}</span>
           </TabsTrigger>
           <TabsTrigger value="logs" className="gap-1.5">
             <ScrollText className="size-3.5" />
-            <span className="hidden sm:inline">Logs</span>
+            <span className="hidden sm:inline">{t.agentDetail.tabs.logs}</span>
           </TabsTrigger>
         </TabsList>
 

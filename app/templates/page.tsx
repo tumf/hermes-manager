@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { CodeEditor } from '@/src/components/code-editor';
+import { useLocale } from '@/src/components/locale-provider';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,6 +45,7 @@ const FILE_NAMES = ['AGENTS.md', 'SOUL.md', 'config.yaml'] as const;
 type FileName = (typeof FILE_NAMES)[number];
 
 export default function TemplatesPage() {
+  const { t } = useLocale();
   const [templates, setTemplates] = useState<TemplateEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -85,11 +87,11 @@ export default function TemplatesPage() {
       const data: TemplateEntry[] = await res.json();
       setTemplates(data);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to load templates');
+      toast.error(e instanceof Error ? e.message : t.templates.failedToLoad);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void fetchTemplates();
@@ -124,7 +126,7 @@ export default function TemplatesPage() {
         `/api/templates?name=${encodeURIComponent(templateName)}&file=${encodeURIComponent(file)}`,
       );
       if (!res.ok) {
-        toast.error('Failed to load template file');
+        toast.error(t.templates.failedToLoad);
         return;
       }
       const data = await res.json();
@@ -137,21 +139,20 @@ export default function TemplatesPage() {
       setInitialFormContent(data.content);
       setDialogOpen(true);
     } catch {
-      toast.error('Failed to load template file');
+      toast.error(t.templates.failedToLoad);
     }
   }
 
   const persistTemplate = useCallback(async () => {
     const trimmedName = formName.trim();
     if (!trimmedName || !formContent) {
-      toast.error('Name and content are required');
+      toast.error(t.templates.nameAndContentRequired);
       return false;
     }
 
     setBusy(true);
     try {
       if (editing) {
-        // Update existing
         const res = await fetch('/api/templates', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -163,12 +164,11 @@ export default function TemplatesPage() {
         });
         if (!res.ok) {
           const d = await res.json().catch(() => ({}));
-          toast.error(typeof d.error === 'string' ? d.error : 'Failed to update');
+          toast.error(typeof d.error === 'string' ? d.error : t.templates.failedToUpdate);
           return false;
         }
-        toast.success(`Template "${trimmedName}/${formFile}" saved`);
+        toast.success(t.templates.savedTemplate(trimmedName, formFile));
       } else {
-        // Create new
         const res = await fetch('/api/templates', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -180,10 +180,10 @@ export default function TemplatesPage() {
         });
         if (!res.ok) {
           const d = await res.json().catch(() => ({}));
-          toast.error(typeof d.error === 'string' ? d.error : 'Failed to create');
+          toast.error(typeof d.error === 'string' ? d.error : t.templates.failedToCreate);
           return false;
         }
-        toast.success(`Template "${trimmedName}/${formFile}" saved`);
+        toast.success(t.templates.savedTemplate(trimmedName, formFile));
       }
       setInitialFormFile(formFile);
       setInitialFormName(trimmedName);
@@ -194,7 +194,7 @@ export default function TemplatesPage() {
     } finally {
       setBusy(false);
     }
-  }, [editing, fetchTemplates, formContent, formFile, formName]);
+  }, [editing, fetchTemplates, formContent, formFile, formName, t]);
 
   async function handleSave(e?: React.FormEvent) {
     e?.preventDefault();
@@ -225,13 +225,13 @@ export default function TemplatesPage() {
       );
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        toast.error(typeof d.error === 'string' ? d.error : 'Failed to delete');
+        toast.error(typeof d.error === 'string' ? d.error : t.templates.failedToDelete);
         return;
       }
-      toast.success(`Template file "${templateName}/${file}" deleted`);
+      toast.success(t.templates.deletedTemplate(templateName, file));
       await fetchTemplates();
     } catch {
-      toast.error('Failed to delete template file');
+      toast.error(t.templates.failedToDelete);
     }
   }
 
@@ -239,15 +239,16 @@ export default function TemplatesPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Templates</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t.templates.title}</h1>
           <p className="text-sm text-muted-foreground">
-            Manage file templates for agent creation. Templates are stored in{' '}
-            <code className="text-xs">runtime/templates/</code>.
+            {t.templates.subtitle.split('runtime/templates/')[0]}
+            <code className="text-xs">runtime/templates/</code>
+            {t.templates.subtitle.split('runtime/templates/')[1] ?? ''}
           </p>
         </div>
         <Button onClick={openCreateDialog} className="gap-2">
           <Plus className="size-4" />
-          Add Template File
+          {t.templates.addTemplateFile}
         </Button>
       </div>
 
@@ -267,7 +268,7 @@ export default function TemplatesPage() {
       )}
 
       {!loading && templates.length === 0 && (
-        <p className="text-sm text-muted-foreground">No templates found.</p>
+        <p className="text-sm text-muted-foreground">{t.templates.noTemplates}</p>
       )}
 
       {!loading &&
@@ -285,7 +286,7 @@ export default function TemplatesPage() {
                 )}
                 <CardTitle className="font-mono text-base">{group.file}</CardTitle>
                 <span className="text-xs text-muted-foreground">
-                  ({group.variants.length} template{group.variants.length !== 1 ? 's' : ''})
+                  {t.templates.templateCount(group.variants.length)}
                 </span>
               </button>
             </CardHeader>
@@ -321,19 +322,19 @@ export default function TemplatesPage() {
                         <AlertDialogContent>
                           <AlertDialogHeader>
                             <AlertDialogTitle>
-                              Delete &quot;{templateName}/{group.file}&quot;?
+                              {t.templates.deleteTitle(templateName, group.file)}
                             </AlertDialogTitle>
                             <AlertDialogDescription>
-                              This will permanently delete this template file.
+                              {t.templates.deleteDescription}
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogCancel>{t.templates.cancel}</AlertDialogCancel>
                             <AlertDialogAction
                               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                               onClick={() => void handleDeleteFile(templateName, group.file)}
                             >
-                              Delete
+                              {t.templates.delete}
                             </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
@@ -346,22 +347,23 @@ export default function TemplatesPage() {
           </Card>
         ))}
 
-      {/* Create / Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="h-[min(95dvh,56rem)] max-w-6xl">
           <form onSubmit={handleSave} className="flex min-h-0 flex-1 flex-col">
             <DialogHeader>
-              <DialogTitle>{editing ? 'Edit Template File' : 'Add Template File'}</DialogTitle>
+              <DialogTitle>
+                {editing ? t.templates.editTemplateFile : t.templates.addTemplateFile}
+              </DialogTitle>
               <DialogDescription>
                 {editing
-                  ? `Editing "${editing.name}/${editing.file}".`
-                  : 'Create a new file template for agent creation.'}
+                  ? t.templates.editDescription(editing.name, editing.file)
+                  : t.templates.createDescription}
               </DialogDescription>
             </DialogHeader>
             <div className="mt-4 flex min-h-0 flex-1 flex-col gap-4">
               <div className="shrink-0">
                 <label htmlFor="tpl-file" className="mb-1.5 block text-sm font-medium">
-                  File
+                  {t.templates.fileLabel}
                 </label>
                 <Select
                   value={formFile}
@@ -382,7 +384,7 @@ export default function TemplatesPage() {
               </div>
               <div className="shrink-0">
                 <label htmlFor="tpl-name" className="mb-1.5 block text-sm font-medium">
-                  Template Name
+                  {t.templates.templateNameLabel}
                 </label>
                 <Input
                   id="tpl-name"
@@ -395,16 +397,16 @@ export default function TemplatesPage() {
               <div className="flex min-h-0 flex-1 flex-col rounded-md border">
                 <div className="flex shrink-0 items-center justify-between gap-3 border-b px-4 py-3">
                   <div>
-                    <p className="text-sm font-medium">Content</p>
+                    <p className="text-sm font-medium">{t.templates.contentLabel}</p>
                     {dirty && (
                       <span className="text-[10px] text-orange-500" aria-live="polite">
-                        unsaved
+                        {t.templates.unsaved}
                       </span>
                     )}
                     <p className="text-xs text-muted-foreground">Markdown / YAML editor</p>
                   </div>
                   <Button type="submit" size="sm" disabled={busy || !dirty} className="gap-1.5">
-                    {busy ? 'Saving...' : 'Save'}
+                    {busy ? t.templates.saving : t.templates.save}
                   </Button>
                 </div>
                 <div className="flex min-h-0 flex-1 flex-col p-3">
@@ -413,11 +415,15 @@ export default function TemplatesPage() {
                     onChange={setFormContent}
                     filePath={formFile}
                     className="min-h-0 w-full flex-1 overflow-hidden rounded-md border border-input"
-                    ariaLabel="Content"
+                    ariaLabel={t.templates.contentLabel}
                   />
                   <div className="mt-1.5 flex items-center justify-end gap-3 text-[10px] text-muted-foreground/70">
-                    <span>{contentLineCount} lines</span>
-                    <span>{contentCharCount.toLocaleString()} chars</span>
+                    <span>
+                      {contentLineCount} {t.templates.lines}
+                    </span>
+                    <span>
+                      {contentCharCount.toLocaleString()} {t.templates.chars}
+                    </span>
                   </div>
                 </div>
               </div>

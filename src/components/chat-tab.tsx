@@ -5,6 +5,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
 
+import { useLocale } from '@/src/components/locale-provider';
 import { Button } from '@/src/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
 import { Skeleton } from '@/src/components/ui/skeleton';
@@ -48,6 +49,7 @@ function sourceIcon(source: string | null) {
 }
 
 export function ChatTab({ name }: { name: string }) {
+  const { t } = useLocale();
   const [sourceFilter, setSourceFilter] = useState('all');
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(true);
@@ -118,7 +120,7 @@ export function ChatTab({ name }: { name: string }) {
         setMessages([]);
       }
     } catch {
-      toast.error('Failed to load sessions');
+      toast.error(t.chat.failedToLoadSessions);
     } finally {
       setLoadingSessions(false);
     }
@@ -134,7 +136,7 @@ export function ChatTab({ name }: { name: string }) {
       const data: Message[] = await res.json();
       setMessages(data);
     } catch {
-      toast.error('Failed to load messages');
+      toast.error(t.chat.failedToLoadMessages);
     } finally {
       setLoadingMessages(false);
     }
@@ -309,7 +311,7 @@ export function ChatTab({ name }: { name: string }) {
         return;
       }
       setStatus('error');
-      toast.error(e instanceof Error ? e.message : 'Failed to send message');
+      toast.error(e instanceof Error ? e.message : t.chat.failedToSendMessage);
     }
   }
 
@@ -323,7 +325,7 @@ export function ChatTab({ name }: { name: string }) {
     <>
       <CardHeader>
         <div className="flex items-center justify-between gap-2">
-          <CardTitle className="text-sm">Sessions</CardTitle>
+          <CardTitle className="text-sm">{t.chat.sessions}</CardTitle>
           <div className="flex items-center gap-2">
             <Button
               size="sm"
@@ -337,7 +339,7 @@ export function ChatTab({ name }: { name: string }) {
               }}
             >
               <Plus className="size-3" />
-              New Chat
+              {t.chat.newChat}
             </Button>
             <Button
               type="button"
@@ -345,16 +347,16 @@ export function ChatTab({ name }: { name: string }) {
               variant="ghost"
               className="h-7 w-7 md:hidden"
               onClick={() => setIsMobileSessionsOpen(false)}
-              aria-label="Close sessions"
+              aria-label={t.chat.closeSessions}
             >
               <X className="size-4" />
             </Button>
           </div>
         </div>
         <label className="text-xs text-muted-foreground">
-          Source filter
+          {t.chat.sourceFilter}
           <select
-            aria-label="Source filter"
+            aria-label={t.chat.sourceFilter}
             className="mt-1 h-8 w-full rounded-md border bg-background px-2 text-sm"
             value={sourceFilter}
             onChange={(e) => setSourceFilter(e.target.value)}
@@ -374,9 +376,7 @@ export function ChatTab({ name }: { name: string }) {
             <Skeleton className="h-14 w-full" />
           </>
         ) : sessions.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            state.db が見つからないか、セッションがありません。
-          </p>
+          <p className="text-sm text-muted-foreground">{t.chat.noSessions}</p>
         ) : (
           sessions.map((session) => {
             const Icon = sourceIcon(session.source);
@@ -419,7 +419,7 @@ export function ChatTab({ name }: { name: string }) {
       <Card className="flex min-h-0 flex-col overflow-hidden">
         <CardHeader className="shrink-0">
           <div className="flex items-center justify-between gap-2">
-            <CardTitle className="text-sm">Chat</CardTitle>
+            <CardTitle className="text-sm">{t.chat.chatTitle}</CardTitle>
             <Button
               type="button"
               variant="outline"
@@ -428,71 +428,64 @@ export function ChatTab({ name }: { name: string }) {
               onClick={() => setIsMobileSessionsOpen(true)}
             >
               <Menu className="size-3.5" />
-              Sessions
+              {t.chat.sessions}
             </Button>
           </div>
         </CardHeader>
         <CardContent className="flex min-h-0 flex-1 flex-col space-y-3 overflow-hidden">
           {apiServerStatus === 'disabled' ? (
             <div className="space-y-2 rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
-              <p className="font-medium">
-                Chat を使うにはエージェントの api_server
-                プラットフォームを有効にする必要があります。
-              </p>
+              <p className="font-medium">{t.chat.disabled.title}</p>
               <ol className="list-inside list-decimal space-y-1 text-xs">
                 <li>
-                  config.yaml で <code className="rounded bg-muted px-1">api_server</code>{' '}
-                  プラットフォームを有効化する
+                  {t.chat.disabled.step1.split('api_server')[0]}
+                  <code className="rounded bg-muted px-1">api_server</code>
+                  {t.chat.disabled.step1.split('api_server')[1]}
                 </li>
                 <li>
-                  gateway を再起動：{' '}
+                  {t.chat.disabled.step2.split('hermes gateway restart')[0]}
                   <code className="rounded bg-muted px-1">hermes gateway restart</code>
                 </li>
               </ol>
               <p className="text-xs">
-                詳しくは{' '}
+                {t.chat.disabled.docsPrefix}
                 <a
                   href="https://hermes-agent.nousresearch.com/docs/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="underline"
                 >
-                  Hermes Agent ドキュメント
-                </a>{' '}
-                を参照してください。
+                  {t.chat.disabled.docsLink}
+                </a>
+                {t.chat.disabled.docsSuffix}
               </p>
             </div>
           ) : apiServerStatus === 'configured-needs-restart' ? (
             <div className="space-y-2 rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
-              <p className="font-medium">
-                api_server は有効化されていますが、gateway が未反映です。
-              </p>
-              <p className="text-xs">gateway を再起動して設定を反映してください。</p>
-              <p className="text-xs">推奨: hermes gateway restart</p>
+              <p className="font-medium">{t.chat.needsRestart.title}</p>
+              <p className="text-xs">{t.chat.needsRestart.description}</p>
+              <p className="text-xs">{t.chat.needsRestart.recommendation}</p>
             </div>
           ) : apiServerStatus === 'starting' ? (
             <div className="space-y-2 rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
-              <p className="font-medium">api_server が接続準備中です。</p>
-              <p className="text-xs">少し時間をおいて再読込してください。</p>
+              <p className="font-medium">{t.chat.starting.title}</p>
+              <p className="text-xs">{t.chat.starting.description}</p>
             </div>
           ) : apiServerStatus === 'error' ? (
             <div className="space-y-2 rounded-md border bg-destructive/10 p-4 text-sm text-muted-foreground">
-              <p className="font-medium">api_server に接続できませんでした。</p>
+              <p className="font-medium">{t.chat.error.title}</p>
               {apiServerStatusReason && (
                 <p className="text-xs">
-                  原因: <code className="rounded bg-muted px-1">{apiServerStatusReason}</code>
+                  {t.chat.error.reason}:{' '}
+                  <code className="rounded bg-muted px-1">{apiServerStatusReason}</code>
                 </p>
               )}
               <ol className="list-inside list-decimal space-y-1 text-xs">
-                <li>logs タブでエラーを確認する</li>
+                <li>{t.chat.error.step1}</li>
                 <li>
-                  <code className="rounded bg-muted px-1">hermes gateway restart</code> で再起動する
+                  <code className="rounded bg-muted px-1">hermes gateway restart</code>
                 </li>
-                <li>
-                  それでも解決しない場合は <code className="rounded bg-muted px-1">meta.json</code>{' '}
-                  の <code className="rounded bg-muted px-1">apiServerPort</code> と config.yaml
-                  を確認する
-                </li>
+                <li>{t.chat.error.step3}</li>
               </ol>
             </div>
           ) : apiServerStatus === 'connected' ? (
@@ -517,9 +510,7 @@ export function ChatTab({ name }: { name: string }) {
                     <Skeleton className="h-20 w-full" />
                   ) : visibleMessages.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
-                      {selectedSessionId
-                        ? 'メッセージがありません。'
-                        : 'メッセージを入力して新しい会話を始めましょう。'}
+                      {selectedSessionId ? t.chat.noMessages : t.chat.startConversation}
                     </p>
                   ) : (
                     visibleMessages.map((msg, idx) =>
@@ -581,7 +572,7 @@ export function ChatTab({ name }: { name: string }) {
                       e.currentTarget.style.height = 'auto';
                       e.currentTarget.style.height = `${Math.min(e.currentTarget.scrollHeight, 220)}px`;
                     }}
-                    placeholder="Type a message"
+                    placeholder={t.chat.typeMessage}
                     disabled={status === 'submitted' || status === 'streaming'}
                     rows={1}
                     className="min-h-[44px] resize-none sm:flex-1"
@@ -594,21 +585,21 @@ export function ChatTab({ name }: { name: string }) {
                   />
                   {status === 'streaming' ? (
                     <Button type="button" variant="destructive" onClick={stopStreaming}>
-                      Stop
+                      {t.chat.stop}
                     </Button>
                   ) : (
                     <Button
                       onClick={() => void submitMessage()}
                       disabled={(status !== 'ready' && status !== 'error') || !message.trim()}
                     >
-                      {status === 'submitted' ? 'Sending...' : 'Send'}
+                      {status === 'submitted' ? t.chat.sending : t.chat.send}
                     </Button>
                   )}
                 </div>
 
                 {status === 'error' && (
                   <div className="flex items-center justify-between rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs">
-                    <span>送信に失敗しました。</span>
+                    <span>{t.chat.sendFailed}</span>
                     <Button
                       type="button"
                       size="sm"
@@ -620,7 +611,7 @@ export function ChatTab({ name }: { name: string }) {
                       }}
                       disabled={!lastUserMessage}
                     >
-                      Retry
+                      {t.chat.retry}
                     </Button>
                   </div>
                 )}
@@ -635,7 +626,7 @@ export function ChatTab({ name }: { name: string }) {
           <button
             type="button"
             className="absolute inset-0 bg-background/80 backdrop-blur-sm"
-            aria-label="Close sessions overlay"
+            aria-label={t.chat.closeSessions}
             onClick={() => setIsMobileSessionsOpen(false)}
           />
           <Card className="absolute inset-x-4 bottom-4 top-4 flex min-h-0 flex-col overflow-hidden">

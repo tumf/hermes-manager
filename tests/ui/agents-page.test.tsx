@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import '@testing-library/jest-dom';
 
+import { LocaleProvider } from '@/src/components/locale-provider';
+
 const toastMocks = vi.hoisted(() => ({
   success: vi.fn(),
   error: vi.fn(),
@@ -142,7 +144,11 @@ describe('AgentsPage', () => {
   it('renders agents list from API', async () => {
     global.fetch = mockFetch();
 
-    render(<Home />);
+    render(
+      <LocaleProvider initialLocale="en">
+        <Home />
+      </LocaleProvider>,
+    );
 
     await waitFor(() => {
       expect(screen.getAllByText('Alpha Bot').length).toBeGreaterThan(0);
@@ -153,7 +159,11 @@ describe('AgentsPage', () => {
   it('shows memory column in table headers', async () => {
     global.fetch = mockFetch();
 
-    render(<Home />);
+    render(
+      <LocaleProvider initialLocale="en">
+        <Home />
+      </LocaleProvider>,
+    );
 
     await waitFor(() => {
       expect(screen.getByText('Memory')).toBeInTheDocument();
@@ -164,7 +174,11 @@ describe('AgentsPage', () => {
   it('shows per-agent process info with fallbacks', async () => {
     global.fetch = mockFetch();
 
-    render(<Home />);
+    render(
+      <LocaleProvider initialLocale="en">
+        <Home />
+      </LocaleProvider>,
+    );
 
     await waitFor(() => {
       expect(screen.getAllByText('256.0 MB').length).toBeGreaterThan(0);
@@ -176,7 +190,11 @@ describe('AgentsPage', () => {
   it('shows metadata tags when present', async () => {
     global.fetch = mockFetch();
 
-    render(<Home />);
+    render(
+      <LocaleProvider initialLocale="en">
+        <Home />
+      </LocaleProvider>,
+    );
 
     await waitFor(() => {
       expect(screen.getAllByText('prod').length).toBeGreaterThan(0);
@@ -187,7 +205,11 @@ describe('AgentsPage', () => {
   it('shows running/stopped badges', async () => {
     global.fetch = mockFetch();
 
-    render(<Home />);
+    render(
+      <LocaleProvider initialLocale="en">
+        <Home />
+      </LocaleProvider>,
+    );
 
     await waitFor(() => {
       expect(screen.getAllByText('Alpha Bot').length).toBeGreaterThan(0);
@@ -200,7 +222,11 @@ describe('AgentsPage', () => {
   it('renders Start and Stop buttons per agent row', async () => {
     global.fetch = mockFetch();
 
-    render(<Home />);
+    render(
+      <LocaleProvider initialLocale="en">
+        <Home />
+      </LocaleProvider>,
+    );
 
     await waitFor(() => {
       expect(screen.getAllByText('Alpha Bot').length).toBeGreaterThan(0);
@@ -214,7 +240,11 @@ describe('AgentsPage', () => {
     const fetchMock = mockFetch();
     global.fetch = fetchMock;
 
-    render(<Home />);
+    render(
+      <LocaleProvider initialLocale="en">
+        <Home />
+      </LocaleProvider>,
+    );
 
     await waitFor(() => {
       expect(screen.getAllByText('beta222').length).toBeGreaterThan(0);
@@ -240,7 +270,11 @@ describe('AgentsPage', () => {
   it('Start失敗時にstderrトーストを表示する', async () => {
     global.fetch = mockFetch({ launchdStartFail: true });
 
-    render(<Home />);
+    render(
+      <LocaleProvider initialLocale="en">
+        <Home />
+      </LocaleProvider>,
+    );
 
     await waitFor(() => {
       expect(screen.getAllByText('beta222').length).toBeGreaterThan(0);
@@ -257,7 +291,11 @@ describe('AgentsPage', () => {
   it('renders per-agent action menu buttons', async () => {
     global.fetch = mockFetch();
 
-    render(<Home />);
+    render(
+      <LocaleProvider initialLocale="en">
+        <Home />
+      </LocaleProvider>,
+    );
 
     await waitFor(() => {
       expect(screen.getAllByText('Alpha Bot').length).toBeGreaterThan(0);
@@ -270,7 +308,11 @@ describe('AgentsPage', () => {
     const fetchMock = mockFetch();
     global.fetch = fetchMock;
 
-    render(<Home />);
+    render(
+      <LocaleProvider initialLocale="en">
+        <Home />
+      </LocaleProvider>,
+    );
 
     // Click "Add Agent" button to open dialog
     await waitFor(() => {

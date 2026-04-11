@@ -6,8 +6,10 @@ import { toast } from 'sonner';
 import { AddAgentDialog, type TemplateEntry } from '@/src/components/add-agent-dialog';
 import { type ActionType, type Agent, type AgentWithStatus } from '@/src/components/agent-card';
 import { AgentsListContent } from '@/src/components/agents-list-content';
+import { useLocale } from '@/src/components/locale-provider';
 
 export default function Home() {
+  const { t } = useLocale();
   const [agents, setAgents] = useState<AgentWithStatus[]>([]);
   const [templates, setTemplates] = useState<TemplateEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,11 +40,11 @@ export default function Home() {
       );
       setAgents(withStatus);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to load agents');
+      toast.error(error instanceof Error ? error.message : t.agentsList.failedToLoad);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const fetchTemplates = useCallback(async () => {
     try {
@@ -73,16 +75,14 @@ export default function Home() {
             ? data.error
             : typeof data.stderr === 'string' && data.stderr.trim()
               ? data.stderr.trim()
-              : `Failed to ${action} ${agent.agentId}`;
+              : t.agentsList.failedToAction(action, agent.agentId);
         toast.error(message);
         return;
       }
-      toast.success(
-        `${agent.agentId} ${{ start: 'started', stop: 'stopped', restart: 'restarted' }[action]}`,
-      );
+      toast.success(t.agentsList.actionSuccess(agent.agentId, action));
       await fetchAgents();
     } catch {
-      toast.error(`Failed to ${action} ${agent.agentId}`);
+      toast.error(t.agentsList.failedToAction(action, agent.agentId));
     } finally {
       setBusyMap((prev) => {
         const next = { ...prev };
@@ -95,10 +95,10 @@ export default function Home() {
   async function handleDelete(agentId: string) {
     try {
       await fetch(`/api/agents?id=${encodeURIComponent(agentId)}&purge=true`, { method: 'DELETE' });
-      toast.success(`Agent "${agentId}" deleted`);
+      toast.success(t.agentsList.deletedAgent(agentId));
       await fetchAgents();
     } catch {
-      toast.error(`Failed to delete "${agentId}"`);
+      toast.error(t.agentsList.failedToDelete(agentId));
     }
   }
 
@@ -111,14 +111,14 @@ export default function Home() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        toast.error(typeof data.error === 'string' ? data.error : 'Failed to copy');
+        toast.error(typeof data.error === 'string' ? data.error : t.agentsList.failedToCopy);
         return;
       }
       const created = await res.json();
-      toast.success(`Copied "${fromId}" → "${created.agentId}"`);
+      toast.success(t.agentsList.copiedAgent(fromId, created.agentId));
       await fetchAgents();
     } catch {
-      toast.error('Failed to copy');
+      toast.error(t.agentsList.failedToCopy);
     }
   }
 
@@ -126,8 +126,8 @@ export default function Home() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Agents</h1>
-          <p className="text-sm text-muted-foreground">Manage your Hermes AI agents.</p>
+          <h1 className="text-2xl font-semibold tracking-tight">{t.agentsList.title}</h1>
+          <p className="text-sm text-muted-foreground">{t.agentsList.subtitle}</p>
         </div>
       </div>
 

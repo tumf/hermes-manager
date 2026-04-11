@@ -1,0 +1,255 @@
+export interface TranslationDictionary {
+  appShell: {
+    brand: string;
+    nav: {
+      agents: string;
+      globals: string;
+      templates: string;
+      partials: string;
+    };
+    openMenu: string;
+    closeMenu: string;
+    toggleTheme: string;
+    languageSwitcher: string;
+  };
+  agentsList: {
+    title: string;
+    subtitle: string;
+    addAgent: string;
+    noAgentsTitle: string;
+    noAgentsSubtitle: string;
+    columns: {
+      name: string;
+      label: string;
+      tags: string;
+      status: string;
+      memory: string;
+      actions: string;
+    };
+    failedToLoad: string;
+    failedToAction: (action: string, agentId: string) => string;
+    actionSuccess: (agentId: string, action: string) => string;
+    deletedAgent: (agentId: string) => string;
+    failedToDelete: (agentId: string) => string;
+    failedToCopy: string;
+    copiedAgent: (fromId: string, toId: string) => string;
+  };
+  agentDetail: {
+    backToAgents: string;
+    hermesVersion: string;
+    copiedHome: string;
+    tabs: {
+      metadata: string;
+      memory: string;
+      config: string;
+      env: string;
+      skills: string;
+      cron: string;
+      chat: string;
+      logs: string;
+    };
+  };
+  agentStatus: {
+    starting: string;
+    stopping: string;
+    restarting: string;
+    running: string;
+    stopped: string;
+    start: string;
+    stop: string;
+    restart: string;
+  };
+  dialogs: {
+    addAgent: {
+      title: string;
+      description: string;
+      displayName: string;
+      descriptionField: string;
+      tagsField: string;
+      tagsPlaceholder: string;
+      namePlaceholder: string;
+      descriptionPlaceholder: string;
+      cancel: string;
+      create: string;
+      creating: string;
+      failedToCreate: string;
+      created: (agentId: string) => string;
+      memoryMdTemplate: string;
+      userMdTemplate: string;
+      soulMdTemplate: string;
+      configYamlTemplate: string;
+    };
+    unsavedChanges: {
+      title: string;
+      description: string;
+      keepEditing: string;
+      discardChanges: string;
+    };
+    deleteConfirm: {
+      cancel: string;
+      delete: string;
+    };
+  };
+  chat: {
+    sessions: string;
+    newChat: string;
+    sourceFilter: string;
+    chatTitle: string;
+    closeSessions: string;
+    disabled: {
+      title: string;
+      step1: string;
+      step2: string;
+      docsLink: string;
+      docsPrefix: string;
+      docsSuffix: string;
+    };
+    needsRestart: {
+      title: string;
+      description: string;
+      recommendation: string;
+    };
+    starting: {
+      title: string;
+      description: string;
+    };
+    error: {
+      title: string;
+      reason: string;
+      step1: string;
+      step2: string;
+      step3: string;
+    };
+    noSessions: string;
+    noMessages: string;
+    startConversation: string;
+    typeMessage: string;
+    send: string;
+    sending: string;
+    stop: string;
+    sendFailed: string;
+    retry: string;
+    failedToLoadSessions: string;
+    failedToLoadMessages: string;
+    failedToSendMessage: string;
+  };
+  memory: {
+    descriptions: {
+      soul: string;
+      memory: string;
+      user: string;
+    };
+    enablePartialMode: string;
+    enablePartialDescription: string;
+    enablePartials: string;
+    enabling: string;
+    insertPartial: string;
+    refresh: string;
+    noPartials: string;
+    partialModeEnabled: string;
+    failedToReadSoul: string;
+    failedToEnablePartials: string;
+    insertedPartial: (name: string) => string;
+  };
+  logs: {
+    title: string;
+    empty: string;
+  };
+  templates: {
+    title: string;
+    subtitle: string;
+    addTemplateFile: string;
+    noTemplates: string;
+    editTemplateFile: string;
+    fileLabel: string;
+    templateNameLabel: string;
+    contentLabel: string;
+    unsaved: string;
+    save: string;
+    saving: string;
+    failedToLoad: string;
+    failedToCreate: string;
+    failedToUpdate: string;
+    failedToDelete: string;
+    savedTemplate: (name: string, file: string) => string;
+    deletedTemplate: (name: string, file: string) => string;
+    deleteTitle: (name: string, file: string) => string;
+    deleteDescription: string;
+    nameAndContentRequired: string;
+    templateCount: (count: number) => string;
+    lines: string;
+    chars: string;
+    cancel: string;
+    delete: string;
+    createDescription: string;
+    editDescription: (name: string, file: string) => string;
+  };
+  partials: {
+    title: string;
+    subtitle: string;
+    newPartial: string;
+    noPartials: string;
+    editPartial: string;
+    createPartial: string;
+    nameLabel: string;
+    contentLabel: string;
+    unsaved: string;
+    save: string;
+    saving: string;
+    invalidName: string;
+    savedPartial: (name: string) => string;
+    failedToSave: string;
+    deleteTitle: (name: string) => string;
+    deleteDescription: string;
+    deletedPartial: (name: string) => string;
+    failedToDelete: string;
+    unused: string;
+    cancel: string;
+    delete: string;
+    lines: string;
+    chars: string;
+    createDescription: string;
+    editDescription: (name: string) => string;
+    inUseBy: (agents: string) => string;
+  };
+  globals: {
+    title: string;
+    subtitle: string;
+    invalidKey: string;
+    keyHeader: string;
+    valueHeader: string;
+    visibilityHeader: string;
+    actionsHeader: string;
+    plain: string;
+    secure: string;
+    copied: (key: string) => string;
+    saved: (key: string) => string;
+    updated: (key: string) => string;
+    deleted: (key: string) => string;
+    failedToSave: string;
+    failedToUpdate: (key: string) => string;
+    failedToDelete: (key: string) => string;
+    noVariables: string;
+    addFirstVariable: string;
+    envPreview: string;
+    secureDescription: string;
+    enterNewValue: string;
+    enterNewValueDescription: string;
+    secureValueHidden: string;
+    cancel: string;
+    save: string;
+    deleteTitle: (key: string) => string;
+    deleteDescription: string;
+    delete: string;
+  };
+  common: {
+    loading: string;
+    error: string;
+    save: string;
+    cancel: string;
+    delete: string;
+    edit: string;
+    create: string;
+    close: string;
+  };
+}
