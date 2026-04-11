@@ -24,12 +24,16 @@ You can switch languages from the Language Switcher in the shared app shell. The
 
 Note: only the application UI is localized. Operational content such as `SOUL.md`, memory files, logs, and chat transcripts is not translated automatically.
 
+> **Trusted-network application** — Hermes Agents WebApp is designed for trusted-network / intranet operation. It does not include public-internet authentication or multi-tenant access control. If you expose it outside a trusted network, add your own authentication and access-control layer in front of it.
+
 For detailed operational rules and design policies, refer to the following:
 
 - Developer guide: [`AGENTS.md`](./AGENTS.md)
 - Requirements: [`docs/requirements.md`](./docs/requirements.md)
 - Design: [`docs/design.md`](./docs/design.md)
 - Contribution guide: [`CONTRIBUTING.md`](./CONTRIBUTING.md)
+- Security reporting: [`SECURITY.md`](./SECURITY.md)
+- Support: [`SUPPORT.md`](./SUPPORT.md)
 
 ## Key Features
 
@@ -67,21 +71,19 @@ Prerequisites:
 - Node.js 20+
 - npm
 
-Install:
+Preferred bootstrap entrypoint:
+
+```bash
+./.wt/setup
+```
+
+This script installs dependencies when needed, prepares runtime directories, and installs available local hooks.
+
+Or manually:
 
 ```bash
 npm install
-```
-
-Build:
-
-```bash
 npm run build
-```
-
-Start in production (port 18470):
-
-```bash
 PORT=18470 npm run start
 ```
 
@@ -123,3 +125,16 @@ hermes-agents/
 ## Contributing
 
 See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the contribution workflow. This document is maintained in English.
+
+## Versioning and Releases
+
+This project uses SemVer-based versioning as it matures.
+
+- Version source of truth: `package.json`
+- Release notes: GitHub Releases (user-facing changes and operator upgrade notes)
+
+Until automated release tooling is added, create tagged releases from clean commits that pass `npm run test`, `npm run typecheck`, `npm run lint`, and `npm run format:check`.
+
+## License
+
+MIT. See [`LICENSE`](./LICENSE).
