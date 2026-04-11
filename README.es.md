@@ -1,10 +1,10 @@
-# Hermes Agents WebApp
+# Hermes Manager
 
 [![日本語](https://img.shields.io/badge/%E6%97%A5%E6%9C%AC%E8%AA%9E-blue?style=flat-square)](./README.ja.md) [![English](https://img.shields.io/badge/English-blue?style=flat-square)](./README.md) [![简体中文](https://img.shields.io/badge/%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-blue?style=flat-square)](./README.zh-CN.md) [![Español](https://img.shields.io/badge/Espa%C3%B1ol-blue?style=flat-square)](./README.es.md) [![Português%20(BR)](<https://img.shields.io/badge/Portugu%C3%AAs%20(BR)-blue?style=flat-square>)](./README.pt-BR.md) [![한국어](https://img.shields.io/badge/%ED%95%9C%EA%B5%AD%EC%96%B4-blue?style=flat-square)](./README.ko.md) [![Français](https://img.shields.io/badge/Fran%C3%A7ais-blue?style=flat-square)](./README.fr.md) [![Deutsch](https://img.shields.io/badge/Deutsch-blue?style=flat-square)](./README.de.md) [![Русский](https://img.shields.io/badge/%D0%A0%D1%83%D1%81%D1%81%D0%BA%D0%B8%D0%B9-blue?style=flat-square)](./README.ru.md) [![Tiếng%20Việt](https://img.shields.io/badge/Ti%E1%BA%BFng%20Vi%E1%BB%87t-blue?style=flat-square)](./README.vi.md)
 
-![Captura de pantalla de Hermes Agents WebApp](./docs/images/ss-agents-1.png)
+![Captura de pantalla de Hermes Manager](./docs/images/ss-agents-1.png)
 
-Hermes Agents WebApp es una aplicación Next.js para gestionar de forma centralizada los Hermes Agents operados en el entorno mini desde una interfaz web.
+Hermes Manager es una aplicación Next.js para gestionar de forma centralizada los Hermes Agents operados en el entorno mini desde una interfaz web.
 Integra la creación, duplicación, eliminación, control de inicio/parada, edición de configuración, gestión de variables de entorno, gestión de habilidades, operaciones de tareas programadas, inspección del historial de chat y visualización de logs.
 
 La interfaz web soporta los siguientes 10 idiomas:
@@ -24,7 +24,7 @@ Puede cambiar de idioma desde el selector de idiomas en el shell compartido de l
 
 Nota: solo la interfaz de la aplicación está localizada. El contenido operativo como `SOUL.md`, archivos de memoria, logs y transcripciones de chat no se traduce automáticamente.
 
-> **Aplicación de red confiable** — Hermes Agents WebApp está diseñado para operar en redes confiables/intranet. No incluye autenticación para internet público ni control de acceso multiinquilino. Si lo expone fuera de una red confiable, agregue su propia capa de autenticación y control de acceso.
+> **Aplicación de red confiable** — Hermes Manager está diseñado para operar en redes confiables/intranet. No incluye autenticación para internet público ni control de acceso multiinquilino. Si lo expone fuera de una red confiable, agregue su propia capa de autenticación y control de acceso.
 
 Para reglas operativas detalladas y políticas de diseño, consulte lo siguiente:
 
@@ -51,11 +51,11 @@ Para reglas operativas detalladas y políticas de diseño, consulte lo siguiente
 
 ### Lista de Agents
 
-![Captura de pantalla de Hermes Agents WebApp](./docs/images/ss-agents-1.png)
+![Captura de pantalla de Hermes Manager](./docs/images/ss-agents-1.png)
 
 ### Gestión de memoria
 
-![Pantalla de gestión de memoria de Hermes Agents](./docs/images/ss-agent_memory-1.png)
+![Pantalla de gestión de memoria de Hermes Manager](./docs/images/ss-agent_memory-1.png)
 
 ## Stack tecnológico
 
@@ -110,7 +110,7 @@ npm run build
 ## Estructura de directorios (resumen)
 
 ```text
-hermes-agents/
+hermes-manager/
 ├── app/                    # Next.js App Router (UI / API)
 ├── components/             # Componentes de UI compartidos
 ├── src/lib/                # Helpers de sistema de archivos/Env/SkillLink

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Worktree bootstrap for hermes-agents
+# Worktree bootstrap for hermes-manager
 # Variables provided by wt: ROOT_WORKTREE_PATH (source repo path)
 
 # Tools check

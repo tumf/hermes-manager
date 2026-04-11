@@ -8,13 +8,15 @@
 
 ## Acceptance #1 Failure Follow-up
 
-- [ ] Change `change_type` in proposal.md from `implementation` to `spec-only`, OR implement the actual rename across the codebase (see findings below)
-- [ ] If keeping as `implementation`: rename `brand` in all 10 translation files (`src/lib/translations/*.ts`) from `Hermes Agents` to `Hermes Manager`
-- [ ] If keeping as `implementation`: rename `title` in `app/layout.tsx` from `Hermes Agents` to `Hermes Manager`
-- [ ] If keeping as `implementation`: rename product/repo references in all README files (README.md, README.ja.md, README.\*.md)
-- [ ] If keeping as `implementation`: rename references in `docs/design.md`, `docs/requirements.md`
-- [ ] If keeping as `implementation`: rename OpenAPI title/URL in `openapi.yaml`
-- [ ] If keeping as `implementation`: rename hosting artifacts (`hosting/README.md`, plist/service files, Caddy config)
+- [x] Implement the actual rename across the codebase (keeping `change_type: implementation`)
+- [x] Rename `brand` in all 10 translation files (`src/lib/translations/*.ts`) from `Hermes Agents` to `Hermes Manager`
+- [x] Rename `title` in `app/layout.tsx` from `Hermes Agents` to `Hermes Manager`
+- [x] Rename product/repo references in all README files (README.md, README.ja.md, README.\*.md)
+- [x] Rename references in `docs/design.md`, `docs/requirements.md`
+- [x] Rename OpenAPI title/URL in `openapi.yaml`
+- [x] Rename hosting artifacts (`hosting/README.md`, plist/service files renamed to `ai.hermes.manager.*`, Caddy config updated)
+- [x] Rename references in `AGENTS.md`, `CONTRIBUTING.md`, `SECURITY.md`, `package.json`, `.env.example`, `.wt/setup`
+- [x] Verify: typecheck passes, lint passes, 363 tests pass, build succeeds
 
 ## Future Work
 
