@@ -1,6 +1,6 @@
 # Hosting Setup
 
-Instructions for running the hermes-agents webapp persistently on macOS (launchd) or Linux (systemd), with optional Caddy reverse proxying.
+Instructions for running the hermes-manager webapp persistently on macOS (launchd) or Linux (systemd), with optional Caddy reverse proxying.
 
 ## Prerequisites
 
@@ -26,31 +26,31 @@ It does not run database migrations.
 1. Copy the plist to the LaunchAgents directory:
 
    ```bash
-   cp hosting/ai.hermes.agents-webapp.plist ~/Library/LaunchAgents/
+   cp hosting/ai.hermes.manager.plist ~/Library/LaunchAgents/
    ```
 
 2. Bootstrap the service:
 
    ```bash
-   launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/ai.hermes.agents-webapp.plist
+   launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/ai.hermes.manager.plist
    ```
 
 3. Verify it is running:
 
    ```bash
-   launchctl list | grep ai.hermes.agents-webapp
+   launchctl list | grep ai.hermes.manager
    ```
 
 To reload an updated plist, prefer:
 
 ```bash
-launchctl kickstart -kp gui/$(id -u)/ai.hermes.agents-webapp
+launchctl kickstart -kp gui/$(id -u)/ai.hermes.manager
 ```
 
 To stop the service:
 
 ```bash
-launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/ai.hermes.agents-webapp.plist
+launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/ai.hermes.manager.plist
 ```
 
 ### macOS log files
@@ -62,33 +62,33 @@ launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/ai.hermes.agents-webapp.pl
 
 The provided unit file uses `systemd --user` services, matching the per-user model used for agent management.
 
-1. Edit `hosting/ai.hermes.agents-webapp.service` and update `WorkingDirectory` and log paths to match your repo location.
+1. Edit `hosting/ai.hermes.manager.service` and update `WorkingDirectory` and log paths to match your repo location.
 
 2. Copy the unit file:
 
    ```bash
    mkdir -p ~/.config/systemd/user
-   cp hosting/ai.hermes.agents-webapp.service ~/.config/systemd/user/
+   cp hosting/ai.hermes.manager.service ~/.config/systemd/user/
    ```
 
 3. Reload, enable, and start:
 
    ```bash
    systemctl --user daemon-reload
-   systemctl --user enable ai.hermes.agents-webapp.service
-   systemctl --user start ai.hermes.agents-webapp.service
+   systemctl --user enable ai.hermes.manager.service
+   systemctl --user start ai.hermes.manager.service
    ```
 
 4. Verify:
 
    ```bash
-   systemctl --user status ai.hermes.agents-webapp.service
+   systemctl --user status ai.hermes.manager.service
    ```
 
 To stop the service:
 
 ```bash
-systemctl --user stop ai.hermes.agents-webapp.service
+systemctl --user stop ai.hermes.manager.service
 ```
 
 To ensure the user service starts at boot (without requiring login):
@@ -101,7 +101,7 @@ loginctl enable-linger $(whoami)
 
 - stdout → `runtime/logs/webapp.log` (via `StandardOutput=append:`)
 - stderr → `runtime/logs/webapp.error.log` (via `StandardError=append:`)
-- journald also captures output: `journalctl --user -u ai.hermes.agents-webapp.service`
+- journald also captures output: `journalctl --user -u ai.hermes.manager.service`
 
 ## Add the Caddy snippet
 
@@ -113,7 +113,7 @@ cat hosting/caddy-snippet.conf >> /etc/caddy/Caddyfile
 
 # Option B: use an import directive in the Caddyfile
 # Add this line to the Caddyfile:
-#   import /path/to/hermes-agents/hosting/caddy-snippet.conf
+#   import /path/to/hermes-manager/hosting/caddy-snippet.conf
 
 caddy reload --config /etc/caddy/Caddyfile
 ```

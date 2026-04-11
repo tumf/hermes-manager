@@ -135,6 +135,131 @@ describe('createAgent', () => {
   });
 });
 
+describe('createAgent with meta', () => {
+  it('persists apiServerPort in meta.json when in valid range', async () => {
+    await fsp.mkdir(path.join(tmpDir, 'runtime', 'agents'), { recursive: true });
+    const { createAgent } = await import('../../src/lib/agents');
+    const agent = await createAgent(
+      'port-agent',
+      {
+        memoryMd: '# Memory\n',
+        userMd: '# User\n',
+        soulSrcMd: '# Soul\n',
+        configYaml: 'name: default\n',
+      },
+      { name: 'PortBot', apiServerPort: 8650 },
+    );
+
+    expect(agent.agentId).toBe('port-agent');
+    expect(agent.name).toBe('PortBot');
+
+    const metaRaw = fs.readFileSync(path.join(agent.home, 'meta.json'), 'utf-8');
+    const meta = JSON.parse(metaRaw);
+    expect(meta.apiServerPort).toBe(8650);
+  });
+
+  it('ignores out-of-range apiServerPort', async () => {
+    await fsp.mkdir(path.join(tmpDir, 'runtime', 'agents'), { recursive: true });
+    const { createAgent } = await import('../../src/lib/agents');
+    const agent = await createAgent(
+      'bad-port',
+      {
+        memoryMd: '# M\n',
+        userMd: '# U\n',
+        soulSrcMd: '# S\n',
+        configYaml: 'name: default\n',
+      },
+      { apiServerPort: 9999 },
+    );
+
+    expect(fs.existsSync(path.join(agent.home, 'meta.json'))).toBe(false);
+  });
+});
+
+describe('updateAgentMeta', () => {
+  it('updates meta.json and preserves existing port when new port is out of range', async () => {
+    const agentDir = path.join(tmpDir, 'runtime', 'agents', 'update-me');
+    await fsp.mkdir(agentDir, { recursive: true });
+    await fsp.writeFile(path.join(agentDir, 'config.yaml'), 'enabled: true\n');
+    await fsp.writeFile(
+      path.join(agentDir, 'meta.json'),
+      JSON.stringify({ name: 'Old', description: '', tags: [], apiServerPort: 8645 }),
+    );
+
+    const { updateAgentMeta } = await import('../../src/lib/agents');
+    const result = await updateAgentMeta('update-me', {
+      name: 'New',
+      description: 'Updated',
+      tags: ['prod'],
+      apiServerPort: null,
+    });
+
+    expect(result).not.toBeNull();
+    expect(result!.name).toBe('New');
+    expect(result!.description).toBe('Updated');
+    expect(result!.tags).toEqual(['prod']);
+    expect(result!.apiServerPort).toBe(8645);
+  });
+
+  it('returns null for nonexistent agent', async () => {
+    await fsp.mkdir(path.join(tmpDir, 'runtime', 'agents'), { recursive: true });
+    const { updateAgentMeta } = await import('../../src/lib/agents');
+    const result = await updateAgentMeta('ghost', {
+      name: 'X',
+      description: '',
+      tags: [],
+    });
+    expect(result).toBeNull();
+  });
+});
+
+describe('Agent DTO shape', () => {
+  it('listAgents and getAgent produce identical shape', async () => {
+    const agentDir = path.join(tmpDir, 'runtime', 'agents', 'shape-check');
+    await fsp.mkdir(agentDir, { recursive: true });
+    await fsp.writeFile(path.join(agentDir, 'config.yaml'), 'enabled: true\n');
+    await fsp.writeFile(
+      path.join(agentDir, 'meta.json'),
+      JSON.stringify({ name: 'ShapeBot', description: 'desc', tags: ['a'], apiServerPort: 8643 }),
+    );
+
+    const { listAgents, getAgent } = await import('../../src/lib/agents');
+    const [listed] = await listAgents();
+    const single = await getAgent('shape-check');
+
+    expect(listed).toBeTruthy();
+    expect(single).toBeTruthy();
+
+    const expectedKeys = [
+      'agentId',
+      'home',
+      'label',
+      'enabled',
+      'createdAt',
+      'updatedAt',
+      'name',
+      'description',
+      'tags',
+      'apiServerStatus',
+      'apiServerStatusReason',
+      'apiServerAvailable',
+      'apiServerPort',
+      'memoryRssBytes',
+      'hermesVersion',
+    ];
+    for (const key of expectedKeys) {
+      expect(listed).toHaveProperty(key);
+      expect(single).toHaveProperty(key);
+    }
+
+    expect(listed!.agentId).toBe(single!.agentId);
+    expect(listed!.label).toBe(single!.label);
+    expect(listed!.enabled).toBe(single!.enabled);
+    expect(listed!.name).toBe(single!.name);
+    expect(listed!.apiServerPort).toBe(single!.apiServerPort);
+  });
+});
+
 describe('deleteAgent', () => {
   it('removes agent directory', async () => {
     const agentDir = path.join(tmpDir, 'runtime', 'agents', 'to-delete');
