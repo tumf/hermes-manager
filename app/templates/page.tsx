@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
+import { CodeEditor } from '@/src/components/code-editor';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,10 +20,8 @@ import { Button } from '@/src/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/src/components/ui/dialog';
@@ -35,7 +34,6 @@ import {
   SelectValue,
 } from '@/src/components/ui/select';
 import { Skeleton } from '@/src/components/ui/skeleton';
-import { Textarea } from '@/src/components/ui/textarea';
 
 interface TemplateEntry {
   name: string;
@@ -59,6 +57,16 @@ export default function TemplatesPage() {
   const [expandedTemplates, setExpandedTemplates] = useState<Set<string>>(
     () => new Set(FILE_NAMES),
   );
+  const [initialFormFile, setInitialFormFile] = useState<FileName>('AGENTS.md');
+  const [initialFormName, setInitialFormName] = useState('');
+  const [initialFormContent, setInitialFormContent] = useState('');
+
+  const contentLineCount = formContent.split('\n').length;
+  const contentCharCount = formContent.length;
+  const dirty =
+    formFile !== initialFormFile ||
+    formName !== initialFormName ||
+    formContent !== initialFormContent;
 
   const templatesByFile = useMemo(() => {
     return FILE_NAMES.map((file) => {
@@ -104,6 +112,9 @@ export default function TemplatesPage() {
     setFormFile('AGENTS.md');
     setFormName('');
     setFormContent('');
+    setInitialFormFile('AGENTS.md');
+    setInitialFormName('');
+    setInitialFormContent('');
     setDialogOpen(true);
   }
 
@@ -121,18 +132,20 @@ export default function TemplatesPage() {
       setFormFile(file as FileName);
       setFormName(templateName);
       setFormContent(data.content);
+      setInitialFormFile(file as FileName);
+      setInitialFormName(templateName);
+      setInitialFormContent(data.content);
       setDialogOpen(true);
     } catch {
       toast.error('Failed to load template file');
     }
   }
 
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault();
+  const persistTemplate = useCallback(async () => {
     const trimmedName = formName.trim();
     if (!trimmedName || !formContent) {
       toast.error('Name and content are required');
-      return;
+      return false;
     }
 
     setBusy(true);
@@ -151,9 +164,9 @@ export default function TemplatesPage() {
         if (!res.ok) {
           const d = await res.json().catch(() => ({}));
           toast.error(typeof d.error === 'string' ? d.error : 'Failed to update');
-          return;
+          return false;
         }
-        toast.success(`Template "${trimmedName}/${formFile}" updated`);
+        toast.success(`Template "${trimmedName}/${formFile}" saved`);
       } else {
         // Create new
         const res = await fetch('/api/templates', {
@@ -168,16 +181,41 @@ export default function TemplatesPage() {
         if (!res.ok) {
           const d = await res.json().catch(() => ({}));
           toast.error(typeof d.error === 'string' ? d.error : 'Failed to create');
-          return;
+          return false;
         }
-        toast.success(`Template "${trimmedName}/${formFile}" created`);
+        toast.success(`Template "${trimmedName}/${formFile}" saved`);
       }
+      setInitialFormFile(formFile);
+      setInitialFormName(trimmedName);
+      setInitialFormContent(formContent);
       setDialogOpen(false);
       await fetchTemplates();
+      return true;
     } finally {
       setBusy(false);
     }
+  }, [editing, fetchTemplates, formContent, formFile, formName]);
+
+  async function handleSave(e?: React.FormEvent) {
+    e?.preventDefault();
+    await persistTemplate();
   }
+
+  useEffect(() => {
+    if (!dialogOpen) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key === 's') {
+        event.preventDefault();
+        if (!busy && dirty) {
+          void persistTemplate();
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [dialogOpen, busy, dirty, persistTemplate]);
 
   async function handleDeleteFile(templateName: string, file: string) {
     try {
@@ -310,8 +348,8 @@ export default function TemplatesPage() {
 
       {/* Create / Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <form onSubmit={handleSave}>
+        <DialogContent className="h-[min(95dvh,56rem)] max-w-6xl">
+          <form onSubmit={handleSave} className="flex min-h-0 flex-1 flex-col">
             <DialogHeader>
               <DialogTitle>{editing ? 'Edit Template File' : 'Add Template File'}</DialogTitle>
               <DialogDescription>
@@ -320,8 +358,8 @@ export default function TemplatesPage() {
                   : 'Create a new file template for agent creation.'}
               </DialogDescription>
             </DialogHeader>
-            <div className="mt-4 space-y-4">
-              <div>
+            <div className="mt-4 flex min-h-0 flex-1 flex-col gap-4">
+              <div className="shrink-0">
                 <label htmlFor="tpl-file" className="mb-1.5 block text-sm font-medium">
                   File
                 </label>
@@ -342,7 +380,7 @@ export default function TemplatesPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
+              <div className="shrink-0">
                 <label htmlFor="tpl-name" className="mb-1.5 block text-sm font-medium">
                   Template Name
                 </label>
@@ -354,30 +392,36 @@ export default function TemplatesPage() {
                   disabled={!!editing}
                 />
               </div>
-              <div>
-                <label htmlFor="tpl-content" className="mb-1.5 block text-sm font-medium">
-                  Content
-                </label>
-                <Textarea
-                  id="tpl-content"
-                  value={formContent}
-                  onChange={(e) => setFormContent(e.target.value)}
-                  placeholder="Template content..."
-                  rows={10}
-                  className="font-mono text-sm"
-                />
+              <div className="flex min-h-0 flex-1 flex-col rounded-md border">
+                <div className="flex shrink-0 items-center justify-between gap-3 border-b px-4 py-3">
+                  <div>
+                    <p className="text-sm font-medium">Content</p>
+                    {dirty && (
+                      <span className="text-[10px] text-orange-500" aria-live="polite">
+                        unsaved
+                      </span>
+                    )}
+                    <p className="text-xs text-muted-foreground">Markdown / YAML editor</p>
+                  </div>
+                  <Button type="submit" size="sm" disabled={busy || !dirty} className="gap-1.5">
+                    {busy ? 'Saving...' : 'Save'}
+                  </Button>
+                </div>
+                <div className="flex min-h-0 flex-1 flex-col p-3">
+                  <CodeEditor
+                    value={formContent}
+                    onChange={setFormContent}
+                    filePath={formFile}
+                    className="min-h-0 w-full flex-1 overflow-hidden rounded-md border border-input"
+                    ariaLabel="Content"
+                  />
+                  <div className="mt-1.5 flex items-center justify-end gap-3 text-[10px] text-muted-foreground/70">
+                    <span>{contentLineCount} lines</span>
+                    <span>{contentCharCount.toLocaleString()} chars</span>
+                  </div>
+                </div>
               </div>
             </div>
-            <DialogFooter className="mt-6">
-              <DialogClose asChild>
-                <Button type="button" variant="outline">
-                  Cancel
-                </Button>
-              </DialogClose>
-              <Button type="submit" disabled={busy || !formName.trim()}>
-                {busy ? 'Saving...' : editing ? 'Update' : 'Create'}
-              </Button>
-            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

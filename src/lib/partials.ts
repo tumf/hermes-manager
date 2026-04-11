@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import { getRuntimeAgentsRootPath, getRuntimePartialsRootPath } from './runtime-paths';
+import { stripZeroWidthSpace } from './text-sanitizer';
 
 export const PARTIAL_NAME_PATTERN = /^[a-zA-Z0-9_-]+$/;
 const PARTIAL_REFERENCE_PATTERN = /\{\{partial:([a-zA-Z0-9_-]+)\}\}/g;
@@ -74,10 +75,11 @@ export async function writePartial(name: string, content: string): Promise<void>
     throw new Error('invalid partial name');
   }
 
+  const sanitizedContent = stripZeroWidthSpace(content);
   const partialPath = toPartialPath(name);
   const tmpPath = `${partialPath}.tmp`;
   await fs.mkdir(path.dirname(partialPath), { recursive: true });
-  await fs.writeFile(tmpPath, content, 'utf-8');
+  await fs.writeFile(tmpPath, sanitizedContent, 'utf-8');
   await fs.rename(tmpPath, partialPath);
 }
 

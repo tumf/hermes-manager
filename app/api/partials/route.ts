@@ -12,6 +12,7 @@ import {
 } from '@/src/lib/partials';
 import { getRuntimeAgentsRootPath } from '@/src/lib/runtime-paths';
 import { rebuildSoulForAgent } from '@/src/lib/soul-assembly';
+import { stripZeroWidthSpace } from '@/src/lib/text-sanitizer';
 import { partialNameSchema, upsertPartialSchema } from '@/src/lib/validators/partials';
 
 async function listPartialsWithUsage() {
@@ -76,7 +77,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
   }
 
-  const { name, content } = parsed.data;
+  const { name } = parsed.data;
+  const content = stripZeroWidthSpace(parsed.data.content);
   if ((await readPartial(name)) !== null) {
     return NextResponse.json({ error: 'partial already exists' }, { status: 409 });
   }
@@ -99,7 +101,8 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
   }
 
-  const { name, content } = parsed.data;
+  const { name } = parsed.data;
+  const content = stripZeroWidthSpace(parsed.data.content);
   if ((await readPartial(name)) === null) {
     return NextResponse.json({ error: 'partial not found' }, { status: 404 });
   }

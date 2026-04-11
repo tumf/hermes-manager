@@ -12,6 +12,23 @@ vi.mock('sonner', () => ({
   },
 }));
 
+vi.mock('@/src/components/code-editor', () => ({
+  CodeEditor: ({
+    value,
+    onChange,
+    ariaLabel,
+  }: {
+    value: string;
+    onChange: (value: string) => void;
+    ariaLabel?: string;
+  }) =>
+    React.createElement('textarea', {
+      'aria-label': ariaLabel,
+      value,
+      onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => onChange(e.target.value),
+    }),
+}));
+
 let PartialsPage: React.ComponentType;
 
 beforeAll(() => {
@@ -117,7 +134,7 @@ describe('PartialsPage', () => {
       target: { value: '# Content' },
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Create' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
       const calls = fetchMock.mock.calls as [string, { method?: string; body?: string }?][];
@@ -146,6 +163,55 @@ describe('PartialsPage', () => {
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith('Partial is in use by: alpha');
+    });
+  });
+
+  it('shows editor status metadata in the dialog', async () => {
+    global.fetch = createFetchMock();
+
+    render(<PartialsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /New Partial/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /New Partial/i }));
+    fireEvent.change(screen.getByLabelText('Content'), {
+      target: { value: 'line1\nline2' },
+    });
+
+    expect(screen.getByText('2 lines')).toBeInTheDocument();
+    expect(screen.getByText('11 chars')).toBeInTheDocument();
+  });
+
+  it('shows unsaved state and saves with cmd-s', async () => {
+    const fetchMock = createFetchMock();
+    global.fetch = fetchMock;
+
+    render(<PartialsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /New Partial/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /New Partial/i }));
+    fireEvent.change(screen.getByLabelText('Name'), {
+      target: { value: 'new-partial' },
+    });
+    fireEvent.change(screen.getByLabelText('Content'), {
+      target: { value: '# Content' },
+    });
+
+    expect(screen.getByText('unsaved')).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: 's', metaKey: true });
+
+    await waitFor(() => {
+      const calls = fetchMock.mock.calls as [string, { method?: string; body?: string }?][];
+      const createCall = calls.find(
+        ([url, init]) => url === '/api/partials' && init?.method === 'POST',
+      );
+      expect(createCall).toBeDefined();
     });
   });
 });

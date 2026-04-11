@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import { parsePartialReferences, readPartial } from './partials';
+import { stripZeroWidthSpace } from './text-sanitizer';
 
 const PARTIAL_REFERENCE_PATTERN = /\{\{partial:([a-zA-Z0-9_-]+)\}\}/g;
 
@@ -48,14 +49,15 @@ export async function writeSoulSourceAndAssembled(
   agentHome: string,
   source: string,
 ): Promise<{ assembled: string }> {
-  const assembled = await assembleSoulSource(source);
+  const sanitizedSource = stripZeroWidthSpace(source);
+  const assembled = await assembleSoulSource(sanitizedSource);
 
   const sourcePath = path.join(agentHome, 'SOUL.src.md');
   const soulPath = path.join(agentHome, 'SOUL.md');
   const sourceTmpPath = `${sourcePath}.tmp`;
   const soulTmpPath = `${soulPath}.tmp`;
 
-  await fs.writeFile(sourceTmpPath, source, 'utf-8');
+  await fs.writeFile(sourceTmpPath, sanitizedSource, 'utf-8');
   await fs.writeFile(soulTmpPath, assembled, 'utf-8');
 
   await fs.rename(sourceTmpPath, sourcePath);

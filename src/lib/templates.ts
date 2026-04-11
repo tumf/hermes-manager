@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { getRuntimeTemplatesRootPath } from './runtime-paths';
+import { stripZeroWidthSpace } from './text-sanitizer';
 
 const ALLOWED_FILES = ['SOUL.md', 'memories/MEMORY.md', 'memories/USER.md', 'config.yaml'] as const;
 type TemplateFile = (typeof ALLOWED_FILES)[number];
@@ -80,6 +81,7 @@ export function writeTemplateFile(
   file: string,
   content: string,
 ): { name: string; file: string; content: string } {
+  const sanitizedContent = stripZeroWidthSpace(content);
   const dirPath = path.join(getRuntimeTemplatesRootPath(), name);
   const filePath = path.join(dirPath, file);
   const resolved = path.resolve(filePath);
@@ -91,8 +93,8 @@ export function writeTemplateFile(
   }
 
   fs.mkdirSync(path.dirname(resolved), { recursive: true });
-  fs.writeFileSync(resolved, content, 'utf-8');
-  return { name, file, content };
+  fs.writeFileSync(resolved, sanitizedContent, 'utf-8');
+  return { name, file, content: sanitizedContent };
 }
 
 /**

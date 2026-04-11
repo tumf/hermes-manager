@@ -102,6 +102,18 @@ describe('/api/partials', () => {
     expect(mockState.partials.get('new-partial')).toBe('# New');
   });
 
+  it('strips zero-width spaces when creating partials', async () => {
+    const req = makeReq('http://localhost/api/partials', {
+      method: 'POST',
+      body: JSON.stringify({ name: 'new-partial', content: '# Ne\u200Bw' }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(201);
+    expect(mockState.partials.get('new-partial')).toBe('# New');
+  });
+
   it('updates existing partial and triggers rebuild', async () => {
     const req = makeReq('http://localhost/api/partials', {
       method: 'PUT',
@@ -113,6 +125,18 @@ describe('/api/partials', () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.rebuiltAgents).toEqual(['alpha']);
+    expect(mockState.partials.get('shared-rules')).toBe('# Updated');
+  });
+
+  it('strips zero-width spaces when updating partials', async () => {
+    const req = makeReq('http://localhost/api/partials', {
+      method: 'PUT',
+      body: JSON.stringify({ name: 'shared-rules', content: '# Upda\u200Bted' }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const res = await PUT(req);
+    expect(res.status).toBe(200);
     expect(mockState.partials.get('shared-rules')).toBe('# Updated');
   });
 

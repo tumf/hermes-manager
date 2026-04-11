@@ -4,6 +4,7 @@ import { Pencil, Plus, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
+import { CodeEditor } from '@/src/components/code-editor';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,16 +21,13 @@ import { Button } from '@/src/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/src/components/ui/dialog';
 import { Input } from '@/src/components/ui/input';
 import { Skeleton } from '@/src/components/ui/skeleton';
-import { Textarea } from '@/src/components/ui/textarea';
 
 interface PartialRow {
   name: string;
@@ -47,6 +45,12 @@ export default function PartialsPage() {
   const [formName, setFormName] = useState('');
   const [formContent, setFormContent] = useState('');
   const [saving, setSaving] = useState(false);
+  const [initialFormName, setInitialFormName] = useState('');
+  const [initialFormContent, setInitialFormContent] = useState('');
+
+  const contentLineCount = formContent.split('\n').length;
+  const contentCharCount = formContent.length;
+  const dirty = formName !== initialFormName || formContent !== initialFormContent;
 
   const fetchPartials = useCallback(async () => {
     try {
@@ -71,6 +75,8 @@ export default function PartialsPage() {
     setEditingName(null);
     setFormName('');
     setFormContent('');
+    setInitialFormName('');
+    setInitialFormContent('');
     setDialogOpen(true);
   }
 
@@ -78,16 +84,16 @@ export default function PartialsPage() {
     setEditingName(row.name);
     setFormName(row.name);
     setFormContent(row.content);
+    setInitialFormName(row.name);
+    setInitialFormContent(row.content);
     setDialogOpen(true);
   }
 
-  async function handleSave(event: React.FormEvent) {
-    event.preventDefault();
-
+  const persistPartial = useCallback(async () => {
     const normalizedName = formName.trim();
     if (!PARTIAL_NAME_PATTERN.test(normalizedName)) {
       toast.error('Partial name must only contain alphanumeric, underscore, or hyphen');
-      return;
+      return false;
     }
 
     setSaving(true);
@@ -101,18 +107,40 @@ export default function PartialsPage() {
       if (!response.ok) {
         const body = (await response.json().catch(() => ({}))) as { error?: string };
         toast.error(body.error ?? 'Failed to save partial');
-        return;
+        return false;
       }
 
-      toast.success(
-        editingName ? `Updated partial: ${normalizedName}` : `Created partial: ${normalizedName}`,
-      );
+      toast.success(`Saved partial: ${normalizedName}`);
+      setInitialFormName(normalizedName);
+      setInitialFormContent(formContent);
       setDialogOpen(false);
       await fetchPartials();
+      return true;
     } finally {
       setSaving(false);
     }
+  }, [editingName, fetchPartials, formContent, formName]);
+
+  async function handleSave(event?: React.FormEvent) {
+    event?.preventDefault();
+    await persistPartial();
   }
+
+  useEffect(() => {
+    if (!dialogOpen) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key === 's') {
+        event.preventDefault();
+        if (!saving && dirty) {
+          void persistPartial();
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [dialogOpen, saving, dirty, persistPartial]);
 
   async function handleDelete(name: string) {
     const response = await fetch(`/api/partials?name=${encodeURIComponent(name)}`, {
@@ -232,8 +260,8 @@ export default function PartialsPage() {
         ))}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <form onSubmit={handleSave}>
+        <DialogContent className="h-[min(95dvh,52rem)] max-w-4xl">
+          <form onSubmit={handleSave} className="flex min-h-0 flex-1 flex-col">
             <DialogHeader>
               <DialogTitle>{editingName ? 'Edit partial' : 'Create partial'}</DialogTitle>
               <DialogDescription>
@@ -242,8 +270,8 @@ export default function PartialsPage() {
                   : 'Create a reusable SOUL partial snippet.'}
               </DialogDescription>
             </DialogHeader>
-            <div className="mt-4 space-y-4">
-              <div>
+            <div className="mt-4 flex min-h-0 flex-1 flex-col gap-4">
+              <div className="shrink-0">
                 <label htmlFor="partial-name" className="mb-1.5 block text-sm font-medium">
                   Name
                 </label>
@@ -255,29 +283,36 @@ export default function PartialsPage() {
                   disabled={Boolean(editingName)}
                 />
               </div>
-              <div>
-                <label htmlFor="partial-content" className="mb-1.5 block text-sm font-medium">
-                  Content
-                </label>
-                <Textarea
-                  id="partial-content"
-                  value={formContent}
-                  onChange={(event) => setFormContent(event.target.value)}
-                  rows={10}
-                  className="font-mono text-sm"
-                />
+              <div className="flex min-h-0 flex-1 flex-col rounded-md border">
+                <div className="flex shrink-0 items-center justify-between gap-3 border-b px-4 py-3">
+                  <div>
+                    <p className="text-sm font-medium">Content</p>
+                    {dirty && (
+                      <span className="text-[10px] text-orange-500" aria-live="polite">
+                        unsaved
+                      </span>
+                    )}
+                    <p className="text-xs text-muted-foreground">Markdown editor</p>
+                  </div>
+                  <Button type="submit" size="sm" disabled={saving || !dirty} className="gap-1.5">
+                    {saving ? 'Saving...' : 'Save'}
+                  </Button>
+                </div>
+                <div className="flex min-h-0 flex-1 flex-col p-3">
+                  <CodeEditor
+                    value={formContent}
+                    onChange={setFormContent}
+                    filePath="partial.md"
+                    className="min-h-0 w-full flex-1 overflow-hidden rounded-md border border-input"
+                    ariaLabel="Content"
+                  />
+                  <div className="mt-1.5 flex items-center justify-end gap-3 text-[10px] text-muted-foreground/70">
+                    <span>{contentLineCount} lines</span>
+                    <span>{contentCharCount.toLocaleString()} chars</span>
+                  </div>
+                </div>
               </div>
             </div>
-            <DialogFooter className="mt-6">
-              <DialogClose asChild>
-                <Button type="button" variant="outline">
-                  Cancel
-                </Button>
-              </DialogClose>
-              <Button type="submit" disabled={saving || !formName.trim()}>
-                {saving ? 'Saving...' : editingName ? 'Update' : 'Create'}
-              </Button>
-            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

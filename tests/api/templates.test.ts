@@ -130,6 +130,29 @@ describe('POST /api/templates', () => {
     expect(fs.existsSync(filePath)).toBe(true);
   });
 
+  it('strips zero-width spaces when creating template files', async () => {
+    const req = makeReq('http://localhost/api/templates', {
+      method: 'POST',
+      body: JSON.stringify({
+        file: 'memories/MEMORY.md',
+        name: 'clean-template',
+        content: '# Me\u200Bmory\n',
+      }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.content).toBe('# Memory\n');
+    expect(
+      fs.readFileSync(
+        path.join(tempDir, 'templates', 'clean-template', 'memories/MEMORY.md'),
+        'utf-8',
+      ),
+    ).toBe('# Memory\n');
+  });
+
   it('returns 409 when file already exists', async () => {
     const dir = path.join(tempDir, 'templates', 'default');
     fs.mkdirSync(dir, { recursive: true });
@@ -220,6 +243,28 @@ describe('PUT /api/templates', () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.content).toBe('# Updated\n');
+  });
+
+  it('strips zero-width spaces when updating template files', async () => {
+    const dir = path.join(tempDir, 'templates', 'default');
+    fs.mkdirSync(dir, { recursive: true });
+    writeFixture(path.join(dir, 'SOUL.md'), '# Old\n');
+
+    const req = makeReq('http://localhost/api/templates', {
+      method: 'PUT',
+      body: JSON.stringify({
+        file: 'SOUL.md',
+        name: 'default',
+        content: '# So\u200Bul\n',
+      }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const res = await PUT(req);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.content).toBe('# Soul\n');
+    expect(fs.readFileSync(path.join(dir, 'SOUL.md'), 'utf-8')).toBe('# Soul\n');
   });
 
   it('returns 404 when template file not found', async () => {
