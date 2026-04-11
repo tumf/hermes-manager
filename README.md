@@ -56,6 +56,16 @@ For detailed operational rules and design policies, refer to the following:
 - Architecture / API design: [`docs/design.md`](./docs/design.md)
 - Contribution workflow: [`CONTRIBUTING.md`](./CONTRIBUTING.md)
 
+## Screenshots
+
+### Agents list
+
+![Hermes Agents WebApp screenshot](./docs/images/ss-agents-1.png)
+
+### Memory management
+
+![Hermes Agents memory management screen](./docs/images/ss-agent_memory-1.png)
+
 ## Tech Stack
 
 - Next.js (App Router)
