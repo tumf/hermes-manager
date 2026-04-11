@@ -41,12 +41,6 @@ npm run dev
 3. 実装して tasks を進める
 4. 受け入れ確認後にアーカイブ
 
-既存提案一覧:
-
-```bash
-python3 ~/.hermes/skills/cflx-proposal/scripts/cflx.py list
-```
-
 ## 4. PR / コミット前チェック
 
 以下をすべて通してください。
