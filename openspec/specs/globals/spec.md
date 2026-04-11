@@ -1,46 +1,61 @@
+# Globals
+
+## Purpose
+`runtime/globals/.env` と `runtime/globals/.env.meta.json` を通じて、全 agent 共通の env 変数を管理する。
+
 ## Requirements
 
-### Requirement: Global env vars REST API
+### Requirement: List globals with masking
+The system SHALL return global env variables with secure values masked in management responses.
 
-Expose CRUD operations for global-scoped environment variables stored in the env_vars
-table and maintain a dotenvx-compatible file on disk.
+#### Scenario: No globals exist
+- GIVEN `runtime/globals/.env` が空または未作成である
+- WHEN `GET /api/globals` を呼び出す
+- THEN 200 を返し空配列を返す
 
-- GET /api/globals — list all env_vars where scope='global'
-- POST /api/globals — upsert {key, value} at scope='global'; regenerate globals/.env
-- DELETE /api/globals?key=... — delete matching row; regenerate globals/.env
+#### Scenario: Plain global value is visible
+- GIVEN `.env` に `FOO=bar` があり `.env.meta.json` で `visibility=plain` である
+- WHEN `GET /api/globals` を呼び出す
+- THEN `FOO` は `value: "bar"`, `masked: false`, `scope: "global"` で返る
 
-#### Scenario: List returns only global scope vars
+#### Scenario: Secure global value is masked
+- GIVEN `.env` に `SECRET=token` があり `.env.meta.json` で `visibility=secure` である
+- WHEN `GET /api/globals` を呼び出す
+- THEN `SECRET` は `value: "***"`, `masked: true` で返る
 
-Given env_vars contains rows with scope='global' and scope='agent-foo'
-When a client requests GET /api/globals
-Then the response is 200 with only the rows where scope equals global
+### Requirement: Upsert globals and persist real values
+The system SHALL upsert global env values, persist visibility metadata, and keep the actual value in `runtime/globals/.env`.
 
-#### Scenario: Upsert creates a new global variable and regenerates file
+#### Scenario: Create a plain global variable
+- GIVEN `FOO` が未作成である
+- WHEN `POST /api/globals` に `{ "key": "FOO", "value": "bar", "visibility": "plain" }` を送る
+- THEN 200 を返す
+- AND `runtime/globals/.env` に `FOO=bar` を保存する
+- AND レスポンスは `scope: "global"` を含む
 
-Given no global variable FOO exists
-When a client posts to /api/globals with {"key":"FOO","value":"bar"}
-Then a new row with scope=global, key=FOO, value=bar is inserted
-And globals/.env contains the line FOO=bar
-And the response is 200 or 201 with the upserted row
+#### Scenario: Create a secure global variable
+- GIVEN `API_KEY` が未作成である
+- WHEN `POST /api/globals` に `{ "key": "API_KEY", "value": "super-secret", "visibility": "secure" }` を送る
+- THEN `runtime/globals/.env` には実値を保存する
+- AND `.env.meta.json` には `visibility=secure` を保存する
+- AND 管理レスポンスでは値を `***` で返す
 
-#### Scenario: Upsert updates an existing global variable and regenerates file
+#### Scenario: Update an existing global variable
+- GIVEN `FOO=old` が存在する
+- WHEN `POST /api/globals` に `{ "key": "FOO", "value": "new", "visibility": "secure" }` を送る
+- THEN `runtime/globals/.env` の `FOO` は `new` に更新される
+- AND 旧値は残らない
 
-Given a global variable FOO=old exists in env_vars
-When a client posts to /api/globals with {"key":"FOO","value":"new"}
-Then the row is updated with value=new
-And globals/.env contains FOO=new and no longer contains FOO=old
+### Requirement: Delete globals
+The system SHALL remove a global variable from both `.env` and its visibility metadata.
 
-#### Scenario: Delete removes global variable and regenerates file
+#### Scenario: Delete existing global variable
+- GIVEN `BAZ=qux` が存在する
+- WHEN `DELETE /api/globals?key=BAZ` を呼び出す
+- THEN 200 を返す
+- AND `runtime/globals/.env` から `BAZ=qux` を削除する
 
-Given a global variable BAZ=qux exists in env_vars
-When a client sends DELETE /api/globals?key=BAZ
-Then the row is removed from env_vars
-And globals/.env no longer contains BAZ=qux
-And the response is 200
-
-#### Scenario: globals/.env is dotenvx-compatible KEY=VALUE format
-
-Given one or more global env vars exist
-When regenerateGlobalsEnv() is called
-Then globals/.env is written with one KEY=VALUE line per variable
-And the file has no extra blank lines between entries
+#### Scenario: Missing key query is rejected
+- GIVEN `key` query がない
+- WHEN `DELETE /api/globals` を呼び出す
+- THEN 400 を返す

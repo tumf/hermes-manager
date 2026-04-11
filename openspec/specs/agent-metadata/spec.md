@@ -1,65 +1,47 @@
+# Agent Metadata
+
+## Purpose
+
+`meta.json` を通じて agent のユーザ管理 metadata と `apiServerPort` を保持する。
+
 ## Requirements
 
-### Requirement: agent-metadata-storage
+### Requirement: Default metadata values
 
-エージェントごとに `meta.json` ファイルでユーザ管理用メタデータ（name, description, tags）を保持する。
+The system SHALL derive agent metadata from `runtime/agents/{agentId}/meta.json`, using safe defaults when the file is absent.
 
-#### Scenario: meta.json が存在する場合
+#### Scenario: meta.json exists
 
-**Given**: `runtime/agents/{agentId}/meta.json` が `{"name":"Bot A","description":"テスト用","tags":["dev"]}` で存在する
-**When**: `getAgent(agentId)` を呼び出す
-**Then**: Agent オブジェクトの `name` が `"Bot A"`, `description` が `"テスト用"`, `tags` が `["dev"]` を返す
+- GIVEN `runtime/agents/{agentId}/meta.json` が存在する
+- WHEN agent 情報を読み出す
+- THEN `name`, `description`, `tags`, `apiServerPort` をその内容から返す
 
-#### Scenario: meta.json が存在しない場合
+#### Scenario: meta.json is absent
 
-**Given**: `runtime/agents/{agentId}/meta.json` が存在しない
-**When**: `getAgent(agentId)` を呼び出す
-**Then**: Agent オブジェクトの `name` が `""`, `description` が `""`, `tags` が `[]` を返す
+- GIVEN `runtime/agents/{agentId}/meta.json` が存在しない
+- WHEN agent 情報を読み出す
+- THEN `name` は空文字、`description` は空文字、`tags` は空配列、`apiServerPort` は `null` 相当で扱う
 
-### Requirement: agent-metadata-api
+### Requirement: Update metadata by API
 
-PUT API でメタデータを更新できる。
+The system SHALL allow metadata updates through `PUT /api/agents/{id}/meta` without losing an existing `apiServerPort`.
 
-#### Scenario: メタデータの更新
+#### Scenario: Update user-managed metadata
 
-**Given**: エージェント `abc1234` が存在する
-**When**: `PUT /api/agents/abc1234/meta` に `{"name":"新名前","tags":["prod"]}` を送信する
-**Then**: 200 が返り、`runtime/agents/abc1234/meta.json` に `name` と `tags` が保存される
+- GIVEN agent `abc1234` が存在する
+- WHEN `PUT /api/agents/abc1234/meta` に `name`, `description`, `tags` を送る
+- THEN 200 を返す
+- AND `meta.json` の該当項目を更新する
 
-#### Scenario: 存在しないエージェントへの更新
+#### Scenario: Preserve existing apiServerPort on metadata update
 
-**Given**: エージェント `unknown` が存在しない
-**When**: `PUT /api/agents/unknown/meta` にリクエストする
-**Then**: 404 が返る
+- GIVEN agent `abc1234` の `meta.json.apiServerPort` が `8647` である
+- WHEN `PUT /api/agents/abc1234/meta` で `name`, `description`, `tags` のみを更新する
+- THEN レスポンスの `apiServerPort` は `8647` のままである
+- AND 既存の `apiServerPort` は失われない
 
-### Requirement: agent-copy-metadata
+#### Scenario: Update rejects unknown agent
 
-エージェント Copy 時に name を `(Copy)` 付きに変更する。
-
-#### Scenario: name 付きエージェントの Copy
-
-**Given**: エージェント `src1234` の meta.json に `{"name":"My Bot","tags":["prod"]}` が設定されている
-**When**: `POST /api/agents/copy` で `from: "src1234"` を実行する
-**Then**: 新エージェントの meta.json の `name` が `"My Bot (Copy)"`, `tags` が `["prod"]` になる
-
-#### Scenario: name 未設定エージェントの Copy
-
-**Given**: エージェント `src5678` に meta.json が存在しない
-**When**: `POST /api/agents/copy` で `from: "src5678"` を実行する
-**Then**: 新エージェントに meta.json は作成されない、または name が `""` のまま
-
-### Requirement: agent-list-display-name
-
-一覧 UI でエージェント名を表示する。
-
-#### Scenario: name が設定されている場合
-
-**Given**: エージェントの meta.json に `name: "本番Bot"` が設定されている
-**When**: エージェント一覧ページを表示する
-**Then**: agentId ではなく `"本番Bot"` が表示される
-
-#### Scenario: name が未設定の場合
-
-**Given**: エージェントに meta.json が存在しない
-**When**: エージェント一覧ページを表示する
-**Then**: agentId がそのまま表示される
+- GIVEN agent が存在しない
+- WHEN `PUT /api/agents/{id}/meta` を呼び出す
+- THEN 404 を返す

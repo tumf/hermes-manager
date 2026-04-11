@@ -1,176 +1,93 @@
-# Skills API Spec
+# Skills
+
+## Purpose
+
+`~/.agents/skills` をソースとして agent-local `skills/` ディレクトリへ copy-based に equip/unequip する。
 
 ## Requirements
 
-### Requirement: Skills tree endpoint returns nested structure
+### Requirement: Return the available skills tree
 
-The GET /api/skills/tree endpoint MUST walk ~/.hermes/skills recursively up to
-a maximum depth of 5 levels and return a JSON body with a top-level "tree" array
-where each node has the shape {name: string, path: string, isDir: boolean,
-children?: Node[]}.
+The system SHALL expose a hierarchical skills tree from `~/.agents/skills`, marking only directories that contain `SKILL.md` as selectable skills.
 
-#### Scenario: Shallow skills directory
+#### Scenario: Hidden entries and non-directories are ignored
 
-Given the ~/.hermes/skills directory contains two skill directories "coding" and
-"writing" each with a SKILL.md file,
-When a GET request is made to /api/skills/tree,
-Then the response status is 200 and the body contains a "tree" array with two
-entries where isDir is true and children is an array.
+- GIVEN skills root に hidden entry や非ディレクトリが含まれる
+- WHEN `GET /api/skills/tree` を呼び出す
+- THEN hidden entry と非ディレクトリは tree に含まれない
 
-#### Scenario: Depth limit prevents runaway traversal
+#### Scenario: Nested skill keeps relative path
 
-Given ~/.hermes/skills contains a directory nested more than 5 levels deep,
-When a GET request is made to /api/skills/tree,
-Then the response does not include nodes deeper than 5 levels and returns 200
-with a partial tree.
+- GIVEN `~/.agents/skills/openclaw-imports/refactor/SKILL.md` が存在する
+- WHEN `GET /api/skills/tree` を呼び出す
+- THEN `relativePath` は `openclaw-imports/refactor` として返る
 
-#### Scenario: Missing skills root
+#### Scenario: Missing skills root returns empty tree
 
-Given the ~/.hermes/skills directory does not exist,
-When a GET request is made to /api/skills/tree,
-Then the response status is 200 and the body is {"tree": []}.
+- GIVEN `~/.agents/skills` が存在しない
+- WHEN `GET /api/skills/tree` を呼び出す
+- THEN 200 で空 tree を返す
 
-### Requirement: Skills links list reflects filesystem reality
+### Requirement: Report equipped copied skills
 
-The GET /api/skills/links?agent=<name> endpoint MUST return all skill_links rows
-for the given agent, each augmented with an "exists" boolean indicating whether
-the symlink is currently present on the filesystem.
+The system SHALL determine equipped skills by scanning copied directories under `{agent.home}/skills`.
 
-#### Scenario: All links present
+#### Scenario: Equipped copied skill is returned
 
-Given an agent "alice" has two skill_links rows and both symlinks exist on disk,
-When GET /api/skills/links?agent=alice is called,
-Then the response body contains an array of two objects each with exists: true.
+- GIVEN `{agent.home}/skills/research/arxiv/SKILL.md` が存在する
+- WHEN `GET /api/skills/links?agent=alice` を呼び出す
+- THEN 200 を返す
+- AND `relativePath: "research/arxiv"` と `exists: true` を含む
 
-#### Scenario: Stale link detected
+#### Scenario: Unknown agent is rejected on links read
 
-Given an agent "alice" has one skill_links row but the symlink has been manually
-deleted from disk,
-When GET /api/skills/links?agent=alice is called,
-Then the response body contains one object with exists: false.
+- GIVEN agent が存在しない
+- WHEN `GET /api/skills/links?agent=ghost` を呼び出す
+- THEN 404 を返す
 
-#### Scenario: Missing agent parameter
+### Requirement: Equip a skill by copying from shared skills root
 
-Given a GET request to /api/skills/links without an agent query parameter,
-When the server processes the request,
-Then the response status is 400 with a JSON error body.
+The system SHALL validate the requested relative path, ensure the source contains `SKILL.md`, and copy it into the agent home.
 
-### Requirement: POST creates symlink and DB record atomically
+#### Scenario: Successful equip
 
-The POST /api/skills/links endpoint MUST accept a JSON body {agent: string,
-sourcePath: string}, resolve the targetPath as {agentHome}/skills/{basename},
-create the symlink on the filesystem, insert a row into skill_links, and return
-{ok: true, targetPath: string}.
+- GIVEN `~/.agents/skills/research/arxiv/SKILL.md` が存在する
+- AND agent `alice` が存在する
+- WHEN `POST /api/skills/links` に `{ "agent": "alice", "relativePath": "research/arxiv" }` を送る
+- THEN source directory を `{agent.home}/skills/research/arxiv` へ再帰コピーする
+- AND `{ ok: true, relativePath: "research/arxiv" }` を返す
 
-#### Scenario: Successful directory link creation
+#### Scenario: Equip rejects source without SKILL.md
 
-Given sourcePath points to an existing skill directory,
-When POST /api/skills/links is called with {agent: "alice", sourcePath: "/path/to/skill"},
-Then a symlink is created at {agentHome}/skills/skill, a row is inserted in
-skill_links, and the response is {ok: true, targetPath: "..."}.
+- GIVEN source directory に `SKILL.md` が存在しない
+- WHEN `POST /api/skills/links` を呼び出す
+- THEN 400 を返す
 
-#### Scenario: File path causes parent directory to be linked
+#### Scenario: Equip rejects duplicate copied skill
 
-Given sourcePath points to a SKILL.md file rather than a directory,
-When POST /api/skills/links is called with that sourcePath,
-Then the symlink target is the parent directory of the file, not the file itself.
+- GIVEN `{agent.home}/skills/research/arxiv` が既に存在する
+- WHEN 同じ `relativePath` で `POST /api/skills/links` を呼び出す
+- THEN 409 を返す
 
-#### Scenario: Duplicate link returns 409
+#### Scenario: Equip rejects traversal path
 
-Given a skill_links row already exists for the same agent and sourcePath,
-When POST /api/skills/links is called again with the same body,
-Then the response status is 409 with a JSON error body.
+- GIVEN `relativePath` が skills root 外へ出ようとする
+- WHEN `POST /api/skills/links` を呼び出す
+- THEN 400 を返す
 
-### Requirement: DELETE removes symlink and DB record
+### Requirement: Unequip a skill by removing the copied directory
 
-The DELETE /api/skills/links?id=<id> endpoint MUST remove the symlink from the
-filesystem (ignoring ENOENT) and delete the corresponding skill_links row, then
-return {ok: true}.
+The system SHALL remove the copied skill directory and reject requests for unknown skills.
 
-#### Scenario: Successful deletion
+#### Scenario: Successful unequip
 
-Given a skill_links row with id=5 exists and the symlink is present on disk,
-When DELETE /api/skills/links?id=5 is called,
-Then the symlink is removed, the DB row is deleted, and the response is {ok: true}.
-
-#### Scenario: Deletion with missing symlink
-
-Given a skill_links row with id=7 exists but the symlink was already removed manually,
-When DELETE /api/skills/links?id=7 is called,
-Then the DB row is deleted, no error is thrown for the missing file, and the
-response is {ok: true}.
-
-#### Scenario: Unknown id returns 404
-
-Given no skill_links row exists with id=99,
-When DELETE /api/skills/links?id=99 is called,
-Then the response status is 404 with a JSON error body.
-
-## Requirements
-
-### Requirement: Skills links endpoint reflects copied skill directories
-
-The `GET /api/skills/links?agent=<id>` endpoint MUST report equipped skills by scanning real directories under `{agent.home}/skills` that contain `SKILL.md`.
-
-#### Scenario: Copied skills are reported as equipped
-
-Given agent `alice` has a copied directory `{agent.home}/skills/research/arxiv/SKILL.md`
-When `GET /api/skills/links?agent=alice` is called
-Then the response status is 200
-And the response body contains an entry with `relativePath: "research/arxiv"`
-And the entry has `exists: true`
-
-#### Scenario: Empty skills directory returns no equipped skills
-
-Given agent `alice` has no copied skills under `{agent.home}/skills`
-When `GET /api/skills/links?agent=alice` is called
-Then the response status is 200
-And the response body is `[]`
-
-### Requirement: POST equips a skill by copying the source directory
-
-The `POST /api/skills/links` endpoint MUST accept `{ agent: string, relativePath: string }`, validate the source under `~/.agents/skills`, and recursively copy that directory into `{agent.home}/skills/{relativePath}`.
-
-#### Scenario: Successful copy-based equip
-
-Given `~/.agents/skills/research/arxiv/SKILL.md` exists
-And agent `alice` exists
-When `POST /api/skills/links` is called with `{ "agent": "alice", "relativePath": "research/arxiv" }`
-Then the response status is 200
-And `{agent.home}/skills/research/arxiv/SKILL.md` exists as a real file
-And the response body contains `{ ok: true, relativePath: "research/arxiv" }`
-
-#### Scenario: Duplicate copied skill returns conflict
-
-Given `{agent.home}/skills/research/arxiv/SKILL.md` already exists
-When `POST /api/skills/links` is called again with `{ "agent": "alice", "relativePath": "research/arxiv" }`
-Then the response status is 409
-And no additional copy is created
-
-### Requirement: DELETE unequips a skill by removing the copied directory
-
-The `DELETE /api/skills/links?agent=<id>&path=<relativePath>` endpoint MUST remove the copied skill directory rooted at `{agent.home}/skills/{relativePath}` and prune empty ancestor directories under `{agent.home}/skills`.
-
-#### Scenario: Successful copy-based unequip
-
-Given `{agent.home}/skills/research/arxiv/SKILL.md` exists as a copied skill
-When `DELETE /api/skills/links?agent=alice&path=research/arxiv` is called
-Then the response status is 200
-And `{agent.home}/skills/research/arxiv` no longer exists
+- GIVEN `{agent.home}/skills/research/arxiv` が存在する
+- WHEN `DELETE /api/skills/links?agent=alice&path=research/arxiv` を呼び出す
+- THEN コピー済みディレクトリを削除する
+- AND 200 と `{ ok: true }` を返す
 
 #### Scenario: Unknown copied skill returns 404
 
-Given `{agent.home}/skills/research/arxiv` does not exist
-When `DELETE /api/skills/links?agent=alice&path=research/arxiv` is called
-Then the response status is 404
-
-### Requirement: Skills tab works with copied skills
-
-The Skills tab UI MUST determine equipped state from the copy-based `GET /api/skills/links` response and MUST continue to support single-skill and bulk equip/unequip actions.
-
-#### Scenario: Existing copied skills appear checked after page load
-
-Given agent `alice` already has copied skills under `{agent.home}/skills`
-When the operator opens the Skills tab
-Then the corresponding checkboxes are rendered as checked
-And the equipped counter reflects the copied skills
+- GIVEN `{agent.home}/skills/research/arxiv` が存在しない
+- WHEN `DELETE /api/skills/links?agent=alice&path=research/arxiv` を呼び出す
+- THEN 404 を返す

@@ -1,77 +1,77 @@
+# File Editor
+
+## Purpose
+
+agent home 配下のメモリ・SOUL・設定ファイルを、安全に read/write する。
+
 ## Requirements
 
-### Requirement: in-place file editing API
+### Requirement: Read only whitelisted files
 
-Provide server-side endpoints to read and update agent memory and configuration files within the agent's home directory.
+The system SHALL allow reads only for whitelisted paths under the agent home.
 
-- Endpoints:
-  - GET /api/files?agent=...&path=SOUL.md|memories/MEMORY.md|memories/USER.md|config.yaml
-  - PUT /api/files
-- Allowed paths: restricted to SOUL.md, memories/MEMORY.md, memories/USER.md, config.yaml (validated via zod enum)
-- YAML validation: For config.yaml, validate syntax with js-yaml; on error respond HTTP 422
-- Atomic writes: Write to .tmp and then rename to target path
-- Path traversal protection: Resolved path must remain within the agent home dir
+#### Scenario: Read an allowed file
 
-#### Scenario: read file contents
+- GIVEN agent `alpha` が存在し `SOUL.md` を持つ
+- WHEN `GET /api/files?agent=alpha&path=SOUL.md` を呼び出す
+- THEN 200 を返し `{ content: "..." }` を返す
 
-Given an agent "alpha" whose home directory contains a file SOUL.md
-When GET /api/files?agent=alpha&path=SOUL.md is called
-Then the server responds 200 with a JSON body { content: "<file contents>" }
+#### Scenario: Unknown agent is rejected on read
 
-#### Scenario: disallow non-whitelisted paths
+- GIVEN agent が存在しない
+- WHEN `GET /api/files?agent=ghost&path=SOUL.md` を呼び出す
+- THEN 404 を返す
 
-When GET /api/files?agent=alpha&path=AGENTS.md is called
-Then the server responds 400 due to zod enum validation rejecting the path
+#### Scenario: Partial mode source is absent
 
-#### Scenario: validate YAML on PUT for config.yaml
+- GIVEN agent が `SOUL.src.md` を持たない
+- WHEN `GET /api/files?agent=alpha&path=SOUL.src.md` を呼び出す
+- THEN 404 を返す
 
-When PUT /api/files is called with body { agent: "alpha", path: "config.yaml", content: "[not: yaml" }
-Then the server responds 422 with an error indicating invalid YAML
+### Requirement: Validate writes and guard traversal
 
-#### Scenario: atomic write
+The system SHALL accept writes only for allowed paths, reject invalid YAML, and keep writes inside the agent home.
 
-When PUT /api/files is called with a valid body for SOUL.md
-Then the server writes to a .tmp file in the same directory and renames it to SOUL.md
-And responds with { ok: true }
+#### Scenario: Write legacy SOUL.md atomically
 
-### Requirement: in-place file editing API
+- GIVEN agent `alpha` は `SOUL.src.md` を持たない
+- WHEN `PUT /api/files` に `{ "agent": "alpha", "path": "SOUL.md", "content": "# Soul\n" }` を送る
+- THEN `.tmp` ファイルへ書いて rename する
+- AND `{ ok: true }` を返す
 
-Provide server-side endpoints to read and update agent memory and configuration files within the agent's home directory. For SOUL editing, the API must support both legacy direct-edit mode and partial-backed source mode without requiring Hermes runtime changes.
+#### Scenario: Invalid YAML is rejected
 
-- Endpoints:
-  - GET /api/files?agent=...&path=SOUL.md|SOUL.src.md|memories/MEMORY.md|memories/USER.md|config.yaml
-  - PUT /api/files
-- Allowed paths: restricted to `SOUL.md`, `SOUL.src.md`, `memories/MEMORY.md`, `memories/USER.md`, `config.yaml`
-- YAML validation: For `config.yaml`, validate syntax with js-yaml; on error respond HTTP 422
-- Atomic writes: Write to `.tmp` and then rename to the target path
-- Path traversal protection: Resolved path must remain within the agent home dir
-- `PUT path=SOUL.md` remains available only for agents that do not have `SOUL.src.md`
-- `PUT path=SOUL.src.md` must validate partial references and regenerate `SOUL.md`; on failure respond HTTP 422 and do not update either file
+- GIVEN agent `alpha` が存在する
+- WHEN `PUT /api/files` に `path=config.yaml` と不正 YAML を送る
+- THEN 422 を返す
 
-#### Scenario: read SOUL source when partial mode is enabled
+#### Scenario: Zero-width spaces are stripped before write
 
-**Given**: agent `alpha` has `SOUL.src.md` and `SOUL.md`
-**When**: `GET /api/files?agent=alpha&path=SOUL.src.md` is called
-**Then**: the server responds 200 with `{ content: "<source contents>" }`
+- GIVEN memory または SOUL source に zero-width space を含む content が送られる
+- WHEN `PUT /api/files` を処理する
+- THEN 保存前に zero-width space を除去する
 
-#### Scenario: preserve direct SOUL editing for legacy agents
+### Requirement: Support legacy SOUL mode and partial mode
 
-**Given**: agent `alpha` has `SOUL.md` and does not have `SOUL.src.md`
-**When**: `PUT /api/files` is called with `{ agent: "alpha", path: "SOUL.md", content: "# updated" }`
-**Then**: the server updates `SOUL.md` atomically and responds with `{ ok: true }`
+The system SHALL preserve direct `SOUL.md` editing for legacy agents and use `SOUL.src.md` plus assembly for partial mode agents.
 
-#### Scenario: rebuild assembled SOUL on source save
+#### Scenario: Direct SOUL.md write is rejected in partial mode
 
-**Given**: agent `alpha` has `SOUL.src.md` containing `{{partial:shared-rules}}`
-**And**: `runtime/partials/shared-rules.md` exists
-**When**: `PUT /api/files` is called with `{ agent: "alpha", path: "SOUL.src.md", content: "# Soul\n\n{{partial:shared-rules}}" }`
-**Then**: the server updates `SOUL.src.md`
-**And**: regenerates `SOUL.md` with the referenced partial expanded
-**And**: responds with `{ ok: true }`
+- GIVEN agent `alpha` が `SOUL.src.md` を持つ
+- WHEN `PUT /api/files` に `path=SOUL.md` を送る
+- THEN 409 を返す
 
-#### Scenario: reject unknown partial references on source save
+#### Scenario: Write SOUL source through assembler
 
-**Given**: agent `alpha` has `SOUL.src.md`
-**When**: `PUT /api/files` is called with `{ agent: "alpha", path: "SOUL.src.md", content: "{{partial:missing-partial}}" }`
-**Then**: the server responds 422
-**And**: neither `SOUL.src.md` nor `SOUL.md` is modified
+- GIVEN agent `alpha` が partial mode である
+- WHEN `PUT /api/files` に `path=SOUL.src.md` と partial 参照を含む content を送る
+- THEN `SOUL.src.md` を更新する
+- AND assembled `SOUL.md` を再生成する
+- AND `{ ok: true }` を返す
+
+#### Scenario: Unknown partial reference fails atomically
+
+- GIVEN 参照 partial が存在しない
+- WHEN `PUT /api/files` に `path=SOUL.src.md` を送る
+- THEN 422 を返す
+- AND `SOUL.src.md` と `SOUL.md` のどちらも更新しない
