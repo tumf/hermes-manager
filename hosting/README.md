@@ -1,14 +1,14 @@
 # Hosting Setup
 
-Instructions for deploying the hermes-agents webapp on the mini server with launchd and Caddy.
+Instructions for deploying the hermes-agents webapp persistently on macOS (launchd) or Linux (systemd), with Caddy as a reverse proxy.
 
 ## Prerequisites
 
-- Node.js installed and accessible at `/usr/local/bin/node` (or via PATH)
-- The repo cloned to `/Users/tumf/services/hermes-agents`
-- Caddy running on the server
+- Node.js installed and accessible via PATH
+- The repo cloned to the target host
+- Caddy running on the server (if public-domain access is needed)
 
-## Install the launchd service
+## macOS — launchd
 
 1. Copy the plist to the LaunchAgents directory:
 
@@ -34,6 +34,56 @@ To stop the service:
 launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/ai.hermes.agents-webapp.plist
 ```
 
+### macOS log files
+
+- stdout → `runtime/logs/webapp.log`
+- stderr → `runtime/logs/webapp.error.log`
+
+## Linux — systemd
+
+The provided unit file uses `systemd --user` services, matching the per-user model used for agent management.
+
+1. Edit `hosting/ai.hermes.agents-webapp.service` and update `WorkingDirectory` and log paths to match your repo location.
+
+2. Copy the unit file:
+
+   ```bash
+   mkdir -p ~/.config/systemd/user
+   cp hosting/ai.hermes.agents-webapp.service ~/.config/systemd/user/
+   ```
+
+3. Reload, enable, and start:
+
+   ```bash
+   systemctl --user daemon-reload
+   systemctl --user enable ai.hermes.agents-webapp.service
+   systemctl --user start ai.hermes.agents-webapp.service
+   ```
+
+4. Verify:
+
+   ```bash
+   systemctl --user status ai.hermes.agents-webapp.service
+   ```
+
+To stop the service:
+
+```bash
+systemctl --user stop ai.hermes.agents-webapp.service
+```
+
+To ensure the user service starts at boot (without requiring login):
+
+```bash
+loginctl enable-linger $(whoami)
+```
+
+### Linux log files
+
+- stdout → `runtime/logs/webapp.log` (via `StandardOutput=append:`)
+- stderr → `runtime/logs/webapp.error.log` (via `StandardError=append:`)
+- journald also captures output: `journalctl --user -u ai.hermes.agents-webapp.service`
+
 ## Add the Caddy snippet
 
 Append or import `hosting/caddy-snippet.conf` into the active Caddyfile:
@@ -44,12 +94,7 @@ cat hosting/caddy-snippet.conf >> /etc/caddy/Caddyfile
 
 # Option B: use an import directive in the Caddyfile
 # Add this line to the Caddyfile:
-#   import /Users/tumf/services/hermes-agents/hosting/caddy-snippet.conf
+#   import /path/to/hermes-agents/hosting/caddy-snippet.conf
 
 caddy reload --config /etc/caddy/Caddyfile
 ```
-
-## Log files
-
-- stdout → `runtime/logs/webapp.log`
-- stderr → `runtime/logs/webapp.error.log`

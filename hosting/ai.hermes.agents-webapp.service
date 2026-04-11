@@ -1,0 +1,17 @@
+[Unit]
+Description=Hermes Agents WebApp
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/bin/bash scripts/start-prod.sh
+WorkingDirectory=/opt/hermes-agents
+Environment=PORT=18470
+Environment=NODE_ENV=production
+StandardOutput=append:/opt/hermes-agents/runtime/logs/webapp.log
+StandardError=append:/opt/hermes-agents/runtime/logs/webapp.error.log
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

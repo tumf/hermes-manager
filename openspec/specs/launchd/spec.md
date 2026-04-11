@@ -1,47 +1,69 @@
 ## Requirements
 
-### Requirement: launchd lifecycle management API
+### Requirement: local service lifecycle management API
 
-Implement a server-side API to manage macOS launchd services associated with Hermes agents.
+Implement a server-side API to manage local OS service supervisors associated with Hermes agents.
 
-- Endpoint: POST /api/launchd
-- Request body: { agent: string, action: 'install'|'uninstall'|'start'|'stop'|'status' }
+- Endpoint: POST /api/launchd (legacy path retained for compatibility)
+- Request body: { agent: string, action: 'install'|'uninstall'|'start'|'stop'|'restart'|'status' }
 - Execution: Use child_process.execFile for all system calls (no shell injection)
-- Agent resolution: Look up agent by name in SQLite to obtain home and label.
-- Plist path: ~/Library/LaunchAgents/ai.hermes.gateway.{name}.plist
-- ProgramArguments: dotenvx run -f {HERMES_HOME}/.env -f {PROJECT}/runtime/globals/.env -- hermes gateway
-- EnvironmentVariables: HERMES_HOME={home}
-- Stdout/Err: {home}/logs/gateway.log and {home}/logs/gateway.error.log
+- Agent resolution: look up the agent in the filesystem-backed runtime model to obtain home and service label/unit name
+- On macOS, the implementation uses launchctl, plist generation, and ~/Library/LaunchAgents
+- On Linux, the implementation uses systemctl --user, systemd user-unit generation, and the per-user unit directory
+- Agent service definitions on both platforms preserve HERMES_HOME, working directory, stdout/stderr log destinations, and optional API_SERVER_ENABLED / API_SERVER_PORT
 
-#### Scenario: install action writes plist and bootstraps
+#### Scenario: install-action-uses-launchd-on-macos
 
-Given an existing agent record with name "alpha", home "/Users/me/Hermes/alpha", and label "ai.hermes.gateway.alpha"
+Given the server is running on macOS and an existing agent "alpha" is resolvable
 When POST /api/launchd is called with { agent: "alpha", action: "install" }
-Then the server writes a plist file at ~/Library/LaunchAgents/ai.hermes.gateway.alpha.plist with the specified ProgramArguments and EnvironmentVariables
-And runs launchctl bootstrap gui/{uid} ~/Library/LaunchAgents/ai.hermes.gateway.alpha.plist via execFile
-And returns JSON including { code: 0 } on success
+Then the server writes a plist file at the launchd agent path
+And it invokes launchctl bootstrap via execFile
 
-#### Scenario: uninstall action boots out and removes plist
+#### Scenario: install-action-uses-systemd-on-linux
 
-Given an installed launch agent with label "ai.hermes.gateway.alpha" and an existing plist file
-When POST /api/launchd is called with { agent: "alpha", action: "uninstall" }
-Then the server invokes launchctl bootout gui/{uid}/ai.hermes.gateway.alpha via execFile
-And removes the plist file at ~/Library/LaunchAgents/ai.hermes.gateway.alpha.plist
-And returns JSON including { code: 0 } on success
+Given the server is running on Linux and an existing agent "alpha" is resolvable
+When POST /api/launchd is called with { agent: "alpha", action: "install" }
+Then the server writes a systemd user unit file for ai.hermes.gateway.alpha.service
+And it invokes systemctl --user daemon-reload
+And it enables or otherwise registers the unit according to the documented Linux flow via execFile
 
-#### Scenario: start and stop control the service
+#### Scenario: start-stop-restart-status-use-active-supervisor
 
-Given an installed launch agent with label "ai.hermes.gateway.alpha"
-When POST /api/launchd is called with { agent: "alpha", action: "start" }
-Then the server invokes launchctl start ai.hermes.gateway.alpha via execFile and returns { code: 0 }
+Given the server is running on a supported operating system and an agent service is installed
+When POST /api/launchd is called with any of start, stop, restart, or status
+Then the server uses the active local supervisor for command execution
+And it returns supervisor output plus a normalized running status
 
-When POST /api/launchd is called with { agent: "alpha", action: "stop" }
-Then the server invokes launchctl stop ai.hermes.gateway.alpha via execFile and returns { code: 0 }
+### Requirement: local service lifecycle management API
 
-#### Scenario: status returns running boolean and output
+Implement a server-side API to manage local OS service supervisors associated with Hermes agents.
 
-Given an installed launch agent with label "ai.hermes.gateway.alpha"
-When POST /api/launchd is called with { agent: "alpha", action: "status" }
-Then the server invokes launchctl print gui/{uid}/ai.hermes.gateway.alpha via execFile
-And parses the output for a line like "state = running" to produce { running: true }
-And returns JSON including { running: boolean, output: string, stdout, stderr, code }
+- Endpoint: `POST /api/launchd` (legacy path retained for compatibility)
+- Request body: `{ agent: string, action: 'install'|'uninstall'|'start'|'stop'|'restart'|'status' }`
+- Execution: Use `child_process.execFile` for all system calls (no shell injection)
+- Agent resolution: look up the agent in the filesystem-backed runtime model to obtain `home` and service label/unit name
+- On macOS, the implementation uses `launchctl`, plist generation, and `~/Library/LaunchAgents`
+- On Linux, the implementation uses `systemctl --user`, systemd user-unit generation, and the per-user unit directory
+- Agent service definitions on both platforms preserve `HERMES_HOME`, working directory, stdout/stderr log destinations, and optional `API_SERVER_ENABLED` / `API_SERVER_PORT`
+
+#### Scenario: install-action-uses-launchd-on-macos
+
+**Given**: the server is running on macOS and an existing agent `alpha` is resolvable
+**When**: `POST /api/launchd` is called with `{ "agent": "alpha", "action": "install" }`
+**Then**: the server writes a plist file at the launchd agent path
+**And**: it invokes `launchctl bootstrap` via `execFile`
+
+#### Scenario: install-action-uses-systemd-on-linux
+
+**Given**: the server is running on Linux and an existing agent `alpha` is resolvable
+**When**: `POST /api/launchd` is called with `{ "agent": "alpha", "action": "install" }`
+**Then**: the server writes a systemd user unit file for `ai.hermes.gateway.alpha.service`
+**And**: it invokes `systemctl --user daemon-reload`
+**And**: it enables or otherwise registers the unit according to the documented Linux flow via `execFile`
+
+#### Scenario: start-stop-restart-status-use-active-supervisor
+
+**Given**: the server is running on a supported operating system and an agent service is installed
+**When**: `POST /api/launchd` is called with any of `start`, `stop`, `restart`, or `status`
+**Then**: the server uses the active local supervisor for command execution
+**And**: it returns supervisor output plus a normalized running status
