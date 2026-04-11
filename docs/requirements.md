@@ -1,4 +1,4 @@
-# Hermes Agents WebApp 要件定義
+# Hermes Manager 要件定義
 
 最終更新: 2026-04-03
 
