@@ -20,7 +20,7 @@
 
 ## Acceptance #2 Failure Follow-up
 
-- [ ] Update `restart` script (line 4) to use new service label `ai.hermes.manager` instead of `ai.hermes.agents-webapp`
+- [x] Update `restart` script (line 4) to use new service label `ai.hermes.manager` instead of `ai.hermes.agents-webapp`
 
 ## Future Work
 
