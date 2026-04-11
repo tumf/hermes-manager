@@ -168,7 +168,7 @@ export function AgentMemoryTab({ name }: AgentMemoryTabProps) {
                   aria-hidden="true"
                 />
               )}
-              {file === 'SOUL' ? activeFileLabel : file}
+              {file === 'SOUL' ? soulLabel : file}
             </Button>
           ))}
         </div>
@@ -237,6 +237,11 @@ export function AgentMemoryTab({ name }: AgentMemoryTabProps) {
         name={name}
         filePath={activeFilePath}
         label={activeFileLabel}
+        className={
+          selectedFile === 'SOUL' && partialModeEnabled
+            ? 'h-[calc(100dvh-12rem)] min-h-[40rem]'
+            : undefined
+        }
       />
 
       {selectedFile === 'SOUL' && partialModeEnabled && (
@@ -247,6 +252,7 @@ export function AgentMemoryTab({ name }: AgentMemoryTabProps) {
           label="SOUL.md (assembled)"
           readOnly
           hideTemplateButton
+          className="h-[calc(100dvh-12rem)] min-h-[40rem]"
         />
       )}
 

@@ -1,7 +1,7 @@
 'use client';
 
-import { Bot, ChevronRight, MessageSquare, Plus, Terminal, Wrench } from 'lucide-react';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Bot, ChevronRight, Menu, MessageSquare, Plus, Terminal, Wrench, X } from 'lucide-react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
 
@@ -33,6 +33,7 @@ type ApiServerStatus = 'disabled' | 'configured-needs-restart' | 'starting' | 'c
 type AgentMeta = {
   agentId: string;
   apiServerStatus?: ApiServerStatus;
+  apiServerStatusReason?: string;
   apiServerAvailable?: boolean;
   apiServerPort?: number | null;
 };
@@ -57,28 +58,14 @@ export function ChatTab({ name }: { name: string }) {
   const [status, setStatus] = useState<ChatStatus>('ready');
   const [lastUserMessage, setLastUserMessage] = useState<string | null>(null);
   const [apiServerStatus, setApiServerStatus] = useState<ApiServerStatus>('disabled');
+  const [apiServerStatusReason, setApiServerStatusReason] = useState<string | null>(null);
   const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
+  const [messagesViewportHeight, setMessagesViewportHeight] = useState<number | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const streamAbortRef = useRef<AbortController | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
-  const [gridMaxH, setGridMaxH] = useState<string | undefined>(undefined);
-
-  const recalcHeight = useCallback(() => {
-    const el = gridRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const available = window.innerHeight - rect.top - 16; // 16px bottom padding
-    setGridMaxH(`${Math.max(available, 300)}px`);
-  }, []);
-
-  useLayoutEffect(() => {
-    recalcHeight();
-  }, [recalcHeight]);
-
-  useEffect(() => {
-    window.addEventListener('resize', recalcHeight);
-    return () => window.removeEventListener('resize', recalcHeight);
-  }, [recalcHeight]);
+  const inputComposerRef = useRef<HTMLDivElement | null>(null);
+  const [isMobileSessionsOpen, setIsMobileSessionsOpen] = useState(false);
 
   const [collapsedTools, setCollapsedTools] = useState<Set<number>>(new Set());
 
@@ -100,6 +87,7 @@ export function ChatTab({ name }: { name: string }) {
       const res = await fetch(`/api/agents/${encodeURIComponent(name)}`);
       if (!res.ok) throw new Error('failed to load agent meta');
       const data = (await res.json()) as AgentMeta;
+      setApiServerStatusReason(data.apiServerStatusReason ?? null);
       if (data.apiServerStatus) {
         setApiServerStatus(data.apiServerStatus);
         return;
@@ -107,6 +95,7 @@ export function ChatTab({ name }: { name: string }) {
       setApiServerStatus(data.apiServerAvailable === true ? 'connected' : 'disabled');
     } catch {
       setApiServerStatus('error');
+      setApiServerStatusReason('failed to load agent metadata');
     }
   }
 
@@ -159,6 +148,7 @@ export function ChatTab({ name }: { name: string }) {
   useEffect(() => {
     if (selectedSessionId) {
       void loadMessages(selectedSessionId);
+      setIsMobileSessionsOpen(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSessionId]);
@@ -175,6 +165,33 @@ export function ChatTab({ name }: { name: string }) {
       streamAbortRef.current?.abort();
     };
   }, []);
+
+  useLayoutEffect(() => {
+    function updateMessagesViewportHeight() {
+      const grid = gridRef.current;
+      const composer = inputComposerRef.current;
+      if (!grid || !composer || typeof window === 'undefined') return;
+
+      const gridRect = grid.getBoundingClientRect();
+      const composerRect = composer.getBoundingClientRect();
+      const available = Math.floor(composerRect.top - gridRect.top - 12);
+      setMessagesViewportHeight(Math.max(160, available));
+    }
+
+    updateMessagesViewportHeight();
+    window.addEventListener('resize', updateMessagesViewportHeight);
+    return () => window.removeEventListener('resize', updateMessagesViewportHeight);
+  }, [
+    apiServerStatus,
+    loadingMessages,
+    loadingSessions,
+    isMobileSessionsOpen,
+    message,
+    messages.length,
+    selectedSessionId,
+    sessions.length,
+    status,
+  ]);
 
   const sourceOptions = useMemo(() => ['all', 'tool', 'telegram', 'cli'], []);
 
@@ -302,12 +319,12 @@ export function ChatTab({ name }: { name: string }) {
     setStatus('ready');
   }
 
-  return (
-    <div ref={gridRef} className="grid gap-4 lg:grid-cols-[320px_1fr]" style={{ height: gridMaxH }}>
-      <Card className="flex flex-col overflow-hidden">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm">Sessions</CardTitle>
+  const sessionsPanel = (
+    <>
+      <CardHeader>
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="text-sm">Sessions</CardTitle>
+          <div className="flex items-center gap-2">
             <Button
               size="sm"
               variant="outline"
@@ -316,73 +333,106 @@ export function ChatTab({ name }: { name: string }) {
                 setSelectedSessionId(null);
                 setMessages([]);
                 setStatus('ready');
+                setIsMobileSessionsOpen(false);
               }}
             >
               <Plus className="size-3" />
               New Chat
             </Button>
-          </div>
-          <label className="text-xs text-muted-foreground">
-            Source filter
-            <select
-              aria-label="Source filter"
-              className="mt-1 h-8 w-full rounded-md border bg-background px-2 text-sm"
-              value={sourceFilter}
-              onChange={(e) => setSourceFilter(e.target.value)}
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7 md:hidden"
+              onClick={() => setIsMobileSessionsOpen(false)}
+              aria-label="Close sessions"
             >
-              {sourceOptions.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-            </select>
-          </label>
-        </CardHeader>
-        <CardContent className="min-h-0 flex-1 space-y-2 overflow-y-auto">
-          {loadingSessions ? (
-            <>
-              <Skeleton className="h-14 w-full" />
-              <Skeleton className="h-14 w-full" />
-            </>
-          ) : sessions.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              state.db が見つからないか、セッションがありません。
-            </p>
-          ) : (
-            sessions.map((session) => {
-              const Icon = sourceIcon(session.source);
-              return (
-                <button
-                  key={session.id}
-                  type="button"
-                  className={cn(
-                    'w-full rounded-md border p-2 text-left text-xs transition-colors hover:bg-muted',
-                    selectedSessionId === session.id && 'border-primary bg-muted',
-                  )}
-                  onClick={() => setSelectedSessionId(session.id)}
-                >
-                  <div className="flex items-center gap-2 font-medium">
-                    <Icon className="size-3.5" />
-                    <span>{session.source ?? 'unknown'}</span>
-                  </div>
-                  <div className="mt-1 line-clamp-1 text-muted-foreground">
-                    {session.title || session.id}
-                  </div>
-                  <div className="mt-1 text-muted-foreground">
-                    {new Date(session.started_at).toLocaleString()} · {session.message_count} msgs
-                  </div>
-                </button>
-              );
-            })
-          )}
-        </CardContent>
-      </Card>
+              <X className="size-4" />
+            </Button>
+          </div>
+        </div>
+        <label className="text-xs text-muted-foreground">
+          Source filter
+          <select
+            aria-label="Source filter"
+            className="mt-1 h-8 w-full rounded-md border bg-background px-2 text-sm"
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value)}
+          >
+            {sourceOptions.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+        </label>
+      </CardHeader>
+      <CardContent className="min-h-0 flex-1 space-y-2 overflow-y-auto">
+        {loadingSessions ? (
+          <>
+            <Skeleton className="h-14 w-full" />
+            <Skeleton className="h-14 w-full" />
+          </>
+        ) : sessions.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            state.db が見つからないか、セッションがありません。
+          </p>
+        ) : (
+          sessions.map((session) => {
+            const Icon = sourceIcon(session.source);
+            return (
+              <button
+                key={session.id}
+                type="button"
+                className={cn(
+                  'w-full rounded-md border p-2 text-left text-xs transition-colors hover:bg-muted',
+                  selectedSessionId === session.id && 'border-primary bg-muted',
+                )}
+                onClick={() => setSelectedSessionId(session.id)}
+              >
+                <div className="flex items-center gap-2 font-medium">
+                  <Icon className="size-3.5" />
+                  <span>{session.source ?? 'unknown'}</span>
+                </div>
+                <div className="mt-1 line-clamp-1 text-muted-foreground">
+                  {session.title || session.id}
+                </div>
+                <div className="mt-1 text-muted-foreground">
+                  {new Date(session.started_at).toLocaleString()} · {session.message_count} msgs
+                </div>
+              </button>
+            );
+          })
+        )}
+      </CardContent>
+    </>
+  );
+
+  return (
+    <div
+      ref={gridRef}
+      data-testid="chat-tab-layout"
+      className="grid h-full min-h-0 gap-4 md:grid-cols-[320px_1fr]"
+    >
+      <Card className="hidden flex-col overflow-hidden md:flex">{sessionsPanel}</Card>
 
       <Card className="flex min-h-0 flex-col overflow-hidden">
-        <CardHeader>
-          <CardTitle className="text-sm">Chat</CardTitle>
+        <CardHeader className="shrink-0">
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-sm">Chat</CardTitle>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1 text-xs md:hidden"
+              onClick={() => setIsMobileSessionsOpen(true)}
+            >
+              <Menu className="size-3.5" />
+              Sessions
+            </Button>
+          </div>
         </CardHeader>
-        <CardContent className="flex min-h-0 flex-1 flex-col space-y-3">
+        <CardContent className="flex min-h-0 flex-1 flex-col space-y-3 overflow-hidden">
           {apiServerStatus === 'disabled' ? (
             <div className="space-y-2 rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
               <p className="font-medium">
@@ -426,21 +476,34 @@ export function ChatTab({ name }: { name: string }) {
               <p className="text-xs">少し時間をおいて再読込してください。</p>
             </div>
           ) : apiServerStatus === 'error' ? (
-            <div className="space-y-2 rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
-              <p className="font-medium">api_server のポートを確定できませんでした。</p>
-              <p className="text-xs">
-                まず <code className="rounded bg-muted px-1">meta.json</code> の
-                <code className="rounded bg-muted px-1">apiServerPort</code> 割当を確認し、
-                <code className="rounded bg-muted px-1">hermes gateway restart</code>{' '}
-                で再反映してください。
-              </p>
-              <p className="text-xs">解決しない場合は logs を確認して原因を特定してください。</p>
+            <div className="space-y-2 rounded-md border bg-destructive/10 p-4 text-sm text-muted-foreground">
+              <p className="font-medium">api_server に接続できませんでした。</p>
+              {apiServerStatusReason && (
+                <p className="text-xs">
+                  原因: <code className="rounded bg-muted px-1">{apiServerStatusReason}</code>
+                </p>
+              )}
+              <ol className="list-inside list-decimal space-y-1 text-xs">
+                <li>logs タブでエラーを確認する</li>
+                <li>
+                  <code className="rounded bg-muted px-1">hermes gateway restart</code> で再起動する
+                </li>
+                <li>
+                  それでも解決しない場合は <code className="rounded bg-muted px-1">meta.json</code>{' '}
+                  の <code className="rounded bg-muted px-1">apiServerPort</code> と config.yaml
+                  を確認する
+                </li>
+              </ol>
             </div>
           ) : apiServerStatus === 'connected' ? (
             <>
               <div
                 ref={scrollContainerRef}
-                className="flex-1 space-y-2 overflow-y-auto rounded-md border p-3"
+                data-testid="chat-messages-scroll"
+                className="flex-1 overflow-y-auto rounded-md border p-3"
+                style={
+                  messagesViewportHeight ? { height: `${messagesViewportHeight}px` } : undefined
+                }
                 onScroll={(e) => {
                   const node = e.currentTarget;
                   const threshold = 24;
@@ -449,119 +512,137 @@ export function ChatTab({ name }: { name: string }) {
                   setIsAutoScrollEnabled(atBottom);
                 }}
               >
-                {loadingMessages ? (
-                  <Skeleton className="h-20 w-full" />
-                ) : visibleMessages.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    {selectedSessionId
-                      ? 'メッセージがありません。'
-                      : 'メッセージを入力して新しい会話を始めましょう。'}
-                  </p>
-                ) : (
-                  visibleMessages.map((msg, idx) =>
-                    msg.role === 'tool' ? (
-                      <button
-                        key={`${msg.timestamp ?? 'optimistic'}-${idx}`}
-                        type="button"
-                        className="flex w-full max-w-[90%] items-start gap-1.5 rounded border border-dashed bg-background px-2 py-1 text-left text-xs text-muted-foreground transition-colors hover:bg-muted/50"
-                        onClick={() => toggleToolCollapse(idx)}
-                      >
-                        <ChevronRight
-                          className={cn(
-                            'mt-0.5 size-3 shrink-0 transition-transform',
-                            collapsedTools.has(idx) && 'rotate-90',
-                          )}
-                        />
-                        <div className="min-w-0 flex-1">
-                          <span className="font-mono text-[11px]">{msg.tool_name ?? 'tool'}</span>
-                          {collapsedTools.has(idx) && (
-                            <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-all text-[11px] leading-tight">
-                              {msg.content}
-                            </pre>
-                          )}
-                        </div>
-                      </button>
-                    ) : (
-                      <div
-                        key={`${msg.timestamp ?? 'optimistic'}-${idx}`}
-                        className={cn(
-                          'max-w-[90%] rounded-lg px-3 py-2 text-sm',
-                          msg.role === 'user' && 'ml-auto bg-primary text-primary-foreground',
-                          msg.role === 'assistant' && 'bg-muted',
-                        )}
-                      >
-                        <div className="mb-1 text-[11px] uppercase text-muted-foreground">
-                          {msg.role}
-                        </div>
-                        {msg.role === 'assistant' ? (
-                          <div className="prose prose-sm dark:prose-invert max-w-none">
-                            <ReactMarkdown>{msg.content}</ReactMarkdown>
+                <div className="space-y-2">
+                  {loadingMessages ? (
+                    <Skeleton className="h-20 w-full" />
+                  ) : visibleMessages.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      {selectedSessionId
+                        ? 'メッセージがありません。'
+                        : 'メッセージを入力して新しい会話を始めましょう。'}
+                    </p>
+                  ) : (
+                    visibleMessages.map((msg, idx) =>
+                      msg.role === 'tool' ? (
+                        <button
+                          key={`${msg.timestamp ?? 'optimistic'}-${idx}`}
+                          type="button"
+                          className="flex w-full max-w-[90%] items-start gap-1.5 rounded border border-dashed bg-background px-2 py-1 text-left text-xs text-muted-foreground transition-colors hover:bg-muted/50"
+                          onClick={() => toggleToolCollapse(idx)}
+                        >
+                          <ChevronRight
+                            className={cn(
+                              'mt-0.5 size-3 shrink-0 transition-transform',
+                              collapsedTools.has(idx) && 'rotate-90',
+                            )}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <span className="font-mono text-[11px]">{msg.tool_name ?? 'tool'}</span>
+                            {collapsedTools.has(idx) && (
+                              <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-all text-[11px] leading-tight">
+                                {msg.content}
+                              </pre>
+                            )}
                           </div>
-                        ) : (
-                          <div className="whitespace-pre-wrap">{msg.content}</div>
-                        )}
-                      </div>
-                    ),
-                  )
-                )}
+                        </button>
+                      ) : (
+                        <div
+                          key={`${msg.timestamp ?? 'optimistic'}-${idx}`}
+                          className={cn(
+                            'max-w-[90%] rounded-lg px-3 py-2 text-sm',
+                            msg.role === 'user' && 'ml-auto bg-primary text-primary-foreground',
+                            msg.role === 'assistant' && 'bg-muted',
+                          )}
+                        >
+                          <div className="mb-1 text-[11px] uppercase text-muted-foreground">
+                            {msg.role}
+                          </div>
+                          {msg.role === 'assistant' ? (
+                            <div className="prose prose-sm dark:prose-invert max-w-none">
+                              <ReactMarkdown>{msg.content}</ReactMarkdown>
+                            </div>
+                          ) : (
+                            <div className="whitespace-pre-wrap">{msg.content}</div>
+                          )}
+                        </div>
+                      ),
+                    )
+                  )}
+                </div>
               </div>
 
-              <div className="flex gap-2">
-                <Textarea
-                  aria-label="Chat message"
-                  value={message}
-                  onChange={(e) => {
-                    setMessage(e.target.value);
-                    e.currentTarget.style.height = 'auto';
-                    e.currentTarget.style.height = `${Math.min(e.currentTarget.scrollHeight, 220)}px`;
-                  }}
-                  placeholder="Type a message"
-                  disabled={status === 'submitted' || status === 'streaming'}
-                  rows={1}
-                  className="min-h-[44px] resize-none"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      void submitMessage();
-                    }
-                  }}
-                />
-                {status === 'streaming' ? (
-                  <Button type="button" variant="destructive" onClick={stopStreaming}>
-                    Stop
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={() => void submitMessage()}
-                    disabled={(status !== 'ready' && status !== 'error') || !message.trim()}
-                  >
-                    {status === 'submitted' ? 'Sending...' : 'Send'}
-                  </Button>
-                )}
-              </div>
-
-              {status === 'error' && (
-                <div className="flex items-center justify-between rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs">
-                  <span>送信に失敗しました。</span>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      if (lastUserMessage) {
-                        void submitMessage(lastUserMessage);
+              <div ref={inputComposerRef} className="shrink-0" data-testid="chat-input-composer">
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Textarea
+                    aria-label="Chat message"
+                    value={message}
+                    onChange={(e) => {
+                      setMessage(e.target.value);
+                      e.currentTarget.style.height = 'auto';
+                      e.currentTarget.style.height = `${Math.min(e.currentTarget.scrollHeight, 220)}px`;
+                    }}
+                    placeholder="Type a message"
+                    disabled={status === 'submitted' || status === 'streaming'}
+                    rows={1}
+                    className="min-h-[44px] resize-none sm:flex-1"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        void submitMessage();
                       }
                     }}
-                    disabled={!lastUserMessage}
-                  >
-                    Retry
-                  </Button>
+                  />
+                  {status === 'streaming' ? (
+                    <Button type="button" variant="destructive" onClick={stopStreaming}>
+                      Stop
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={() => void submitMessage()}
+                      disabled={(status !== 'ready' && status !== 'error') || !message.trim()}
+                    >
+                      {status === 'submitted' ? 'Sending...' : 'Send'}
+                    </Button>
+                  )}
                 </div>
-              )}
+
+                {status === 'error' && (
+                  <div className="flex items-center justify-between rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs">
+                    <span>送信に失敗しました。</span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        if (lastUserMessage) {
+                          void submitMessage(lastUserMessage);
+                        }
+                      }}
+                      disabled={!lastUserMessage}
+                    >
+                      Retry
+                    </Button>
+                  </div>
+                )}
+              </div>
             </>
           ) : null}
         </CardContent>
       </Card>
+
+      {isMobileSessionsOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <button
+            type="button"
+            className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+            aria-label="Close sessions overlay"
+            onClick={() => setIsMobileSessionsOpen(false)}
+          />
+          <Card className="absolute inset-x-4 bottom-4 top-4 flex min-h-0 flex-col overflow-hidden">
+            {sessionsPanel}
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

@@ -18,6 +18,7 @@ import { Badge } from '@/src/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/src/components/ui/tabs';
 import { useAgentMeta } from '@/src/hooks/use-agent-meta';
 import { useAgentStatus } from '@/src/hooks/use-agent-status';
+import { cn } from '@/src/lib/utils';
 
 interface AgentPageProps {
   params: Promise<{ id: string }>;
@@ -47,7 +48,13 @@ export default function AgentPage({ params }: AgentPageProps) {
   }, [fetchStatus, fetchMeta]);
 
   return (
-    <div className="space-y-6">
+    <div
+      className={cn(
+        'space-y-6',
+        activeTab === 'chat' &&
+          'flex min-h-[calc(100dvh-6rem)] flex-col space-y-4 overflow-hidden md:min-h-[calc(100dvh-4rem)]',
+      )}
+    >
       <div>
         <Link
           href="/"
@@ -116,13 +123,14 @@ export default function AgentPage({ params }: AgentPageProps) {
       </div>
 
       <Tabs
+        className={cn(activeTab === 'chat' && 'flex min-h-0 flex-1 flex-col')}
         value={activeTab}
         onValueChange={(v) => {
           setActiveTab(v);
           window.history.replaceState(null, '', `#${v}`);
         }}
       >
-        <TabsList className="w-full justify-start">
+        <TabsList className="w-full justify-start overflow-x-auto">
           <TabsTrigger value="metadata" className="gap-1.5">
             <Settings className="size-3.5" />
             <span className="hidden sm:inline">Metadata</span>
@@ -188,7 +196,7 @@ export default function AgentPage({ params }: AgentPageProps) {
           <CronTab name={name} />
         </TabsContent>
 
-        <TabsContent value="chat">
+        <TabsContent value="chat" className="mt-1 min-h-0 flex-1">
           <ChatTab name={name} />
         </TabsContent>
 

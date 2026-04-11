@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import '@testing-library/jest-dom';
@@ -48,6 +48,54 @@ describe('chat messages UI', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     global.fetch = mockFetch() as typeof fetch;
+    Object.defineProperty(window, 'innerHeight', {
+      configurable: true,
+      writable: true,
+      value: 900,
+    });
+
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      const testId = this.getAttribute('data-testid');
+      if (testId === 'chat-tab-layout') {
+        return {
+          x: 0,
+          y: 100,
+          top: 100,
+          left: 0,
+          right: 1000,
+          bottom: 860,
+          width: 1000,
+          height: 760,
+          toJSON: () => ({}),
+        } as DOMRect;
+      }
+      if (testId === 'chat-input-composer') {
+        return {
+          x: 0,
+          y: 700,
+          top: 700,
+          left: 0,
+          right: 1000,
+          bottom: 820,
+          width: 1000,
+          height: 120,
+          toJSON: () => ({}),
+        } as DOMRect;
+      }
+      return {
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: 0,
+        height: 0,
+        toJSON: () => ({}),
+      } as DOMRect;
+    });
   });
 
   it('renders role based chat bubbles', async () => {
@@ -68,5 +116,19 @@ describe('chat messages UI', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /search/i }));
     expect(screen.getByText('{"query":"ping"}')).toBeInTheDocument();
+  });
+
+  it('keeps only chat history scrollable and leaves the composer visible in the viewport', async () => {
+    render(<ChatTab name="alpha" />);
+
+    const messagesScroll = await screen.findByTestId('chat-messages-scroll');
+    const composer = screen.getByTestId('chat-input-composer');
+
+    await waitFor(() => {
+      expect(messagesScroll.style.height).toBe('588px');
+    });
+
+    expect(messagesScroll).toHaveClass('overflow-y-auto');
+    expect(composer).toHaveClass('shrink-0');
   });
 });

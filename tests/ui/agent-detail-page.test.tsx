@@ -219,6 +219,39 @@ describe('Agent detail page', () => {
     expect(toast.success).toHaveBeenCalledWith('Inserted partial: directory-structure');
   });
 
+  it('keeps stable memory tab labels when switching between files', async () => {
+    global.fetch = createFetchRouter(buildAgentDetailRoutes({ partialModeEnabled: true }));
+    window.history.replaceState(null, '', '#memory');
+
+    await act(async () => {
+      renderPage('alpha');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'SOUL.src.md' })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'memories/MEMORY.md' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('textbox', { name: 'Edit memories/MEMORY.md' })).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole('button', { name: 'SOUL.src.md' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'memories/MEMORY.md' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'memories/USER.md' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'memories/USER.md' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('textbox', { name: 'Edit memories/USER.md' })).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole('button', { name: 'SOUL.src.md' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'memories/MEMORY.md' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'memories/USER.md' })).toBeInTheDocument();
+  });
+
   it('saves only currently selected memory file', async () => {
     const fetchMock = createFetchRouter(buildAgentDetailRoutes({ partialModeEnabled: true }));
     global.fetch = fetchMock;
@@ -297,11 +330,29 @@ describe('Agent detail page', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText('api_server のポートを確定できませんでした。')).toBeInTheDocument();
+      expect(screen.getByText('api_server に接続できませんでした。')).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/meta\.json/)).toBeInTheDocument();
-    expect(screen.getByText(/apiServerPort/)).toBeInTheDocument();
     expect(screen.getByText(/hermes gateway restart/)).toBeInTheDocument();
+  });
+
+  it('uses a growable min-height-safe layout for the chat tab', async () => {
+    global.fetch = createFetchRouter(buildAgentDetailRoutes({ partialModeEnabled: false }));
+    window.history.replaceState(null, '', '#chat');
+
+    await act(async () => {
+      renderPage('alpha');
+    });
+
+    const chatLayout = await screen.findByTestId('chat-tab-layout');
+    expect(chatLayout).toHaveClass('h-full');
+    expect(chatLayout).toHaveClass('min-h-0');
+
+    const chatPanel = chatLayout.closest('[role="tabpanel"]');
+    expect(chatPanel).toHaveClass('flex-1');
+    expect(chatPanel).toHaveClass('min-h-0');
+
+    const pageRoot = chatPanel?.parentElement?.parentElement;
+    expect(pageRoot).toHaveClass('overflow-hidden');
   });
 });
