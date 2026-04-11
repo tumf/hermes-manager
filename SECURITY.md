@@ -2,7 +2,7 @@
 
 ## Supported Scope
 
-Hermes Agents WebApp is designed for trusted-network / intranet operation.
+Hermes Manager is designed for trusted-network / intranet operation.
 It is not intended to be exposed directly to the public internet without an
 additional authentication and access-control layer in front of it.
 

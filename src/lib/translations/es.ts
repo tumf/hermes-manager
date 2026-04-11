@@ -2,7 +2,7 @@ import type { TranslationDictionary } from './types';
 
 export const es: TranslationDictionary = {
   appShell: {
-    brand: 'Hermes Agents',
+    brand: 'Hermes Manager',
     nav: {
       agents: 'Agentes',
       globals: 'Globales',

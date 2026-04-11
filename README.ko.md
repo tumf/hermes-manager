@@ -1,10 +1,10 @@
-# Hermes Agents WebApp
+# Hermes Manager
 
 [![日本語](https://img.shields.io/badge/%E6%97%A5%E6%9C%AC%E8%AA%9E-blue?style=flat-square)](./README.ja.md) [![English](https://img.shields.io/badge/English-blue?style=flat-square)](./README.md) [![简体中文](https://img.shields.io/badge/%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-blue?style=flat-square)](./README.zh-CN.md) [![Español](https://img.shields.io/badge/Espa%C3%B1ol-blue?style=flat-square)](./README.es.md) [![Português%20(BR)](<https://img.shields.io/badge/Portugu%C3%AAs%20(BR)-blue?style=flat-square>)](./README.pt-BR.md) [![한국어](https://img.shields.io/badge/%ED%95%9C%EA%B5%AD%EC%96%B4-blue?style=flat-square)](./README.ko.md) [![Français](https://img.shields.io/badge/Fran%C3%A7ais-blue?style=flat-square)](./README.fr.md) [![Deutsch](https://img.shields.io/badge/Deutsch-blue?style=flat-square)](./README.de.md) [![Русский](https://img.shields.io/badge/%D0%A0%D1%83%D1%81%D1%81%D0%BA%D0%B8%D0%B9-blue?style=flat-square)](./README.ru.md) [![Tiếng%20Việt](https://img.shields.io/badge/Ti%E1%BA%BFng%20Vi%E1%BB%87t-blue?style=flat-square)](./README.vi.md)
 
-![Hermes Agents WebApp 스크린샷](./docs/images/ss-agents-1.png)
+![Hermes Manager 스크린샷](./docs/images/ss-agents-1.png)
 
-Hermes Agents WebApp은 mini 환경에서 운영되는 Hermes Agent를 웹 UI에서 중앙 관리하기 위한 Next.js 애플리케이션입니다.
+Hermes Manager은 mini 환경에서 운영되는 Hermes Agent를 웹 UI에서 중앙 관리하기 위한 Next.js 애플리케이션입니다.
 에이전트 생성, 복제, 삭제, 시작/중지 제어, 설정 편집, 환경 변수 관리, 스킬 관리, 크론 작업 운영, 채팅 기록 조회, 로그 열람을 통합합니다.
 
 웹 UI는 다음 10개 언어를 지원합니다:
@@ -24,7 +24,7 @@ Hermes Agents WebApp은 mini 환경에서 운영되는 Hermes Agent를 웹 UI에
 
 참고: 애플리케이션 UI만 현지화됩니다. `SOUL.md`, 메모리 파일, 로그, 채팅 기록 등의 운영 콘텐츠는 자동으로 번역되지 않습니다.
 
-> **신뢰 네트워크 애플리케이션** — Hermes Agents WebApp은 신뢰 네트워크/인트라넷 운영을 위해 설계되었습니다. 공용 인터넷 인증이나 멀티테넌트 접근 제어를 포함하지 않습니다. 신뢰 네트워크 외부에 노출하는 경우 직접 인증 및 접근 제어 계층을 추가하십시오.
+> **신뢰 네트워크 애플리케이션** — Hermes Manager은 신뢰 네트워크/인트라넷 운영을 위해 설계되었습니다. 공용 인터넷 인증이나 멀티테넌트 접근 제어를 포함하지 않습니다. 신뢰 네트워크 외부에 노출하는 경우 직접 인증 및 접근 제어 계층을 추가하십시오.
 
 자세한 운영 규칙과 설계 정책은 다음을 참조하세요:
 
@@ -51,11 +51,11 @@ Hermes Agents WebApp은 mini 환경에서 운영되는 Hermes Agent를 웹 UI에
 
 ### Agent 목록
 
-![Hermes Agents WebApp 스크린샷](./docs/images/ss-agents-1.png)
+![Hermes Manager 스크린샷](./docs/images/ss-agents-1.png)
 
 ### 메모리 관리
 
-![Hermes Agents 메모리 관리 화면](./docs/images/ss-agent_memory-1.png)
+![Hermes Manager 메모리 관리 화면](./docs/images/ss-agent_memory-1.png)
 
 ## 기술 스택
 
@@ -110,7 +110,7 @@ npm run build
 ## 디렉토리 구조 (개요)
 
 ```text
-hermes-agents/
+hermes-manager/
 ├── app/                    # Next.js App Router (UI / API)
 ├── components/             # 공유 UI 컴포넌트
 ├── src/lib/                # 파일 시스템/Env/SkillLink 헬퍼

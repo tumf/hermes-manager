@@ -23,7 +23,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Hermes Agents',
+  title: 'Hermes Manager',
   description: 'Manage Hermes AI agents, configurations, and global variables.',
   icons: {
     icon: '/favicon.svg',

@@ -1,4 +1,4 @@
-# Hermes Agents WebApp — 開発者ガイド
+# Hermes Manager — 開発者ガイド
 
 このファイルは AI コーディングエージェントおよびすべての開発者が読むべきガイドです。
 実装前に **必ず熟読し、ドキュメントと実装の一貫性を維持してください。**
@@ -19,7 +19,7 @@
 ## プロジェクト構成
 
 ```
-hermes-agents/
+hermes-manager/
 ├── app/                      # Next.js App Router
 │   ├── api/                  # APIルート
 │   │   ├── agents/           # GET/POST/DELETE + /copy
@@ -110,8 +110,8 @@ npm run build
 PORT=18470 npm run start   # ポート 18470 固定（mini 上の既存サービスとの競合なし確認済み）
 ```
 
-- Caddy: hermes-agents.mini.tumf.dev → localhost:18470
-- launchd: ~/Library/LaunchAgents/ai.hermes.agents-webapp.plist
+- Caddy: hermes-manager.mini.tumf.dev → localhost:18470
+- launchd: ~/Library/LaunchAgents/ai.hermes.manager.plist
 
 詳細: `docs/design.md §6、§11`
 
