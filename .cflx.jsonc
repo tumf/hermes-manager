@@ -28,7 +28,7 @@
   // Note: A hardcoded acceptance prompt is always prepended before this value
   //"acceptance_prompt": "",
 
-   // Worktree command for TUI (+ key)
+  // Worktree command for TUI (+ key)
   // Supports {workspace_dir} and {repo_root} placeholders
   "worktree_command": "tmux new-window -n wt ",
   // "worktree_command": "codex '/openspec:proposal --worktree {workspace_dir}'",
@@ -53,7 +53,6 @@
     // "on_start": "echo '[on_start] changes_processed={changes_processed} total={total_changes} remaining={remaining_changes}'",
     // "on_finish": "echo '[on_finish] status={status} processed={changes_processed}/{total_changes}'",
     // "on_error": "echo '[on_error] change={change_id} error={error}'",
-
     // Change lifecycle
     // "on_change_start": "echo '[on_change_start] change={change_id} tasks={completed_tasks}/{total_tasks} progress={changes_processed}/{total_changes}'",
     // "pre_apply": "echo '[pre_apply] change={change_id} apply_count={apply_count} tasks={completed_tasks}/{total_tasks}'",
@@ -63,9 +62,8 @@
     // "post_archive": "echo '[post_archive] change={change_id} progress={changes_processed}/{total_changes}'",
     // "on_change_end": "echo '[on_change_end] change={change_id} progress={changes_processed}/{total_changes} remaining={remaining_changes}'",
     // "on_merged": "echo '[on_merged] change={change_id} tasks={completed_tasks}/{total_tasks} progress={changes_processed}/{total_changes}'",
-
     // TUI interaction
     // "on_queue_add": "echo '[on_queue_add] change={change_id} tasks={completed_tasks}/{total_tasks}'",
     // "on_queue_remove": "echo '[on_queue_remove] change={change_id} tasks={completed_tasks}/{total_tasks}'"
-  }
+  },
 }

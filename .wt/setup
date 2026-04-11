@@ -19,7 +19,7 @@ if [ ! -d node_modules ]; then
 fi
 
 # Runtime directories
-mkdir -p runtime/agents runtime/globals runtime/logs
+mkdir -p runtime/agents runtime/globals runtime/logs runtime/templates runtime/partials
 
 # Husky / pre-commit hooks
 if [ -f .pre-commit-config.yaml ]; then

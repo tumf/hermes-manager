@@ -1,14 +1,56 @@
 # Hermes Agents WebApp
 
-A Next.js application for managing multiple Hermes Agents running on a mini environment via Web UI.
-Provides unified control for agent creation/duplication/deletion, start/stop, config file editing, environment variable management, skill link management, and log viewing.
+English | [日本語](./README_ja.md)
 
-For detailed operational rules and design guidelines, see:
+![Hermes Agents WebApp screenshot](./docs/images/ss-agents-1.png)
 
-- Developer Guide: [`AGENTS.md`](./AGENTS.md)
+Hermes Agents WebApp is a Next.js application for centrally managing Hermes Agents operated in the mini environment from a web UI.
+It integrates agent creation, duplication, deletion, start/stop control, configuration editing, environment variable management, skill management, cron job operations, chat history inspection, and log viewing.
+
+The Web UI supports the following 10 languages:
+
+- Japanese (`ja`)
+- English (`en`)
+- Simplified Chinese (`zh-CN`)
+- Spanish (`es`)
+- Portuguese (Brazil) (`pt-BR`)
+- Vietnamese (`vi`)
+- Korean (`ko`)
+- Russian (`ru`)
+- French (`fr`)
+- German (`de`)
+
+You can switch languages from the Language Switcher in the shared app shell. The selected locale is stored in `localStorage`, and invalid or missing values fall back to Japanese.
+
+Note: only the application UI is localized. Operational content such as `SOUL.md`, memory files, logs, and chat transcripts is not translated automatically.
+
+For detailed operational rules and design policies, refer to the following:
+
+- Developer guide: [`AGENTS.md`](./AGENTS.md)
 - Requirements: [`docs/requirements.md`](./docs/requirements.md)
 - Design: [`docs/design.md`](./docs/design.md)
+- Contribution guide: [`CONTRIBUTING.md`](./CONTRIBUTING.md)
+
+## Key Features
+
+- Centrally manage multiple Hermes Agents from the web UI
+- Create, duplicate, delete, start, stop, and restart agents
+- Edit `SOUL.md`, `SOUL.src.md`, `memories/MEMORY.md`, `memories/USER.md`, and `config.yaml`
+- Manage agent/global environment variables with visibility metadata
+- Equip / unequip skills by copying skill directories
+- Manage cron jobs and inspect their outputs
+- Inspect chat sessions and history through the agent API server
+- View gateway / webapp logs with tail / stream
+- Switch the UI across 10 supported languages
+
+## Documentation Map
+
+- Overview: this `README.md`
 - Japanese README: [`README_ja.md`](./README_ja.md)
+- Development workflow and repository rules: [`AGENTS.md`](./AGENTS.md)
+- Requirements: [`docs/requirements.md`](./docs/requirements.md)
+- Architecture / API design: [`docs/design.md`](./docs/design.md)
+- Contribution workflow: [`CONTRIBUTING.md`](./CONTRIBUTING.md)
 
 ## Tech Stack
 
@@ -16,7 +58,7 @@ For detailed operational rules and design guidelines, see:
 - React / TypeScript
 - Tailwind CSS + shadcn/ui
 - Zod (API input validation)
-- File-system-based data layer (`runtime/` is the source of truth)
+- Filesystem-based data layer (`runtime/` is the source of truth)
 
 ## Setup
 
@@ -55,29 +97,29 @@ npm run format:check
 npm run build
 ```
 
-## Test Suite Boundaries
+## Test Boundaries
 
-- `npm run test` (Vitest): unit/component/integration-style tests under `tests/api`, `tests/components`, `tests/hooks`, `tests/lib`, `tests/ui`.
+- `npm run test` (Vitest): unit, component, and integration-leaning tests under `tests/api`, `tests/components`, `tests/hooks`, `tests/lib`, and `tests/ui`.
 - `npm run test:e2e` (Playwright): browser E2E tests under `tests/e2e`.
-- Current status: there are no committed Playwright specs in `tests/e2e` yet, so `npm run test:e2e` currently verifies runner wiring only (`--pass-with-no-tests`) instead of active E2E coverage.
-- Playwright tests require a pre-running app server (`npm run dev` or equivalent) because `playwright.config.ts` does not auto-start `webServer`.
+- At present there are no committed Playwright specs in `tests/e2e`, so `npm run test:e2e` currently only verifies the execution path via `--pass-with-no-tests`.
+- Playwright tests assume the app is already running beforehand (for example with `npm run dev`).
 
-## Directory Structure
+## Directory Structure (Overview)
 
 ```text
 hermes-agents/
 ├── app/                    # Next.js App Router (UI / API)
 ├── components/             # Shared UI components
-├── src/lib/                # Filesystem/Env/SkillLink helpers
-├── docs/                   # Requirements & design docs
+├── src/lib/                # Filesystem / Env / SkillLink helpers
+├── docs/                   # Requirements and design documents
 ├── openspec/changes/       # Conflux change proposals
 ├── tests/
-│   ├── api|components|hooks|lib|ui/  # Vitest unit/component/integration-style tests
-│   └── e2e/                         # Playwright browser E2E tests (requires running app server)
+│   ├── api|components|hooks|lib|ui/  # Vitest unit/component/integration-leaning tests
+│   └── e2e/                         # Playwright browser E2E tests (requires a running app)
 ├── runtime/                # Runtime data (agents/globals/logs)
-└── AGENTS.md               # Developer guide (must-read)
+└── AGENTS.md               # Must-read guide for developers
 ```
 
 ## Contributing
 
-See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for contribution guidelines.
+See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the contribution workflow. This document is maintained in English.

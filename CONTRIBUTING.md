@@ -1,72 +1,108 @@
 # Contributing
 
-hermes-agents への貢献ありがとうございます。
-このドキュメントでは、変更提案から実装・検証までの最小手順を示します。
+Thank you for contributing to hermes-agents.
+This document outlines the minimum workflow from proposal through implementation and verification.
 
-詳細な開発ルール・設計方針は必ず以下を参照してください。
+For detailed development rules and design guidance, always refer to the following documents:
 
-- 開発者ガイド: [`AGENTS.md`](./AGENTS.md)
-- 要件定義: [`docs/requirements.md`](./docs/requirements.md)
-- 設計: [`docs/design.md`](./docs/design.md)
+- Developer guide: [`AGENTS.md`](./AGENTS.md)
+- Requirements: [`docs/requirements.md`](./docs/requirements.md)
+- Design: [`docs/design.md`](./docs/design.md)
 
-## 1. 開発環境セットアップ
+## 1. Development Environment Setup
 
-前提:
+Prerequisites:
 
 - Node.js 20+
 - npm
 
+Preferred bootstrap entrypoint:
+
 ```bash
-npm install
+./.wt/setup
 ```
 
-開発サーバー:
+This script installs dependencies when needed, prepares runtime directories, and installs available local hooks.
+
+Start the development server:
 
 ```bash
 npm run dev
 ```
 
-## 2. コーディング時の基本ルール
+## 2. Core Coding Rules
 
-- 実装前に `AGENTS.md` のルールを確認する
-- 要件/設計に変更が必要な場合、**先に `docs/` を更新してから実装** する
-- API 入力は zod で検証する
-- パス操作は path traversal 対策（resolve + startsWith）を守る
-- `launchctl` / `hermes` 実行は `execFile`（引数配列）を使う
+- Review the rules in `AGENTS.md` before making any implementation changes
+- If requirements or design need to change, **update the documents under `docs/` before implementing code changes**
+- Validate API inputs with zod
+- Prevent path traversal in all path handling (`resolve` + `startsWith`)
+- Use `execFile` (argument arrays) for `launchctl` / `systemctl` / `hermes` execution
+- Keep heavy tests out of the default suite unless they are explicitly marked and isolated
 
-## 3. Conflux Workflow（簡易）
+## 3. Conflux Workflow (Brief)
 
-1. 変更提案を作成または確認（`openspec/changes/<change-id>/`）
-2. proposal / tasks / specs を更新
-3. 実装して tasks を進める
-4. 受け入れ確認後にアーカイブ
+1. Create or review a change proposal (`openspec/changes/<change-id>/`)
+2. Update proposal / tasks / specs
+3. Implement the change and progress the tasks
+4. Archive the proposal after acceptance is confirmed
 
-既存提案一覧:
+List existing proposals:
 
 ```bash
 python3 ~/.hermes/skills/cflx-proposal/scripts/cflx.py list
 ```
 
-## 4. PR / コミット前チェック
+## 4. Quality Gates
 
-以下をすべて通してください。
+### Fast local checks (`pre-commit`)
+
+The repository keeps `pre-commit` lightweight so contributors can commit frequently.
+It should stay focused on staged-file checks such as `lint-staged` and formatting-related validation.
+
+### Slower checks (`pre-push` / CI)
+
+Heavier validation belongs in `pre-push` and CI:
 
 ```bash
 npm run test
-npm run test:e2e
 npm run typecheck
 npm run lint
 npm run format:check
-```
-
-必要に応じてビルド確認:
-
-```bash
 npm run build
 ```
 
-## 5. ドキュメント整合性
+Run Playwright separately when browser coverage is present:
 
-- README/CONTRIBUTING には概要のみ記載し、詳細は `AGENTS.md` と `docs/` へリンクする
-- 実装とドキュメントに差分がある場合、差分を解消してからレビュー依頼する
-- テスト境界に関するルールはこの文書および `README.md`（英語）/`README_ja.md`（日本語）で明示する
+```bash
+npm run test:e2e
+```
+
+## 5. Checks Before a PR
+
+Before opening or updating a PR, run at least:
+
+```bash
+npm run test
+npm run typecheck
+npm run lint
+```
+
+Recommended full verification for broad changes:
+
+```bash
+npm run format:check
+npm run build
+npm run test:e2e
+```
+
+## 6. Documentation Consistency
+
+- Keep README / CONTRIBUTING focused on high-level guidance only, and link detailed rules to `AGENTS.md` and `docs/`
+- If implementation and documentation differ, resolve the discrepancy before requesting review
+- Rules about test boundaries must be documented in this file and in `README.md` (English) / `README_ja.md` (Japanese)
+- If a change affects trust boundaries, hosting, or operator workflows, update the relevant docs in the same change
+
+## 7. Support and Security
+
+- Use public GitHub issues for reproducible bugs, feature requests, and documentation problems
+- Use the private reporting path in [`SECURITY.md`](./SECURITY.md) for vulnerabilities or sensitive findings

@@ -30,23 +30,25 @@ Given the snippet is included in the active Caddyfile and Caddy is reloaded,
 When an HTTPS request is made to hermes-agents.mini.tumf.dev,
 Then Caddy reverse proxies to localhost:18470.
 
-### Requirement: Production start script runs migration then server
+### Requirement: Production start script runs server on the fixed port
 
-The npm run start:prod script MUST run DB migrations to create tables if they do
-not exist, then start the Next.js server on PORT=18470.
+The `npm run start:prod` script MUST start the Next.js server on `PORT=18470`
+using the filesystem-based runtime layout already prepared for the application.
+It MUST NOT require or imply database migrations from a previous architecture.
 
-#### Scenario: Fresh database is initialized on first start
+#### Scenario: Fresh runtime starts without database setup
 
-Given no SQLite database file exists,
-When npm run start:prod is executed,
-Then the migration script creates all schema tables and the server starts without
-error.
+Given the repository is cloned and dependencies are installed,
+And the runtime directories are prepared via `.wt/setup` or equivalent,
+When `npm run start:prod` is executed,
+Then the Next.js server starts on `PORT=18470` without any database migration step.
 
-#### Scenario: Existing database is not reset
+#### Scenario: Hosting docs match production start behavior
 
-Given a database file with existing data already exists,
-When npm run start:prod is executed,
-Then the migration script leaves existing data intact and the server starts.
+Given a maintainer reads the hosting documentation,
+When they review the production start instructions,
+Then the docs describe the filesystem-based runtime behavior accurately
+And they do not mention database migrations on startup.
 
 ### Requirement: persistent local service hosting keeps webapp running
 

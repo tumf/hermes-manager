@@ -1,12 +1,25 @@
 # Hosting Setup
 
-Instructions for deploying the hermes-agents webapp persistently on macOS (launchd) or Linux (systemd), with Caddy as a reverse proxy.
+Instructions for running the hermes-agents webapp persistently on macOS (launchd) or Linux (systemd), with optional Caddy reverse proxying.
 
 ## Prerequisites
 
 - Node.js installed and accessible via PATH
 - The repo cloned to the target host
-- Caddy running on the server (if public-domain access is needed)
+- Dependencies installed (`./.wt/setup` or `npm install`)
+- A production build created with `npm run build`
+- Caddy running on the server (if domain-based access is needed)
+
+## Production Start Command
+
+The production entrypoint is:
+
+```bash
+npm run start:prod
+```
+
+This starts the Next.js server on `PORT=18470` using the existing filesystem-based `runtime/` layout.
+It does not run database migrations.
 
 ## macOS — launchd
 
@@ -27,6 +40,12 @@ Instructions for deploying the hermes-agents webapp persistently on macOS (launc
    ```bash
    launchctl list | grep ai.hermes.agents-webapp
    ```
+
+To reload an updated plist, prefer:
+
+```bash
+launchctl kickstart -kp gui/$(id -u)/ai.hermes.agents-webapp
+```
 
 To stop the service:
 
