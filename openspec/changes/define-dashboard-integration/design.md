@@ -2,9 +2,9 @@
 
 ## Overview
 
-Hermes Agent now ships an official local web dashboard for managing one Hermes installation. hermes-agents should respond by clarifying boundaries instead of entering an unbounded UI overlap race.
+Hermes Agent now ships an official local web dashboard for managing one Hermes installation. Hermes Manager should respond by clarifying boundaries instead of entering an unbounded UI overlap race.
 
-The design goal is to preserve hermes-agents as the operator console for running many Hermes agents on one host while reusing the official dashboard as the reference implementation for single-agent introspection UX.
+The design goal is to preserve Hermes Manager as the operator console for running many Hermes agents on one host while reusing the official dashboard as the reference implementation for single-agent introspection UX.
 
 ## Product boundary
 
@@ -17,9 +17,9 @@ The official dashboard is the primary UX for:
 - analytics/cost views
 - generic logs/env/cron/skills browsing for one Hermes home
 
-### hermes-agents owns the multi-agent control plane
+### Hermes Manager owns the multi-agent control plane
 
-hermes-agents is the primary UX for:
+Hermes Manager is the primary UX for:
 
 - creating, copying, deleting, and inventorying many agents
 - assigning isolated HERMES_HOME directories
@@ -32,7 +32,7 @@ hermes-agents is the primary UX for:
 
 ## Capability policy
 
-### Keep and strengthen in hermes-agents
+### Keep and strengthen in Hermes Manager
 
 1. Agent inventory and lifecycle
    - list, create, copy, delete
@@ -53,7 +53,7 @@ hermes-agents is the primary UX for:
 1. Chat and sessions
    - retain agent-detail chat because it validates that a selected managed agent is working
    - optimize for resume/new-session workflows and operational inspection
-   - avoid turning hermes-agents into the richest standalone session-mining UI
+   - avoid turning Hermes Manager into the richest standalone session-mining UI
 2. Logs
    - retain tailing and streaming because operators need incident response per agent
    - prioritize service and runtime diagnostics over cross-session observability features
@@ -75,9 +75,9 @@ hermes-agents is the primary UX for:
 
 Any future proposal that overlaps the official dashboard must state:
 
-1. why the feature is necessary for multi-agent operations in hermes-agents,
+1. why the feature is necessary for multi-agent operations in Hermes Manager,
 2. whether the feature should be keep/adapt/defer relative to upstream,
-3. what unique operator workflow hermes-agents serves that the upstream dashboard does not,
+3. what unique operator workflow Hermes Manager serves that the upstream dashboard does not,
 4. why a link, reference pattern, or narrower scoped implementation is insufficient.
 
 ## Roadmap consequences
@@ -95,7 +95,7 @@ Any future proposal that overlaps the official dashboard must state:
 
 ### Explicit non-goal
 
-hermes-agents is not trying to become the only dashboard a single Hermes install ever needs. Its strategic role is to make many Hermes agents manageable as a coherent local fleet.
+Hermes Manager is not trying to become the only dashboard a single Hermes install ever needs. Its strategic role is to make many Hermes agents manageable as a coherent local fleet.
 
 ## Documentation consequences
 
