@@ -15,7 +15,10 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:e2e": "playwright test --pass-with-no-tests",
-    "prepare": "husky"
+    "prepare": "husky",
+    "bump-patch": "npm version patch",
+    "bump-minor": "npm version minor",
+    "bump-major": "npm version major"
   },
   "dependencies": {
     "@codemirror/commands": "^6.10.3",
