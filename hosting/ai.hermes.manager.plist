@@ -13,7 +13,7 @@
   </array>
 
   <key>WorkingDirectory</key>
-  <string>/Users/tumf/services/hermes-manager</string>
+  <string>/Users/tumf/services/hermes-agents</string>
 
   <key>EnvironmentVariables</key>
   <dict>
@@ -24,10 +24,10 @@
   </dict>
 
   <key>StandardOutPath</key>
-  <string>/Users/tumf/services/hermes-manager/runtime/logs/webapp.log</string>
+  <string>/Users/tumf/services/hermes-agents/runtime/logs/webapp.log</string>
 
   <key>StandardErrorPath</key>
-  <string>/Users/tumf/services/hermes-manager/runtime/logs/webapp.error.log</string>
+  <string>/Users/tumf/services/hermes-agents/runtime/logs/webapp.error.log</string>
 
   <key>RunAtLoad</key>
   <true/>

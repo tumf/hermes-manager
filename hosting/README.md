@@ -23,13 +23,17 @@ It does not run database migrations.
 
 ## macOS — launchd
 
+### Initial install (first-time registration)
+
+Use `launchctl bootstrap` only for the initial service registration. This registers the plist with launchd and starts the service.
+
 1. Copy the plist to the LaunchAgents directory:
 
    ```bash
    cp hosting/ai.hermes.manager.plist ~/Library/LaunchAgents/
    ```
 
-2. Bootstrap the service:
+2. Bootstrap (register) the service:
 
    ```bash
    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/ai.hermes.manager.plist
@@ -41,13 +45,17 @@ It does not run database migrations.
    launchctl list | grep ai.hermes.manager
    ```
 
-To reload an updated plist, prefer:
+### Restart / reload (already-registered service)
+
+Once the service is registered, do **not** run `launchctl bootstrap` again — it will fail with `Bootstrap failed: 5: Input/output error` because the service is already loaded. Instead, use `kickstart -kp` to restart the running service:
 
 ```bash
 launchctl kickstart -kp gui/$(id -u)/ai.hermes.manager
 ```
 
-To stop the service:
+### Stop / unregister
+
+To stop and unregister the service:
 
 ```bash
 launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/ai.hermes.manager.plist
