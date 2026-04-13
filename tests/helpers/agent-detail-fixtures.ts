@@ -1,6 +1,6 @@
 import { buildChatFixtureRoutes } from './chat-fixtures';
 import { buildGetEnvRoute, buildResolvedEnvRoute, createEnvState } from './env-helpers';
-import { FetchRoute, jsonOk } from './fetch-router';
+import { FetchRoute, MockResponse, jsonOk } from './fetch-router';
 
 export type ApiServerStatus =
   | 'disabled'
@@ -14,6 +14,7 @@ export type AgentDetailFixtureOptions = {
   launchdStartError?: string;
   partialModeEnabled?: boolean;
   hermesVersion?: string | null;
+  onFilePut?: (body: { agent: string; path: string; content: string }) => MockResponse | undefined;
 };
 
 const legacyFileContents: Record<string, string> = {
@@ -41,7 +42,9 @@ export function buildAgentDetailRoutes(options: AgentDetailFixtureOptions = {}):
     rows: [{ key: 'API_KEY', value: '***', masked: true, visibility: 'secure' }],
   });
 
-  const fileContents = partialModeEnabled ? partialFileContents : legacyFileContents;
+  const fileContents: Record<string, string> = {
+    ...(partialModeEnabled ? partialFileContents : legacyFileContents),
+  };
 
   return [
     (url, init) => {
@@ -97,6 +100,19 @@ export function buildAgentDetailRoutes(options: AgentDetailFixtureOptions = {}):
     (url, init) => {
       const method = init?.method ?? 'GET';
       if (url === '/api/files' && method === 'PUT') {
+        const body = JSON.parse(init?.body ?? '{}') as {
+          agent: string;
+          path: string;
+          content: string;
+        };
+        if (options.onFilePut) {
+          const result = options.onFilePut(body);
+          if (result !== undefined) return result;
+        }
+        // Simulate assembler: when SOUL.src.md is saved, update SOUL.md content
+        if (body.path === 'SOUL.src.md') {
+          fileContents['SOUL.md'] = `# Assembled from source\n\n${body.content}`;
+        }
         return jsonOk({ ok: true });
       }
       return undefined;

@@ -39,11 +39,23 @@ interface FileEditorProps {
   savePath?: string;
   readOnly?: boolean;
   hideTemplateButton?: boolean;
+  previewOnly?: boolean;
+  onSaveSuccess?: () => void;
   className?: string;
 }
 
 export const FileEditor = forwardRef<FileEditorHandle, FileEditorProps>(function FileEditor(
-  { name, filePath, label, savePath, readOnly = false, hideTemplateButton = false, className },
+  {
+    name,
+    filePath,
+    label,
+    savePath,
+    readOnly = false,
+    hideTemplateButton = false,
+    previewOnly = false,
+    onSaveSuccess,
+    className,
+  },
   ref,
 ) {
   const [content, setContent] = useState('');
@@ -70,6 +82,7 @@ export const FileEditor = forwardRef<FileEditorHandle, FileEditorProps>(function
         originalRef.current = content;
         setDirty(false);
         toast.success(`${label} saved`);
+        onSaveSuccess?.();
       } else {
         toast.error(`Failed to save ${label}`);
       }
@@ -78,7 +91,7 @@ export const FileEditor = forwardRef<FileEditorHandle, FileEditorProps>(function
     } finally {
       setSaving(false);
     }
-  }, [name, content, effectiveSavePath, label]);
+  }, [name, content, effectiveSavePath, label, onSaveSuccess]);
 
   useImperativeHandle(
     ref,
@@ -114,6 +127,7 @@ export const FileEditor = forwardRef<FileEditorHandle, FileEditorProps>(function
   }, [name, filePath]);
 
   useEffect(() => {
+    if (previewOnly) return;
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault();
@@ -125,7 +139,7 @@ export const FileEditor = forwardRef<FileEditorHandle, FileEditorProps>(function
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [saving, dirty, loading, save]);
+  }, [previewOnly, saving, dirty, loading, save]);
 
   function handleChange(val: string) {
     setContent(val);
@@ -170,75 +184,77 @@ export const FileEditor = forwardRef<FileEditorHandle, FileEditorProps>(function
       <CardHeader className="shrink-0 flex-row items-center justify-between gap-3 pb-2">
         <div className="flex items-center gap-2">
           <CardTitle className="font-mono text-xs">{label}</CardTitle>
-          {dirty && (
+          {!previewOnly && dirty && (
             <span className="text-[10px] text-orange-500" aria-live="polite">
               unsaved
             </span>
           )}
         </div>
-        <div className="flex gap-1.5">
-          {!hideTemplateButton && (
-            <Dialog open={saveAsTemplateOpen} onOpenChange={setSaveAsTemplateOpen}>
-              <DialogTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={loading || readOnly}
-                  className="gap-1.5"
-                  onClick={() => setTemplateName('')}
-                >
-                  <FileText className="size-3.5" />
-                  <span className="hidden sm:inline">Template</span>
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <div className="flex min-h-0 flex-1 flex-col">
-                  <DialogHeader>
-                    <DialogTitle>Save as Template</DialogTitle>
-                    <DialogDescription>
-                      Save the current content of {label} as a reusable template.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-1">
-                    <Input
-                      value={templateName}
-                      onChange={(e) => setTemplateName(e.target.value)}
-                      placeholder="template-name"
-                      aria-label="Template name"
-                    />
+        {!previewOnly && (
+          <div className="flex gap-1.5">
+            {!hideTemplateButton && (
+              <Dialog open={saveAsTemplateOpen} onOpenChange={setSaveAsTemplateOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={loading || readOnly}
+                    className="gap-1.5"
+                    onClick={() => setTemplateName('')}
+                  >
+                    <FileText className="size-3.5" />
+                    <span className="hidden sm:inline">Template</span>
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <div className="flex min-h-0 flex-1 flex-col">
+                    <DialogHeader>
+                      <DialogTitle>Save as Template</DialogTitle>
+                      <DialogDescription>
+                        Save the current content of {label} as a reusable template.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-1">
+                      <Input
+                        value={templateName}
+                        onChange={(e) => setTemplateName(e.target.value)}
+                        placeholder="template-name"
+                        aria-label="Template name"
+                      />
+                    </div>
+                    <DialogFooter>
+                      <DialogClose asChild>
+                        <Button variant="outline">Cancel</Button>
+                      </DialogClose>
+                      <Button
+                        onClick={() => void saveAsTemplate()}
+                        disabled={savingTemplate || !templateName.trim()}
+                      >
+                        {savingTemplate ? 'Saving...' : 'Save'}
+                      </Button>
+                    </DialogFooter>
                   </div>
-                  <DialogFooter>
-                    <DialogClose asChild>
-                      <Button variant="outline">Cancel</Button>
-                    </DialogClose>
-                    <Button
-                      onClick={() => void saveAsTemplate()}
-                      disabled={savingTemplate || !templateName.trim()}
-                    >
-                      {savingTemplate ? 'Saving...' : 'Save'}
-                    </Button>
-                  </DialogFooter>
-                </div>
-              </DialogContent>
-            </Dialog>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void save()}
-            disabled={readOnly || saving || loading || !dirty}
-            className="gap-1.5"
-          >
-            {saving ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : dirty ? (
-              <Save className="size-3.5" />
-            ) : (
-              <Undo2 className="size-3.5 text-muted-foreground" />
+                </DialogContent>
+              </Dialog>
             )}
-            <span className="hidden sm:inline">{saving ? 'Saving...' : 'Save'}</span>
-          </Button>
-        </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void save()}
+              disabled={readOnly || saving || loading || !dirty}
+              className="gap-1.5"
+            >
+              {saving ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : dirty ? (
+                <Save className="size-3.5" />
+              ) : (
+                <Undo2 className="size-3.5 text-muted-foreground" />
+              )}
+              <span className="hidden sm:inline">{saving ? 'Saving...' : 'Save'}</span>
+            </Button>
+          </div>
+        )}
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col pt-2">
         {loading ? (
@@ -252,7 +268,7 @@ export const FileEditor = forwardRef<FileEditorHandle, FileEditorProps>(function
               filePath={filePath}
               className="min-h-0 w-full flex-1 overflow-hidden rounded-md border border-input"
               ariaLabel={`Edit ${label}`}
-              readOnly={readOnly}
+              readOnly={readOnly || previewOnly}
             />
             <div className="mt-1.5 flex items-center justify-end gap-3 text-[10px] text-muted-foreground/70">
               <span>{lineCount} lines</span>
