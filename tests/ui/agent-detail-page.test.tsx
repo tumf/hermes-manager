@@ -292,6 +292,103 @@ describe('Agent detail page', () => {
     });
   });
 
+  it('hides Save button on assembled SOUL.md preview in partial mode', async () => {
+    global.fetch = createFetchRouter(buildAgentDetailRoutes({ partialModeEnabled: true }));
+    window.history.replaceState(null, '', '#memory');
+
+    await act(async () => {
+      renderPage('alpha');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('textbox', { name: 'Edit SOUL.src.md' })).toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: 'Edit SOUL.md (assembled)' })).toBeInTheDocument();
+    });
+
+    // The source editor should have a Save button
+    const saveButtons = screen.getAllByRole('button', { name: /Save/i });
+    // Only 1 Save button (from the source editor), not 2
+    expect(saveButtons).toHaveLength(1);
+  });
+
+  it('refreshes assembled preview after successful SOUL.src.md save', async () => {
+    const fetchMock = createFetchRouter(buildAgentDetailRoutes({ partialModeEnabled: true }));
+    global.fetch = fetchMock;
+    window.history.replaceState(null, '', '#memory');
+
+    await act(async () => {
+      renderPage('alpha');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('textbox', { name: 'Edit SOUL.src.md' })).toBeInTheDocument();
+    });
+
+    const assembledPreview = screen.getByRole('textbox', { name: 'Edit SOUL.md (assembled)' });
+    expect(assembledPreview).toHaveValue('# Assembled Soul\n\n## Shared rules\n');
+
+    // Edit SOUL.src.md
+    fireEvent.change(screen.getByRole('textbox', { name: 'Edit SOUL.src.md' }), {
+      target: { value: '# Updated source\n' },
+    });
+
+    // Save
+    fireEvent.click(screen.getByRole('button', { name: /Save/i }));
+
+    // After save, the assembled preview should remount with updated content
+    await waitFor(() => {
+      const updatedPreview = screen.getByRole('textbox', { name: 'Edit SOUL.md (assembled)' });
+      expect(updatedPreview).toHaveValue('# Assembled from source\n\n# Updated source\n');
+    });
+  });
+
+  it('does not refresh assembled preview when SOUL.src.md save fails', async () => {
+    const fetchMock = createFetchRouter(
+      buildAgentDetailRoutes({
+        partialModeEnabled: true,
+        onFilePut: (body) => {
+          if (body.path === 'SOUL.src.md') {
+            return {
+              ok: false,
+              json: async () => ({ error: 'Unknown partial reference: bad-partial' }),
+            };
+          }
+          return undefined;
+        },
+      }),
+    );
+    global.fetch = fetchMock;
+    window.history.replaceState(null, '', '#memory');
+
+    await act(async () => {
+      renderPage('alpha');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('textbox', { name: 'Edit SOUL.src.md' })).toBeInTheDocument();
+    });
+
+    const assembledPreview = screen.getByRole('textbox', { name: 'Edit SOUL.md (assembled)' });
+    expect(assembledPreview).toHaveValue('# Assembled Soul\n\n## Shared rules\n');
+
+    // Edit with invalid content
+    fireEvent.change(screen.getByRole('textbox', { name: 'Edit SOUL.src.md' }), {
+      target: { value: '# Bad {{partial:bad-partial}}\n' },
+    });
+
+    // Attempt save
+    fireEvent.click(screen.getByRole('button', { name: /Save/i }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('Failed to save SOUL.src.md');
+    });
+
+    // Assembled preview should remain unchanged
+    expect(screen.getByRole('textbox', { name: 'Edit SOUL.md (assembled)' })).toHaveValue(
+      '# Assembled Soul\n\n## Shared rules\n',
+    );
+  });
+
   it('shows auto-allocation guidance when api_server is disabled', async () => {
     global.fetch = createFetchRouter(
       buildAgentDetailRoutes({ apiServerStatus: 'disabled', partialModeEnabled: false }),

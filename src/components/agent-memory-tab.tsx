@@ -44,6 +44,7 @@ export function AgentMemoryTab({ name }: AgentMemoryTabProps) {
   const [partials, setPartials] = useState<PartialEntry[]>([]);
   const [loadingPartials, setLoadingPartials] = useState(false);
 
+  const [assembledVersion, setAssembledVersion] = useState(0);
   const editorRef = useRef<FileEditorHandle>(null);
 
   const soulFilePath = partialModeEnabled ? 'SOUL.src.md' : 'SOUL.md';
@@ -148,6 +149,10 @@ export function AgentMemoryTab({ name }: AgentMemoryTabProps) {
     toast.success(t.memory.insertedPartial(partialName));
   }
 
+  const handleSourceSaveSuccess = useCallback(() => {
+    setAssembledVersion((v) => v + 1);
+  }, []);
+
   const activeFilePath = selectedFile === 'SOUL' ? soulFilePath : selectedFile;
   const activeFileLabel = selectedFile === 'SOUL' ? soulLabel : selectedFile;
 
@@ -239,6 +244,9 @@ export function AgentMemoryTab({ name }: AgentMemoryTabProps) {
         name={name}
         filePath={activeFilePath}
         label={activeFileLabel}
+        onSaveSuccess={
+          selectedFile === 'SOUL' && partialModeEnabled ? handleSourceSaveSuccess : undefined
+        }
         className={
           selectedFile === 'SOUL' && partialModeEnabled
             ? 'h-[calc(100dvh-12rem)] min-h-[40rem]'
@@ -248,11 +256,11 @@ export function AgentMemoryTab({ name }: AgentMemoryTabProps) {
 
       {selectedFile === 'SOUL' && partialModeEnabled && (
         <FileEditor
-          key="assembled-soul"
+          key={`assembled-soul-${assembledVersion}`}
           name={name}
           filePath="SOUL.md"
           label="SOUL.md (assembled)"
-          readOnly
+          previewOnly
           hideTemplateButton
           className="h-[calc(100dvh-12rem)] min-h-[40rem]"
         />
