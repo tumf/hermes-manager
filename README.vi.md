@@ -4,8 +4,8 @@
 
 ![Ảnh chụp màn hình Hermes Manager](./docs/images/ss-agents-1.png)
 
-Hermes Manager là ứng dụng Next.js để quản lý tập trung các Hermes Agent vận hành trong môi trường mini từ giao diện web.
-Ứng dụng tích hợp tạo, nhân bản, xóa, điều khiển khởi động/dừng, chỉnh sửa cấu hình, quản lý biến môi trường, quản lý kỹ năng, thao tác cron job, kiểm tra lịch sử trò chuyện và xem log.
+Hermes Manager là một control plane xây dựng bằng Next.js để vận hành nhiều Hermes Agent trên một máy chủ từ một giao diện web tập trung.
+Khác với Hermes dashboard chính thức, vốn tập trung vào việc quản lý một cài đặt Hermes duy nhất, Hermes Manager được định vị cho multi-agent operations: quản lý vòng đời, provisioning bằng templates và partials, phân lớp biến môi trường theo từng agent, điều khiển dịch vụ cục bộ và kiểm tra log cũng như hoạt động chat giữa nhiều agents. Đây không phải là sản phẩm nhằm thay thế dashboard chính thức cho một cài đặt đơn lẻ theo hướng feature parity.
 
 Giao diện web hỗ trợ 10 ngôn ngữ sau:
 

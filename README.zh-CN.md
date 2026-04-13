@@ -4,8 +4,8 @@
 
 ![Hermes Manager 截图](./docs/images/ss-agents-1.png)
 
-Hermes Manager 是一个 Next.js 应用程序，用于通过 Web UI 集中管理在 mini 环境中运行的 Hermes Agent。
-它集成了 agent 的创建、复制、删除、启停控制、配置编辑、环境变量管理、技能管理、定时任务操作、聊天记录查看和日志浏览。
+Hermes Manager 是一个基于 Next.js 的控制平面，用于在单台主机上通过一个 Web UI 统一运营多个 Hermes Agent。
+与官方 Hermes dashboard 主要面向单个 Hermes 安装的管理不同，Hermes Manager 的定位不是功能对等的替代仪表盘，而是面向受信网络/内网中的多 agent 运维：更强调 agent 生命周期管理、批量/标准化 provisioning、templates/partials 复用、按 agent 分层的环境变量管理、本地服务控制，以及跨 agent 的日志与聊天活动检查。
 
 Web UI 支持以下 10 种语言：
 
@@ -37,12 +37,12 @@ Web UI 支持以下 10 种语言：
 
 ## 主要功能
 
-- 通过 Web UI 集中管理多个 Hermes Agent
-- 创建、复制、删除、启动、停止和重启 agent
+- 通过集中式 Web UI 在一台主机上统一运营多个 Hermes Agent
+- 对 agent 进行 provisioning、复制、删除，以及启动、停止、重启等生命周期管理
 - 编辑 `SOUL.md`、`SOUL.src.md`、`memories/MEMORY.md`、`memories/USER.md` 和 `config.yaml`
-- 管理带有可见性元数据的 agent/全局环境变量
-- 通过复制技能目录来装备/卸载技能
-- 管理定时任务并查看其输出
+- 管理带有可见性元数据的全局/agent 分层环境变量
+- 复用 templates/partials，并基于本地资源装备/卸载技能
+- 控制本地服务、管理定时任务并查看其输出
 - 通过 agent API 服务器查看聊天会话和历史记录
 - 查看 gateway/webapp 日志，支持 tail/stream
 - 在 10 种支持的语言之间切换 UI

@@ -4,8 +4,8 @@
 
 ![Hermes Manager screenshot](./docs/images/ss-agents-1.png)
 
-Hermes Manager is a Next.js application for centrally managing Hermes Agents operated in the mini environment from a web UI.
-It integrates agent creation, duplication, deletion, start/stop control, configuration editing, environment variable management, skill management, cron job operations, chat history inspection, and log viewing.
+Hermes Manager is a Next.js control plane for operating many Hermes Agents on a single host from one web UI.
+Unlike the official Hermes dashboard, which focuses on managing a single Hermes installation, Hermes Manager is positioned for multi-agent lifecycle management: provisioning agents, applying templates and partials, layering per-agent environment variables, controlling local services, and inspecting logs and chat activity across agents. It is not intended to be a feature-parity replacement for the official single-install dashboard.
 
 The Web UI supports the following 10 languages:
 
@@ -37,12 +37,12 @@ For detailed operational rules and design policies, refer to the following:
 
 ## Key Features
 
-- Centrally manage multiple Hermes Agents from the web UI
-- Create, duplicate, delete, start, stop, and restart agents
+- Operate many Hermes Agents on one host from a centralized web UI
+- Provision agents, duplicate them, delete them, and manage lifecycle actions such as start, stop, and restart
 - Edit `SOUL.md`, `SOUL.src.md`, `memories/MEMORY.md`, `memories/USER.md`, and `config.yaml`
-- Manage agent/global environment variables with visibility metadata
-- Equip / unequip skills by copying skill directories
-- Manage cron jobs and inspect their outputs
+- Manage layered global/agent environment variables with visibility metadata
+- Reuse templates/partials and equip / unequip skills from local assets
+- Control local services, manage cron jobs, and inspect their outputs
 - Inspect chat sessions and history through the agent API server
 - View gateway / webapp logs with tail / stream
 - Switch the UI across 10 supported languages

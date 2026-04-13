@@ -4,8 +4,8 @@
 
 ![Hermes Manager 스크린샷](./docs/images/ss-agents-1.png)
 
-Hermes Manager은 mini 환경에서 운영되는 Hermes Agent를 웹 UI에서 중앙 관리하기 위한 Next.js 애플리케이션입니다.
-에이전트 생성, 복제, 삭제, 시작/중지 제어, 설정 편집, 환경 변수 관리, 스킬 관리, 크론 작업 운영, 채팅 기록 조회, 로그 열람을 통합합니다.
+Hermes Manager은 하나의 웹 UI에서 한 대의 호스트 위 여러 Hermes Agent를 운영하기 위한 Next.js 기반 control plane입니다.
+단일 Hermes 설치를 깊게 관리하는 공식 Hermes dashboard와 달리, Hermes Manager는 multi-agent lifecycle 관리에 초점을 둡니다. 즉, agent 프로비저닝, template/partial 재사용, agent별 환경 변수 레이어링, 로컬 서비스 제어, 그리고 여러 agent의 로그 및 채팅 활동 점검을 담당합니다. 공식 단일 설치 dashboard와의 feature parity 대체품을 목표로 하지는 않습니다.
 
 웹 UI는 다음 10개 언어를 지원합니다:
 

@@ -53,6 +53,102 @@ hermes-manager/
 
 ---
 
+## CoreConcepts
+
+この製品の判断軸は、今後の機能追加・UI改善・proposal 作成で常に優先される。
+魅力的に見える実装案でも、ここに反するなら採用しない。
+
+### 1. 本製品は Hermes 公式 dashboard の代替ではない
+
+- Hermes 公式 dashboard は「単一の Hermes install / HERMES_HOME を深く管理する UI」として尊重する
+- Hermes Manager / hermes-agents は「複数の Hermes Agent を一台のホスト上で運用する control plane」として定義する
+- 公式 dashboard との feature parity 自体を目標にしない
+
+### 2. 本製品の主戦場は multi-agent operations である
+
+優先順位が高いのは、複数 agent を安全かつ再現可能に運用するための次の領域である。
+
+- agent の一覧・識別・棚卸し
+- agent の作成 / コピー / 削除
+- agent ごとの HERMES_HOME 分離
+- launchd / systemd による lifecycle 管理
+- per-agent `api_server` port の採番・修復・可視化
+- global env と agent env の階層管理
+- skills の per-agent 配備
+- templates / partials / memory assets を使った provisioning
+
+### 3. 差別化として継続投資する領域
+
+- Host operations
+  - OS service manager（launchd/systemd）と密接に統合された運用
+  - 起動・停止・再起動・状態確認・障害診断
+- Agent provisioning
+  - Template 選択、Save as Template、共有 partial、SOUL composability
+  - 新規 agent や複製 agent を素早く一貫した状態で立ち上げること
+- Agent-scoped deployment safety
+  - env layering、visibility、port 管理、skill equip 状態、runtime layout の一貫性
+- Fleet ergonomics
+  - 複数 agent を横断して「どれが何者で、どう動いているか」を素早く把握できること
+
+### 4. 重複領域は運用文脈に必要な範囲で持つ
+
+以下の機能は維持してよいが、目的はあくまで managed agent の運用支援である。
+
+- Chat / Sessions
+  - 対象 agent が動作しているか確認する
+  - セッションを再開して運用確認する
+  - agent detail workflow の一部として扱う
+- Logs
+  - 障害調査、tail、runtime 診断のために扱う
+- Cron
+  - per-agent job の配備・確認・トラブルシュートのために扱う
+- Skills
+  - skill catalog の閲覧ではなく、「どの agent に何を積むか」の管理として扱う
+- Env / Config
+  - 単一 agent の総合設定 UI を目指すのではなく、multi-agent 運用の安全性・再現性に必要な範囲で扱う
+
+### 5. 追いかけないもの
+
+- 公式 dashboard との単純な feature parity
+- 単一 agent 向け config editing completeness の競争
+- analytics / cost dashboard を主目的にした開発
+- セッション探索専用 UI としての完成度競争
+- 「1体の Hermes を最も快適に触る UI」を目指すこと
+
+### 6. 新機能の採否基準
+
+新しい機能提案・実装・UI改善では必ず次を自問すること。
+
+1. これは multi-agent operations を良くするか？
+2. これは provisioning / lifecycle / deployment safety のどれを改善するか？
+3. これは upstream dashboard ではなく Hermes Manager が持つべき理由があるか？
+4. これは feature parity 欲求ではなく、明確な operator workflow に根差しているか？
+
+十分に答えられない場合、その機能は defer するか、スコープを縮小する。
+
+### 7. ポジショニング文
+
+- 公式 dashboard: 「ひとつの Hermes を深く管理する UI」
+- Hermes Manager: 「複数の Hermes Agent を配備・運用・再利用するための control plane」
+
+README・proposal・設計ドキュメント・Issue・PR はこのポジショニングから逸脱しないこと。
+
+### 8. proposal / design 時の追加ルール
+
+公式 dashboard と重なる機能を追加・拡張する proposal を作る場合は、必ず以下を明記すること。
+
+- なぜ multi-agent operations に必要か
+- keep / adapt / defer のどれか
+- upstream dashboard では満たせない operator workflow は何か
+- link / reference / 部分統合では不十分な理由は何か
+
+### 9. 明示的な非ゴール
+
+Hermes Manager は「単一 Hermes install にとって唯一必要な dashboard」になることを目指さない。
+この製品の役割は、「多数の Hermes agents を一貫して管理できる local fleet control plane」である。
+
+---
+
 ## 開発ルール
 
 ### 1. ドキュメントは常に最新を保つ

@@ -1,11 +1,12 @@
 # Hermes Manager 要件定義
 
-最終更新: 2026-04-03
+最終更新: 2026-04-14
 
 ## 1. 背景/目的
 
 - ローカルホスト上で多数の Hermes Agent (hermes-agent) を OS サービスマネージャ（macOS: launchd、Linux: systemd）で常駐運用する。
 - エージェントごとの HERMES_HOME を標準構造で管理し、設定・メモリ・スキル・実行・ログを Web UI から操作可能にする。
+- Hermes 公式 dashboard を単一 Hermes install 向け UI と位置づけ、本製品は複数 agent を配備・運用する control plane に集中する。
 - イントラネット運用前提（認証なし）、安全なローカル権限内での制御に限定。
 
 ## 2. 用語
@@ -19,14 +20,18 @@
 
 - in scope:
   - エージェント管理: 追加/削除/コピー、サービス install/start/stop/restart/status（macOS: launchd / Linux: systemd）
+  - エージェントの provisioning: templates / partials / memory assets を使った初期化と再利用
   - メモリ/設定ファイルの編集: SOUL.md, memories/MEMORY.md, memories/USER.md, config.yaml
   - 変数管理: HERMES_HOME/.env CRUD、グローバル変数 CRUD と runtime/globals/.env 再生成
   - スキル管理: ~/.agents/skills から {HERMES_HOME}/skills へのディレクトリコピー/削除
   - ログ閲覧: gateway.log / gateway.error.log / errors.log（tail / SSE）
+  - Chat / Sessions / Cron は agent 運用・診断に必要な範囲で提供する
   - UI: Agents リスト、Agent 詳細（Memory/Config/Env/Logs）、Globals 管理
 - out of scope（当面）:
   - 外部認証/権限管理、外部公開
   - リモートホスト運用
+  - 公式 dashboard との feature parity を目的とした単一 agent 向け総合 dashboard 化
+  - analytics / cost dashboard を主目的にした製品化
 
 ## 4. ユースケース
 
@@ -35,6 +40,7 @@
 - UC3: .env の変更（モデル/キー差し替え）→再起動
 - UC4: スキルをリンク/解除して機能を拡張
 - UC5: エラー発生時にログを追跡
+- UC6: テンプレートや partial を再利用して役割の異なる agent を短時間で複製・展開する
 
 ## 5. 機能要件（FR）
 
@@ -46,7 +52,7 @@
 - FR-6 Skills API: skills tree 取得（~/.agents/skills、階層構造、SKILL.md 検出）、コピー管理（相対パス保持で `{HERMES_HOME}/skills` にディレクトリをコピー/削除、既存コピー検出）
 - FR-7 Logs API: 読み取り（tail）、SSE で追尾
 - FR-8 Cron API: jobs.json CRUD、pause/resume/run action、output ファイル閲覧（GET/POST/PUT/DELETE、原子書き込み）
-- FR-9 UI: Agents 一覧（起動/停止/状態表示/追加/削除/コピー。process-level 情報として Memory を表示し、Hermes バージョンは表示しない）、詳細タブ UI（Metadata/Memory/Config/Env/Cron/Logs。ヘッダー情報エリアに Hermes バージョンを表示し、未取得時は `--` を表示）、Globals UI
+- FR-9 UI: Agents 一覧（起動/停止/状態表示/追加/削除/コピー。process-level 情報として Memory を表示し、Hermes バージョンは表示しない）、詳細タブ UI（Metadata/Memory/Config/Env/Cron/Logs/Chat。ヘッダー情報エリアに Hermes バージョンを表示し、未取得時は `--` を表示）。Chat / Logs / Cron / Skills / Env は agent 運用と診断を支援する範囲で提供し、単一 agent 向け総合 dashboard の feature parity は要件としない。Globals UI
 - FR-10 Templates API: テンプレート CRUD（GET/POST/PUT/DELETE）、fileType + name で UNIQUE 制約。エージェント作成時のテンプレート選択、default テンプレートへのフォールバック、既存ファイルからの Save as Template
 - FR-11 Partials API: 共有 partial CRUD（`/api/partials`）、`runtime/partials/{name}.md` 保存、`usedBy` 逆引き、利用中削除の 409 拒否、partial 更新時の参照 agent `SOUL.md` 再生成
 - FR-12 Memory UI partial mode: agent ごとの partial mode 有効化（`SOUL.md`→`SOUL.src.md`）、partial 挿入、assembled `SOUL.md` の read-only 確認
@@ -59,6 +65,7 @@
 - NFR-3 可用性: アプリ自体も OS サービスマネージャ（macOS: launchd / Linux: systemd）で常駐、障害復旧は再起動で完結
 - NFR-4 運用性: ログファイルは runtime/logs および agent logs/ に分離、restic バックアップ対象
 - NFR-5 テスト容易性: API は関数分離しユニット可能、UI はコンポーネント単位でテスト
+- NFR-6 製品一貫性: 新機能は multi-agent operations / provisioning / lifecycle / deployment safety のいずれかを明確に改善するものを優先し、公式 dashboard との feature parity を目的に追加しない
 
 ## 7. セキュリティ/信頼境界
 

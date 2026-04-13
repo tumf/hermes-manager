@@ -4,8 +4,8 @@
 
 ![Captura de pantalla de Hermes Manager](./docs/images/ss-agents-1.png)
 
-Hermes Manager es una aplicación Next.js para gestionar de forma centralizada los Hermes Agents operados en el entorno mini desde una interfaz web.
-Integra la creación, duplicación, eliminación, control de inicio/parada, edición de configuración, gestión de variables de entorno, gestión de habilidades, operaciones de tareas programadas, inspección del historial de chat y visualización de logs.
+Hermes Manager es un plano de control basado en Next.js para operar muchos Hermes Agents en un solo host desde una única interfaz web.
+A diferencia del dashboard oficial de Hermes, que se centra en gestionar una sola instalación de Hermes, Hermes Manager no se presenta como un reemplazo con paridad de funciones, sino como una herramienta para operaciones multi-agent en redes confiables/intranet: gestión del ciclo de vida, aprovisionamiento, reutilización de templates/partials, capas de variables de entorno por agent, control de servicios locales e inspección de logs y actividad de chat entre agentes.
 
 La interfaz web soporta los siguientes 10 idiomas:
 
@@ -37,12 +37,12 @@ Para reglas operativas detalladas y políticas de diseño, consulte lo siguiente
 
 ## Características principales
 
-- Gestionar centralmente múltiples Hermes Agents desde la interfaz web
-- Crear, duplicar, eliminar, iniciar, detener y reiniciar agents
+- Operar múltiples Hermes Agents en un solo host desde una interfaz web centralizada
+- Aprovisionar agents, duplicarlos, eliminarlos y gestionar acciones de ciclo de vida como iniciar, detener y reiniciar
 - Editar `SOUL.md`, `SOUL.src.md`, `memories/MEMORY.md`, `memories/USER.md` y `config.yaml`
-- Gestionar variables de entorno de agent/globales con metadatos de visibilidad
-- Equipar/desequipar habilidades copiando directorios de habilidades
-- Gestionar tareas programadas e inspeccionar sus resultados
+- Gestionar variables de entorno globales/por agent en capas con metadatos de visibilidad
+- Reutilizar templates/partials y equipar/desequipar habilidades desde recursos locales
+- Controlar servicios locales, gestionar tareas programadas e inspeccionar sus resultados
 - Inspeccionar sesiones de chat e historial a través del servidor API del agent
 - Ver logs de gateway/webapp con tail/stream
 - Cambiar la interfaz entre 10 idiomas soportados

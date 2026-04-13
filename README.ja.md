@@ -4,8 +4,8 @@
 
 ![Hermes Manager スクリーンショット](./docs/images/ss-agents-1.png)
 
-Hermes Manager は、複数の Hermes Agent を単一の Web UI から運用するための Next.js ダッシュボードです。
-trusted-network / イントラネット環境で、agent ごとの `HERMES_HOME`、ローカルサービス、設定ファイル、スキル、Cron、ログ、チャット履歴をまとめて管理する用途を想定しています。
+Hermes Manager は、1 台のホスト上で多数の Hermes Agent をまとめて運用するための Next.js 製コントロールプレーンです。
+公式 Hermes dashboard が単一の Hermes インストールを管理する UI であるのに対し、Hermes Manager は feature parity な置き換えではなく、trusted-network / イントラネット環境でのマルチエージェント運用に位置づけられています。agent のプロビジョニング、テンプレート/partials 適用、agent ごとの環境変数レイヤリング、ローカルサービス制御、設定・ログ・チャット履歴の横断管理を重視しています。
 
 Web UI は次の 10 言語に対応しています。
 
@@ -38,12 +38,13 @@ Web UI は次の 10 言語に対応しています。
 
 Hermes Manager では、ブラウザ UI から次の操作を行えます。
 
-- エージェントの作成・複製・削除
+- 1 ホスト上の複数エージェントの集中運用
+- エージェントのプロビジョニング、複製、削除
 - launchd（macOS）/ systemd（Linux）経由の起動・停止・再起動
 - `SOUL.md`、`SOUL.src.md`、`memories/MEMORY.md`、`memories/USER.md`、`config.yaml`、`.env` の編集
-- visibility メタデータ付きの global / agent 環境変数管理
-- ローカルスキルカタログからのスキル equip
-- ログ、Cron ジョブ、チャットセッションの確認
+- visibility メタデータ付きの global / agent 環境変数レイヤリング管理
+- templates / partials の再利用とローカルスキルカタログからのスキル equip
+- ローカルサービス制御、ログ、Cron ジョブ、チャットセッションの確認
 
 ## 安全性 / 信頼境界
 
