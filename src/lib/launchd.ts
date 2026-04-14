@@ -1,6 +1,7 @@
 import os from 'node:os';
 import path from 'node:path';
 
+import { resolveManagerBaseUrl } from './manager-base-url';
 import { getProjectRootPath, getRuntimeGlobalsRootPath } from './runtime-paths';
 
 export interface ExecResult {
@@ -13,12 +14,12 @@ export function getPlistPath(agentId: string): string {
   return path.join(os.homedir(), 'Library', 'LaunchAgents', `ai.hermes.gateway.${agentId}.plist`);
 }
 
-export function generatePlist(
+export async function generatePlist(
   _agentId: string,
   home: string,
   label: string,
   apiServerPort: number | null,
-): string {
+): Promise<string> {
   const runnerScriptPath = getProjectRootPath('scripts', 'run-agent-gateway.sh');
   const globalsEnvPath = getRuntimeGlobalsRootPath('.env');
   const agentEnvPath = path.join(home, '.env');
@@ -28,12 +29,14 @@ export function generatePlist(
     apiServerPort === null
       ? ''
       : `
-    <key>API_SERVER_ENABLED</key>
-    <string>true</string>
-    <key>API_SERVER_PORT</key>
-    <string>${apiServerPort}</string>`;
+     <key>API_SERVER_ENABLED</key>
+     <string>true</string>
+     <key>API_SERVER_PORT</key>
+     <string>${apiServerPort}</string>`;
+  const managerBaseUrl = await resolveManagerBaseUrl();
 
   return `<?xml version="1.0" encoding="UTF-8"?>
+
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -49,7 +52,9 @@ export function generatePlist(
   <key>EnvironmentVariables</key>
   <dict>
     <key>HERMES_HOME</key>
-    <string>${home}</string>${apiServerEnvBlock}
+    <string>${home}</string>
+    <key>HERMES_MANAGER_BASE_URL</key>
+    <string>${managerBaseUrl}</string>${apiServerEnvBlock}
   </dict>
   <key>StandardOutPath</key>
   <string>${logDir}/gateway.log</string>

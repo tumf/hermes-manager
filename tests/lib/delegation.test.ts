@@ -113,8 +113,14 @@ describe('buildSubagentSoulBlock', () => {
     ]);
     expect(block).toContain('HERMES_MANAGER_SUBAGENTS_V1_BEGIN');
     expect(block).toContain('HERMES_MANAGER_SUBAGENTS_V1_END');
+    expect(block).toContain(
+      'Use listed subagents when they can handle part of the task more efficiently than doing everything yourself.',
+    );
     expect(block).toContain('dispatchSkill: hermes-manager-subagent-dispatch');
     expect(block).toContain('maxHop: 3');
+
+    expect(block).not.toContain('dispatchEndpointPath');
+
     expect(block).toContain('id: research01');
     expect(block).toContain('name: Research Agent');
     expect(block).toContain('- research');

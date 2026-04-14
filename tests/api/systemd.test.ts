@@ -17,56 +17,75 @@ describe('systemdAdapter.getServiceDefinitionPath', () => {
 describe('systemdAdapter.generateServiceDefinition', () => {
   const home = '/home/me/Hermes/alpha';
   const label = 'ai.hermes.gateway.alpha';
-  const unit = systemdAdapter.generateServiceDefinition('alpha', home, label, 8645);
-  const unitWithoutApi = systemdAdapter.generateServiceDefinition('alpha', home, label, null);
 
-  it('contains the [Unit] section with label as description', () => {
+  it('contains the [Unit] section with label as description', async () => {
+    const unit = await systemdAdapter.generateServiceDefinition('alpha', home, label, 8645);
     expect(unit).toContain('[Unit]');
     expect(unit).toContain(`Description=${label}`);
   });
 
-  it('contains the [Service] section', () => {
+  it('contains the [Service] section', async () => {
+    const unit = await systemdAdapter.generateServiceDefinition('alpha', home, label, 8645);
     expect(unit).toContain('[Service]');
     expect(unit).toContain('Type=simple');
   });
 
-  it('sets ExecStart with bash and runner script', () => {
+  it('sets ExecStart with bash and runner script', async () => {
+    const unit = await systemdAdapter.generateServiceDefinition('alpha', home, label, 8645);
     expect(unit).toContain('ExecStart=/bin/bash');
     expect(unit).toContain('scripts/run-agent-gateway.sh');
   });
 
-  it('sets WorkingDirectory to home', () => {
+  it('sets WorkingDirectory to home', async () => {
+    const unit = await systemdAdapter.generateServiceDefinition('alpha', home, label, 8645);
     expect(unit).toContain(`WorkingDirectory=${home}`);
   });
 
-  it('sets HERMES_HOME environment variable', () => {
+  it('sets HERMES_HOME environment variable', async () => {
+    const unit = await systemdAdapter.generateServiceDefinition('alpha', home, label, 8645);
     expect(unit).toContain(`Environment=HERMES_HOME=${home}`);
   });
 
-  it('injects API_SERVER_ENABLED and API_SERVER_PORT when configured', () => {
+  it('sets HERMES_MANAGER_BASE_URL environment variable', async () => {
+    const unit = await systemdAdapter.generateServiceDefinition('alpha', home, label, 8645);
+    expect(unit).toContain('Environment=HERMES_MANAGER_BASE_URL=');
+  });
+
+  it('injects API_SERVER_ENABLED and API_SERVER_PORT when configured', async () => {
+    const unit = await systemdAdapter.generateServiceDefinition('alpha', home, label, 8645);
     expect(unit).toContain('Environment=API_SERVER_ENABLED=true');
     expect(unit).toContain('Environment=API_SERVER_PORT=8645');
   });
 
-  it('does not inject API_SERVER vars when apiServerPort is null', () => {
+  it('does not inject API_SERVER vars when apiServerPort is null', async () => {
+    const unitWithoutApi = await systemdAdapter.generateServiceDefinition(
+      'alpha',
+      home,
+      label,
+      null,
+    );
     expect(unitWithoutApi).not.toContain('API_SERVER_ENABLED');
     expect(unitWithoutApi).not.toContain('API_SERVER_PORT');
   });
 
-  it('sets stdout and stderr log paths', () => {
+  it('sets stdout and stderr log paths', async () => {
+    const unit = await systemdAdapter.generateServiceDefinition('alpha', home, label, 8645);
     expect(unit).toContain(`StandardOutput=append:${home}/logs/gateway.log`);
     expect(unit).toContain(`StandardError=append:${home}/logs/gateway.error.log`);
   });
 
-  it('references the agent .env file', () => {
+  it('references the agent .env file', async () => {
+    const unit = await systemdAdapter.generateServiceDefinition('alpha', home, label, 8645);
     expect(unit).toContain(`${home}/.env`);
   });
 
-  it('references the globals .env file', () => {
+  it('references the globals .env file', async () => {
+    const unit = await systemdAdapter.generateServiceDefinition('alpha', home, label, 8645);
     expect(unit).toContain(`${process.cwd()}/runtime/globals/.env`);
   });
 
-  it('contains [Install] section with WantedBy', () => {
+  it('contains [Install] section with WantedBy', async () => {
+    const unit = await systemdAdapter.generateServiceDefinition('alpha', home, label, 8645);
     expect(unit).toContain('[Install]');
     expect(unit).toContain('WantedBy=default.target');
   });

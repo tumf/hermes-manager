@@ -20,60 +20,75 @@ describe('generatePlist', () => {
   const name = 'alpha';
   const home = '/Users/me/Hermes/alpha';
   const label = 'ai.hermes.gateway.alpha';
-  const plist = generatePlist(name, home, label, 8645);
-  const plistWithoutApiServer = generatePlist(name, home, label, null);
 
-  it('contains the correct label', () => {
+  it('contains the correct label', async () => {
+    const plist = await generatePlist(name, home, label, 8645);
     expect(plist).toContain(`<string>${label}</string>`);
   });
 
-  it('contains bash as first ProgramArgument', () => {
+  it('contains bash as first ProgramArgument', async () => {
+    const plist = await generatePlist(name, home, label, 8645);
     expect(plist).toContain('<string>/bin/bash</string>');
   });
 
-  it('contains gateway runner script in ProgramArguments', () => {
+  it('contains gateway runner script in ProgramArguments', async () => {
+    const plist = await generatePlist(name, home, label, 8645);
     expect(plist).toContain(`${process.cwd()}/scripts/run-agent-gateway.sh`);
   });
 
-  it('sets HERMES_HOME environment variable', () => {
+  it('sets HERMES_HOME environment variable', async () => {
+    const plist = await generatePlist(name, home, label, 8645);
     expect(plist).toContain('<key>HERMES_HOME</key>');
     expect(plist).toContain(`<string>${home}</string>`);
   });
 
-  it('injects API_SERVER_ENABLED and API_SERVER_PORT environment variables', () => {
+  it('sets HERMES_MANAGER_BASE_URL environment variable', async () => {
+    const plist = await generatePlist(name, home, label, 8645);
+    expect(plist).toContain('<key>HERMES_MANAGER_BASE_URL</key>');
+  });
+
+  it('injects API_SERVER_ENABLED and API_SERVER_PORT environment variables', async () => {
+    const plist = await generatePlist(name, home, label, 8645);
     expect(plist).toContain('<key>API_SERVER_ENABLED</key>');
     expect(plist).toContain('<string>true</string>');
     expect(plist).toContain('<key>API_SERVER_PORT</key>');
     expect(plist).toContain('<string>8645</string>');
   });
 
-  it('does not inject API_SERVER_* variables when apiServerPort is not configured', () => {
+  it('does not inject API_SERVER_* variables when apiServerPort is not configured', async () => {
+    const plistWithoutApiServer = await generatePlist(name, home, label, null);
     expect(plistWithoutApiServer).not.toContain('<key>API_SERVER_ENABLED</key>');
     expect(plistWithoutApiServer).not.toContain('<key>API_SERVER_PORT</key>');
   });
 
-  it('sets WorkingDirectory to HERMES_HOME', () => {
+  it('sets WorkingDirectory to HERMES_HOME', async () => {
+    const plist = await generatePlist(name, home, label, 8645);
     expect(plist).toContain('<key>WorkingDirectory</key>');
     expect(plist).toContain(`<string>${home}</string>`);
   });
 
-  it('includes stdout log path', () => {
+  it('includes stdout log path', async () => {
+    const plist = await generatePlist(name, home, label, 8645);
     expect(plist).toContain(`${home}/logs/gateway.log`);
   });
 
-  it('includes stderr log path', () => {
+  it('includes stderr log path', async () => {
+    const plist = await generatePlist(name, home, label, 8645);
     expect(plist).toContain(`${home}/logs/gateway.error.log`);
   });
 
-  it('references the agent home .env file', () => {
+  it('references the agent home .env file', async () => {
+    const plist = await generatePlist(name, home, label, 8645);
     expect(plist).toContain(`${home}/.env`);
   });
 
-  it('references the globals .env file', () => {
+  it('references the globals .env file', async () => {
+    const plist = await generatePlist(name, home, label, 8645);
     expect(plist).toContain(`${process.cwd()}/runtime/globals/.env`);
   });
 
-  it('is valid XML with plist root element', () => {
+  it('is valid XML with plist root element', async () => {
+    const plist = await generatePlist(name, home, label, 8645);
     expect(plist).toContain('<?xml version="1.0"');
     expect(plist).toContain('<plist version="1.0">');
     expect(plist).toContain('</plist>');

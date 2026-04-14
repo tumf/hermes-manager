@@ -14,7 +14,7 @@ export interface ServiceAdapter {
     home: string,
     label: string,
     apiServerPort: number | null,
-  ): string;
+  ): Promise<string>;
   buildInstallCommands(
     agentId: string,
     label: string,

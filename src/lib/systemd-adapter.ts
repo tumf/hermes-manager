@@ -2,6 +2,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import type { ExecResult } from './launchd';
+import { resolveManagerBaseUrl } from './manager-base-url';
 import { getProjectRootPath, getRuntimeGlobalsRootPath } from './runtime-paths';
 import type { ServiceAdapter } from './service-manager';
 
@@ -24,18 +25,22 @@ export const systemdAdapter: ServiceAdapter = {
     return path.join(getUnitDir(), getUnitFileName(agentId));
   },
 
-  generateServiceDefinition(
+  async generateServiceDefinition(
     _agentId: string,
     home: string,
     label: string,
     apiServerPort: number | null,
-  ): string {
+  ): Promise<string> {
     const runnerScriptPath = getProjectRootPath('scripts', 'run-agent-gateway.sh');
     const globalsEnvPath = getRuntimeGlobalsRootPath('.env');
     const agentEnvPath = path.join(home, '.env');
     const logDir = path.join(home, 'logs');
 
-    const envLines = [`Environment=HERMES_HOME=${home}`];
+    const managerBaseUrl = await resolveManagerBaseUrl();
+    const envLines = [
+      `Environment=HERMES_HOME=${home}`,
+      `Environment=HERMES_MANAGER_BASE_URL=${managerBaseUrl}`,
+    ];
     if (apiServerPort !== null) {
       envLines.push(`Environment=API_SERVER_ENABLED=true`);
       envLines.push(`Environment=API_SERVER_PORT=${apiServerPort}`);

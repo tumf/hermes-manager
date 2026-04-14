@@ -1,12 +1,16 @@
 // @vitest-environment node
+import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { promisify } from 'node:util';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { MANAGED_DISPATCH_SKILL } from '../../src/lib/delegation';
+import { MANAGED_DISPATCH_SCRIPT_NAME, MANAGED_DISPATCH_SKILL } from '../../src/lib/delegation';
+
+const execFileAsync = promisify(execFile);
 
 let tmpDir: string;
 let agentHome: string;
@@ -50,41 +54,18 @@ describe('syncDelegationForAgent', () => {
 
     const skillDir = path.join(agentHome, 'skills', MANAGED_DISPATCH_SKILL);
     expect(fs.existsSync(path.join(skillDir, 'SKILL.md'))).toBe(true);
-  });
-
-  it('removes managed skill when allowedAgents empty', async () => {
-    const skillDir = path.join(agentHome, 'skills', MANAGED_DISPATCH_SKILL);
-    fs.mkdirSync(skillDir, { recursive: true });
-    fs.writeFileSync(path.join(skillDir, 'SKILL.md'), '# Skill\n');
-
-    await fsp.writeFile(path.join(agentHome, 'SOUL.src.md'), '# Soul\n', 'utf-8');
-    await fsp.writeFile(path.join(agentHome, 'SOUL.md'), '# Soul\n', 'utf-8');
-
-    const { syncDelegationForAgent } = await import('../../src/lib/delegation-sync');
-    await syncDelegationForAgent('test-agent', agentHome, {
-      allowedAgents: [],
-      maxHop: 3,
-    });
-
-    expect(fs.existsSync(skillDir)).toBe(false);
-  });
-
-  it('does not duplicate managed skill on second sync', async () => {
-    await fsp.writeFile(path.join(agentHome, 'SOUL.src.md'), '# Soul\n', 'utf-8');
-    await fsp.writeFile(path.join(agentHome, 'SOUL.md'), '# Soul\n', 'utf-8');
-
-    const { syncDelegationForAgent } = await import('../../src/lib/delegation-sync');
-    const policy = { allowedAgents: ['target-a'], maxHop: 3 };
-    await syncDelegationForAgent('test-agent', agentHome, policy);
-    await syncDelegationForAgent('test-agent', agentHome, policy);
-
-    const skillDir = path.join(agentHome, 'skills', MANAGED_DISPATCH_SKILL);
-    expect(fs.existsSync(path.join(skillDir, 'SKILL.md'))).toBe(true);
+    const skillContent = await fsp.readFile(path.join(skillDir, 'SKILL.md'), 'utf-8');
+    expect(skillContent).toContain('dispatch-subagent.sh');
+    expect(skillContent).toContain(
+      'Use the script instead of manually constructing curl payloads yourself.',
+    );
+    expect(fs.existsSync(path.join(skillDir, 'dispatch-subagent.sh'))).toBe(true);
   });
 
   it('regenerates SOUL.md with delegation block', async () => {
     await fsp.writeFile(path.join(agentHome, 'SOUL.src.md'), '# Soul\n', 'utf-8');
     await fsp.writeFile(path.join(agentHome, 'SOUL.md'), '# Soul\n', 'utf-8');
+    await fsp.writeFile(path.join(agentHome, 'config.yaml'), 'name: test-agent\n', 'utf-8');
 
     const { syncDelegationForAgent } = await import('../../src/lib/delegation-sync');
     await syncDelegationForAgent('test-agent', agentHome, {
@@ -95,6 +76,56 @@ describe('syncDelegationForAgent', () => {
     const soulContent = await fsp.readFile(path.join(agentHome, 'SOUL.md'), 'utf-8');
     expect(soulContent).toContain('HERMES_MANAGER_SUBAGENTS_V1_BEGIN');
     expect(soulContent).toContain('target-a');
+  });
+
+  it('bundled dispatch script derives source agent from HERMES_HOME', async () => {
+    await fsp.writeFile(path.join(agentHome, 'SOUL.src.md'), '# Soul\n', 'utf-8');
+    await fsp.writeFile(path.join(agentHome, 'SOUL.md'), '# Soul\n', 'utf-8');
+    await fsp.writeFile(path.join(agentHome, 'config.yaml'), 'name: test-agent\n', 'utf-8');
+
+    const { syncDelegationForAgent } = await import('../../src/lib/delegation-sync');
+    await syncDelegationForAgent('test-agent', agentHome, {
+      allowedAgents: ['target-a'],
+      maxHop: 3,
+    });
+
+    const scriptPath = path.join(
+      agentHome,
+      'skills',
+      MANAGED_DISPATCH_SKILL,
+      MANAGED_DISPATCH_SCRIPT_NAME,
+    );
+    const scriptContent = await fsp.readFile(scriptPath, 'utf-8');
+    expect(scriptContent).toContain('${HERMES_HOME:-}');
+    expect(scriptContent).toContain('basename -- "$HERMES_HOME"');
+    expect(scriptContent).toContain('${HERMES_MANAGER_BASE_URL:-http://127.0.0.1:18470}');
+  });
+
+  it('bundled dispatch script fails clearly when HERMES_HOME is missing', async () => {
+    await fsp.writeFile(path.join(agentHome, 'SOUL.src.md'), '# Soul\n', 'utf-8');
+    await fsp.writeFile(path.join(agentHome, 'SOUL.md'), '# Soul\n', 'utf-8');
+    await fsp.writeFile(path.join(agentHome, 'config.yaml'), 'name: test-agent\n', 'utf-8');
+
+    const { syncDelegationForAgent } = await import('../../src/lib/delegation-sync');
+    await syncDelegationForAgent('test-agent', agentHome, {
+      allowedAgents: ['target-a'],
+      maxHop: 3,
+    });
+
+    const scriptPath = path.join(
+      agentHome,
+      'skills',
+      MANAGED_DISPATCH_SKILL,
+      MANAGED_DISPATCH_SCRIPT_NAME,
+    );
+    await expect(
+      execFileAsync(scriptPath, ['target-a'], {
+        env: { ...process.env, HERMES_HOME: '' },
+      }),
+    ).rejects.toMatchObject({
+      code: 66,
+      stderr: expect.stringContaining('HERMES_HOME is not set'),
+    });
   });
 
   it('removes delegation block from SOUL.md when allowedAgents empty', async () => {

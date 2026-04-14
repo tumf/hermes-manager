@@ -15,13 +15,13 @@ export const launchdAdapter: ServiceAdapter = {
     return getPlistPath(agentId);
   },
 
-  generateServiceDefinition(
+  async generateServiceDefinition(
     agentId: string,
     home: string,
     label: string,
     apiServerPort: number | null,
-  ): string {
-    return generatePlist(agentId, home, label, apiServerPort);
+  ): Promise<string> {
+    return await generatePlist(agentId, home, label, apiServerPort);
   },
 
   buildInstallCommands(agentId: string, label: string) {
