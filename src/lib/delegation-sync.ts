@@ -14,12 +14,6 @@ import { stripZeroWidthSpace } from './text-sanitizer';
 async function ensureManagedSkill(agentHome: string): Promise<void> {
   const skillDir = path.join(agentHome, 'skills', MANAGED_DISPATCH_SKILL);
   const skillMdPath = path.join(skillDir, 'SKILL.md');
-  try {
-    await fsp.stat(skillMdPath);
-    return;
-  } catch {
-    // create it
-  }
   await fsp.mkdir(skillDir, { recursive: true });
   await fsp.writeFile(
     skillMdPath,
