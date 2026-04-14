@@ -29,6 +29,26 @@ export interface ChatMessage {
   timestamp: string;
 }
 
+function normalizeDbTimestamp(value: unknown): string {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return new Date(value * 1000).toISOString();
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return trimmed;
+
+    const numericValue = Number(trimmed);
+    if (Number.isFinite(numericValue) && /^-?\d+(\.\d+)?$/.test(trimmed)) {
+      return new Date(numericValue * 1000).toISOString();
+    }
+
+    return trimmed;
+  }
+
+  return '';
+}
+
 function resolveStateDbPath(agentHome: string): string {
   const resolvedHome = path.resolve(agentHome);
   const dbPath = path.resolve(resolvedHome, 'state.db');
@@ -68,10 +88,15 @@ export function getSessionList(
        ${sourceClause}
        ORDER BY started_at ${sort}`,
     );
-    if (options?.source) {
-      return stmt.all({ source: options.source }) as ChatSession[];
-    }
-    return stmt.all() as ChatSession[];
+    const rows = options?.source
+      ? (stmt.all({ source: options.source }) as ChatSession[])
+      : (stmt.all() as ChatSession[]);
+
+    return rows.map((row) => ({
+      ...row,
+      started_at: normalizeDbTimestamp(row.started_at),
+      ended_at: row.ended_at == null ? null : normalizeDbTimestamp(row.ended_at),
+    }));
   });
 
   return Array.isArray(result) ? (result as ChatSession[]) : [];
@@ -145,11 +170,11 @@ export function searchSessionMessages(
     source: row.source,
     title: row.title,
     messageCount: row.messageCount,
-    startedAt: row.startedAt,
+    startedAt: normalizeDbTimestamp(row.startedAt),
     match: {
       messageId: row.messageId,
       role: row.role,
-      timestamp: row.timestamp,
+      timestamp: normalizeDbTimestamp(row.timestamp),
       snippet: row.snippet,
     },
   }));
@@ -163,7 +188,11 @@ export function getMessages(agentHome: string, sessionId: string): ChatMessage[]
        WHERE session_id = @sessionId
        ORDER BY timestamp ASC`,
     );
-    return stmt.all({ sessionId }) as ChatMessage[];
+    const rows = stmt.all({ sessionId }) as ChatMessage[];
+    return rows.map((row) => ({
+      ...row,
+      timestamp: normalizeDbTimestamp(row.timestamp),
+    }));
   });
 
   return Array.isArray(result) ? (result as ChatMessage[]) : [];

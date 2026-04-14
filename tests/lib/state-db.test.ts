@@ -81,7 +81,7 @@ async function seedDb() {
       tool_call_count: 0,
       tokens: 5,
       cost: 0.05,
-      started_at: '2026-01-02T00:00:00Z',
+      started_at: 1767312000,
       ended_at: null,
     },
     {
@@ -93,7 +93,7 @@ async function seedDb() {
       tool_call_count: 0,
       tokens: 10,
       cost: 0.1,
-      started_at: '2026-01-01T00:00:00Z',
+      started_at: 1767225600,
       ended_at: null,
     },
   ];
@@ -105,7 +105,7 @@ async function seedDb() {
       tool_calls: null,
       tool_call_id: null,
       tool_name: null,
-      timestamp: '2026-01-01T00:00:01Z',
+      timestamp: 1767225601,
     },
     {
       session_id: 's1',
@@ -114,7 +114,7 @@ async function seedDb() {
       tool_calls: null,
       tool_call_id: null,
       tool_name: null,
-      timestamp: '2026-01-01T00:00:02Z',
+      timestamp: 1767225602,
     },
   ];
 }
@@ -129,10 +129,13 @@ describe('state-db helpers', () => {
     await seedDb();
     const sessions = getSessionList(agentHome);
     expect(sessions.map((s) => s.id)).toEqual(['s2', 's1']);
+    expect(sessions[0].started_at).toBe('2026-01-02T00:00:00.000Z');
+    expect(sessions[1].started_at).toBe('2026-01-01T00:00:00.000Z');
 
     const filtered = getSessionList(agentHome, { source: 'tool', sort: 'asc' });
     expect(filtered).toHaveLength(1);
     expect(filtered[0].id).toBe('s1');
+    expect(filtered[0].started_at).toBe('2026-01-01T00:00:00.000Z');
   });
 
   it('returns messages in ascending timestamp order', async () => {
@@ -140,7 +143,9 @@ describe('state-db helpers', () => {
     const messages = getMessages(agentHome, 's1');
     expect(messages).toHaveLength(2);
     expect(messages[0].content).toBe('hello');
+    expect(messages[0].timestamp).toBe('2026-01-01T00:00:01.000Z');
     expect(messages[1].content).toBe('hi');
+    expect(messages[1].timestamp).toBe('2026-01-01T00:00:02.000Z');
   });
 });
 

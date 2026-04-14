@@ -74,6 +74,7 @@ describe('chat search UI', () => {
     vi.restoreAllMocks();
     stubBoundingClientRect();
     vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date('2026-01-10T12:34:56Z'));
   });
 
   afterEach(() => {
@@ -113,6 +114,41 @@ describe('chat search UI', () => {
     await waitFor(() => {
       expect(screen.getByText(/gateway/)).toBeInTheDocument();
     });
+  });
+
+  it('renders normalized search result timestamps instead of 1970 dates', async () => {
+    const fetch = createFetchRouter(
+      buildChatFixtureRoutes({
+        searchResults: [
+          {
+            ...SEARCH_RESULTS[0],
+            match: {
+              ...SEARCH_RESULTS[0].match,
+              timestamp: '2026-01-01T00:00:01.000Z',
+            },
+          },
+        ],
+      }),
+    );
+    global.fetch = fetch as typeof fetch;
+
+    render(
+      <LocaleProvider initialLocale="en">
+        <ChatTab name="alpha" />
+      </LocaleProvider>,
+    );
+
+    await screen.findByText('Session A');
+
+    const searchInput = screen.getByPlaceholderText('Search messages...');
+    fireEvent.change(searchInput, { target: { value: 'gateway' } });
+
+    await vi.advanceTimersByTimeAsync(350);
+
+    await waitFor(() => {
+      expect(screen.getByText(/2026/)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/1970/)).not.toBeInTheDocument();
   });
 
   it('shows no-results message when search returns empty', async () => {
