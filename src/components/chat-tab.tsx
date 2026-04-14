@@ -11,7 +11,7 @@ import {
   Wrench,
   X,
 } from 'lucide-react';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 
 import { useLocale } from '@/src/components/locale-provider';
@@ -22,6 +22,26 @@ import { Skeleton } from '@/src/components/ui/skeleton';
 import { Textarea } from '@/src/components/ui/textarea';
 import { useChatFlow } from '@/src/hooks/use-chat-flow';
 import { cn } from '@/src/lib/utils';
+
+function renderSnippet(html: string): ReactNode[] {
+  const parts = html.split(/(<mark>|<\/mark>)/);
+  const nodes: ReactNode[] = [];
+  let inside = false;
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (part === '<mark>') {
+      inside = true;
+      continue;
+    }
+    if (part === '</mark>') {
+      inside = false;
+      continue;
+    }
+    if (!part) continue;
+    nodes.push(inside ? <mark key={i}>{part}</mark> : part);
+  }
+  return nodes;
+}
 
 function sourceIcon(source: string | null) {
   if (source === 'telegram') return MessageSquare;
@@ -195,10 +215,9 @@ export function ChatTab({ name }: { name: string }) {
                   <div className="mt-1 line-clamp-1 text-muted-foreground">
                     {result.title || result.sessionId}
                   </div>
-                  <div
-                    className="mt-1 line-clamp-2 text-muted-foreground"
-                    dangerouslySetInnerHTML={{ __html: result.match.snippet }}
-                  />
+                  <div className="mt-1 line-clamp-2 text-muted-foreground">
+                    {renderSnippet(result.match.snippet)}
+                  </div>
                   <div className="mt-1 text-muted-foreground">
                     {new Date(result.match.timestamp).toLocaleString()} · {result.match.role}
                   </div>

@@ -13,6 +13,10 @@
 - [x] Run `npm run test && npm run typecheck && npm run lint`.
       verification: all commands pass.
 
+## Acceptance #1 Failure Follow-up
+
+- [x] Sanitize FTS5 snippet HTML in `src/components/chat-tab.tsx` by replacing `dangerouslySetInnerHTML` with a safe `renderSnippet()` helper that parses `<mark>`/`</mark>` boundaries and renders them as React elements, escaping all other content.
+
 ## Future Work
 
 - Consider message-level highlight persistence after session reload if operators need stronger incident triage support.
