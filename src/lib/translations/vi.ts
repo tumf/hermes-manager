@@ -53,6 +53,7 @@ export const vi: TranslationDictionary = {
       config: 'Cấu hình',
       env: 'Biến môi trường',
       skills: 'Kỹ năng',
+      delegation: 'Ủy quyền',
       cron: 'Cron',
       chat: 'Trò chuyện',
       logs: 'Nhật ký',

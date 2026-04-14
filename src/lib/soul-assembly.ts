@@ -1,6 +1,12 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
+import {
+  buildSubagentSoulBlock,
+  injectSubagentSoulBlock,
+  readDelegationPolicy,
+  resolveTargetMeta,
+} from './delegation';
 import { parsePartialReferences, readPartial } from './partials';
 import { stripZeroWidthSpace } from './text-sanitizer';
 
@@ -45,12 +51,22 @@ export async function assembleSoulSource(source: string): Promise<string> {
   );
 }
 
+async function buildDelegationBlock(agentHome: string): Promise<string> {
+  const policy = await readDelegationPolicy(agentHome);
+  if (policy.allowedAgents.length === 0) return '';
+  const targets = await resolveTargetMeta(policy.allowedAgents);
+  return buildSubagentSoulBlock(policy, targets);
+}
+
 export async function writeSoulSourceAndAssembled(
   agentHome: string,
   source: string,
 ): Promise<{ assembled: string }> {
   const sanitizedSource = stripZeroWidthSpace(source);
-  const assembled = await assembleSoulSource(sanitizedSource);
+  let assembled = await assembleSoulSource(sanitizedSource);
+
+  const delegationBlock = await buildDelegationBlock(agentHome);
+  assembled = injectSubagentSoulBlock(assembled, delegationBlock);
 
   const sourcePath = path.join(agentHome, 'SOUL.src.md');
   const soulPath = path.join(agentHome, 'SOUL.md');

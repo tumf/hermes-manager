@@ -21,6 +21,13 @@ vi.mock('../../src/lib/partials', () => ({
   readPartial: vi.fn(async (name: string) => mockState.partials.get(name) ?? null),
 }));
 
+vi.mock('../../src/lib/delegation', () => ({
+  readDelegationPolicy: vi.fn(async () => ({ allowedAgents: [], maxHop: 3 })),
+  resolveTargetMeta: vi.fn(async () => []),
+  buildSubagentSoulBlock: vi.fn(() => ''),
+  injectSubagentSoulBlock: vi.fn((_assembled: string, _block: string) => _assembled),
+}));
+
 vi.mock('node:fs/promises', () => ({
   default: {
     readFile: vi.fn(async (targetPath: string) => {

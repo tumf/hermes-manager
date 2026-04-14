@@ -52,10 +52,11 @@
 - FR-6 Skills API: skills tree 取得（~/.agents/skills、階層構造、SKILL.md 検出）、コピー管理（相対パス保持で `{HERMES_HOME}/skills` にディレクトリをコピー/削除、既存コピー検出）
 - FR-7 Logs API: 読み取り（tail）、SSE で追尾
 - FR-8 Cron API: jobs.json CRUD、pause/resume/run action、output ファイル閲覧（GET/POST/PUT/DELETE、原子書き込み）
-- FR-9 UI: Agents 一覧（起動/停止/状態表示/追加/削除/コピー。process-level 情報として Memory を表示し、Hermes バージョンは表示しない）、詳細タブ UI（Metadata/Memory/Config/Env/Cron/Logs/Chat。ヘッダー情報エリアに Hermes バージョンを表示し、未取得時は `--` を表示）。Chat / Logs / Cron / Skills / Env は agent 運用と診断を支援する範囲で提供し、単一 agent 向け総合 dashboard の feature parity は要件としない。Globals UI
+- FR-9 UI: Agents 一覧（起動/停止/状態表示/追加/削除/コピー。process-level 情報として Memory を表示し、Hermes バージョンは表示しない）、詳細タブ UI（Metadata/Memory/Config/Env/Skills/Delegation/Cron/Logs/Chat。ヘッダー情報エリアに Hermes バージョンを表示し、未取得時は `--` を表示）。Chat / Logs / Cron / Skills / Env は agent 運用と診断を支援する範囲で提供し、単一 agent 向け総合 dashboard の feature parity は要件としない。Globals UI
 - FR-10 Templates API: テンプレート CRUD（GET/POST/PUT/DELETE）、fileType + name で UNIQUE 制約。エージェント作成時のテンプレート選択、default テンプレートへのフォールバック、既存ファイルからの Save as Template
 - FR-11 Partials API: 共有 partial CRUD（`/api/partials`）、`runtime/partials/{name}.md` 保存、`usedBy` 逆引き、利用中削除の 409 拒否、partial 更新時の参照 agent `SOUL.md` 再生成
 - FR-12 Memory UI partial mode: agent ごとの partial mode 有効化（`SOUL.md`→`SOUL.src.md`）、partial 挿入、assembled `SOUL.md` の read-only 確認
+- FR-14 Delegation API: per-agent delegation policy CRUD（`GET/PUT /api/agents/{id}/delegation`）。`delegation.json` にallowedAgents/maxHop を保存し、cycle 検出で reject。policy 保存時に managed dispatch skill を自動 equip/unequip し、`SOUL.md` に machine-generated subagent YAML block を再生成。`POST /api/agents/{id}/dispatch` で source agent policy を検証後 target agent api_server に proxy dispatch
 - FR-13 UI ローカライゼーション: `ja`, `en`, `zh-CN`, `es`, `pt-BR`, `vi`, `ko`, `ru`, `fr`, `de` の 10 言語をサポート。共有 app shell にLanguage Switcherを配置し、選択した locale を localStorage に永続化。`document.documentElement.lang` を有効 locale に同期。翻訳キー未定義時はデフォルト locale にフォールバック。operator 生成コンテンツ（SOUL.md、メモリ、ログ、チャット転写等）は翻訳対象外
 
 ## 6. 非機能要件（NFR）
@@ -92,7 +93,7 @@
 
 ## 11. API 高レベル一覧
 
-- /api/agents, /api/launchd, /api/files, /api/partials, /api/env, /api/env/resolved, /api/globals, /api/skills/\*, /api/logs, /api/logs/stream, /api/cron, /api/cron/action, /api/cron/output, /api/templates
+- /api/agents, /api/agents/{id}/delegation, /api/agents/{id}/dispatch, /api/launchd, /api/files, /api/partials, /api/env, /api/env/resolved, /api/globals, /api/skills/\*, /api/logs, /api/logs/stream, /api/cron, /api/cron/action, /api/cron/output, /api/templates
 
 ## 12. UI 概要
 
