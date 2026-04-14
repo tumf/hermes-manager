@@ -28,7 +28,6 @@ Remarque : seule l'interface de l'application est localisée. Le contenu opérat
 
 Pour les règles opérationnelles détaillées et les politiques de conception, consultez les documents suivants :
 
-- Guide du développeur : [`AGENTS.md`](./AGENTS.md)
 - Exigences : [`docs/requirements.md`](./docs/requirements.md)
 - Conception : [`docs/design.md`](./docs/design.md)
 - Guide de contribution : [`CONTRIBUTING.md`](./CONTRIBUTING.md)
@@ -120,7 +119,6 @@ hermes-manager/
 │   ├── api|components|hooks|lib|ui/  # Tests unitaires/composants/intégration Vitest
 │   └── e2e/                         # Tests E2E navigateur Playwright (nécessite une app en cours d'exécution)
 ├── runtime/                # Données d'exécution (agents/globals/logs)
-└── AGENTS.md               # Guide obligatoire pour les développeurs
 ```
 
 ## Contribuer

@@ -28,7 +28,6 @@ Hermes Manager은 하나의 웹 UI에서 한 대의 호스트 위 여러 Hermes 
 
 자세한 운영 규칙과 설계 정책은 다음을 참조하세요:
 
-- 개발자 가이드: [`AGENTS.md`](./AGENTS.md)
 - 요구사항: [`docs/requirements.md`](./docs/requirements.md)
 - 설계: [`docs/design.md`](./docs/design.md)
 - 기여 가이드: [`CONTRIBUTING.md`](./CONTRIBUTING.md)
@@ -120,7 +119,6 @@ hermes-manager/
 │   ├── api|components|hooks|lib|ui/  # Vitest 유닛/컴포넌트/통합 경향 테스트
 │   └── e2e/                         # Playwright 브라우저 E2E 테스트 (앱 실행 필요)
 ├── runtime/                # 런타임 데이터 (agents/globals/logs)
-└── AGENTS.md               # 개발자 필독 가이드
 ```
 
 ## 기여

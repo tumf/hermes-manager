@@ -28,7 +28,6 @@ Hermes Manager — это control plane на Next.js для управления
 
 Подробные правила эксплуатации и политики проектирования см. в следующих документах:
 
-- Руководство разработчика: [`AGENTS.md`](./AGENTS.md)
 - Требования: [`docs/requirements.md`](./docs/requirements.md)
 - Проектирование: [`docs/design.md`](./docs/design.md)
 - Руководство по участию: [`CONTRIBUTING.md`](./CONTRIBUTING.md)
@@ -120,7 +119,6 @@ hermes-manager/
 │   ├── api|components|hooks|lib|ui/  # Модульные/компонентные/интеграционные тесты Vitest
 │   └── e2e/                         # Браузерные E2E-тесты Playwright (требуется запущенное приложение)
 ├── runtime/                # Данные выполнения (agents/globals/logs)
-└── AGENTS.md               # Обязательное руководство для разработчиков
 ```
 
 ## Участие в проекте

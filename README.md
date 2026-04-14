@@ -11,7 +11,6 @@ Unlike the official Hermes dashboard, which focuses on managing a single Hermes 
 
 For detailed operational rules and design policies, refer to the following:
 
-- Developer guide: [`AGENTS.md`](./AGENTS.md)
 - Requirements: [`docs/requirements.md`](./docs/requirements.md)
 - Design: [`docs/design.md`](./docs/design.md)
 - Contribution guide: [`CONTRIBUTING.md`](./CONTRIBUTING.md)
@@ -34,7 +33,6 @@ For detailed operational rules and design policies, refer to the following:
 
 - Overview: this `README.md`
 - Japanese README: [`README.ja.md`](./README.ja.md)
-- Development workflow and repository rules: [`AGENTS.md`](./AGENTS.md)
 - Requirements: [`docs/requirements.md`](./docs/requirements.md)
 - Architecture / API design: [`docs/design.md`](./docs/design.md)
 - Contribution workflow: [`CONTRIBUTING.md`](./CONTRIBUTING.md)
@@ -112,7 +110,6 @@ hermes-manager/
 │   ├── api|components|hooks|lib|ui/  # Vitest unit/component/integration-leaning tests
 │   └── e2e/                         # Playwright browser E2E tests (requires a running app)
 ├── runtime/                # Runtime data (agents/globals/logs)
-└── AGENTS.md               # Must-read guide for developers
 ```
 
 ## Contributing

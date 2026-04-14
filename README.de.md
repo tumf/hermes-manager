@@ -28,7 +28,6 @@ Hinweis: Nur die Anwendungsoberfläche ist lokalisiert. Betriebsinhalte wie `SOU
 
 Für detaillierte Betriebsregeln und Designrichtlinien siehe:
 
-- Entwicklerhandbuch: [`AGENTS.md`](./AGENTS.md)
 - Anforderungen: [`docs/requirements.md`](./docs/requirements.md)
 - Design: [`docs/design.md`](./docs/design.md)
 - Beitragsanleitung: [`CONTRIBUTING.md`](./CONTRIBUTING.md)
@@ -120,7 +119,6 @@ hermes-manager/
 │   ├── api|components|hooks|lib|ui/  # Vitest Unit-/Komponenten-/Integrationstests
 │   └── e2e/                         # Playwright Browser-E2E-Tests (laufende App erforderlich)
 ├── runtime/                # Laufzeitdaten (agents/globals/logs)
-└── AGENTS.md               # Pflichtlektüre für Entwickler
 ```
 
 ## Beitragen

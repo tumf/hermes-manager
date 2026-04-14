@@ -28,7 +28,6 @@ Nota: solo la interfaz de la aplicación está localizada. El contenido operativ
 
 Para reglas operativas detalladas y políticas de diseño, consulte lo siguiente:
 
-- Guía del desarrollador: [`AGENTS.md`](./AGENTS.md)
 - Requisitos: [`docs/requirements.md`](./docs/requirements.md)
 - Diseño: [`docs/design.md`](./docs/design.md)
 - Guía de contribución: [`CONTRIBUTING.md`](./CONTRIBUTING.md)
@@ -120,7 +119,6 @@ hermes-manager/
 │   ├── api|components|hooks|lib|ui/  # Pruebas unitarias/componentes/integración Vitest
 │   └── e2e/                         # Pruebas E2E de navegador Playwright (requiere app en ejecución)
 ├── runtime/                # Datos de ejecución (agents/globals/logs)
-└── AGENTS.md               # Guía obligatoria para desarrolladores
 ```
 
 ## Contribuir

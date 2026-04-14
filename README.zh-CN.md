@@ -28,7 +28,6 @@ Web UI 支持以下 10 种语言：
 
 如需详细的操作规则和设计策略，请参阅以下文档：
 
-- 开发者指南: [`AGENTS.md`](./AGENTS.md)
 - 需求文档: [`docs/requirements.md`](./docs/requirements.md)
 - 设计文档: [`docs/design.md`](./docs/design.md)
 - 贡献指南: [`CONTRIBUTING.md`](./CONTRIBUTING.md)
@@ -120,7 +119,6 @@ hermes-manager/
 │   ├── api|components|hooks|lib|ui/  # Vitest 单元/组件/集成倾向测试
 │   └── e2e/                         # Playwright 浏览器 E2E 测试（需要运行中的应用）
 ├── runtime/                # 运行时数据（agents/globals/logs）
-└── AGENTS.md               # 开发者必读指南
 ```
 
 ## 贡献

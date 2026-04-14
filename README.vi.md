@@ -28,7 +28,6 @@ Lưu ý: chỉ giao diện ứng dụng được bản địa hóa. Nội dung v
 
 Để biết các quy tắc vận hành chi tiết và chính sách thiết kế, tham khảo:
 
-- Hướng dẫn nhà phát triển: [`AGENTS.md`](./AGENTS.md)
 - Yêu cầu: [`docs/requirements.md`](./docs/requirements.md)
 - Thiết kế: [`docs/design.md`](./docs/design.md)
 - Hướng dẫn đóng góp: [`CONTRIBUTING.md`](./CONTRIBUTING.md)
@@ -120,7 +119,6 @@ hermes-manager/
 │   ├── api|components|hooks|lib|ui/  # Kiểm thử đơn vị/component/tích hợp Vitest
 │   └── e2e/                         # Kiểm thử E2E trình duyệt Playwright (cần ứng dụng đang chạy)
 ├── runtime/                # Dữ liệu runtime (agents/globals/logs)
-└── AGENTS.md               # Hướng dẫn bắt buộc cho nhà phát triển
 ```
 
 ## Đóng góp
