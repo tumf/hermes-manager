@@ -7,7 +7,7 @@ references:
   - docs/requirements.md
   - docs/design.md
   - openspec/specs/chat/spec.md
-  - /Users/tumf/.hermes/hermes-agent/website/docs/user-guide/features/web-dashboard.md
+  - upstream Hermes dashboard docs (`website/docs/user-guide/features/web-dashboard.md`)
 ---
 
 # Add per-agent chat session search

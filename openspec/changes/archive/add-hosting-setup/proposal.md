@@ -26,7 +26,7 @@ existing reverse proxy.
 
 ## Technical Notes
 
-- The plist sets WorkingDirectory to /Users/tumf/services/hermes-agents
+- The plist sets WorkingDirectory to `<repo-root>`
 - stdout/stderr redirected to logs/webapp.log and logs/webapp.error.log
 - Migration runs inline at startup before the HTTP listener is opened to avoid
   race conditions

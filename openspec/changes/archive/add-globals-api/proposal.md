@@ -18,7 +18,7 @@ Implement Next.js API routes under `app/api/globals/` with the following behavio
 - `DELETE /api/globals?key=...` — remove a global-scoped variable
 
 Server-side side-effect: whenever globals are written (POST or DELETE), regenerate the
-file `/Users/tumf/services/hermes-agents/globals/.env` from the DB using dotenvx-
+file `<repo-root>/runtime/globals/.env` from the DB using dotenvx-
 compatible key=value lines. The file will be consumed via stacked `-f` arguments.
 
 ## Acceptance Criteria

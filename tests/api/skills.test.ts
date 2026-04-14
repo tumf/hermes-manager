@@ -398,7 +398,7 @@ describe('POST /api/skills/links', () => {
     mockState.skillLinks = [
       {
         agent: 'alpha',
-        sourcePath: '/Users/tumf/.agents/skills/coding',
+        sourcePath: '/mock/skills/coding',
         targetPath: '/runtime/agents/alpha/skills/coding',
         relativePath: 'coding',
         exists: true,

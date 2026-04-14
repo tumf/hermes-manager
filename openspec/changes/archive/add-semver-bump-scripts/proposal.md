@@ -39,7 +39,7 @@ However, the release-number workflow is still underspecified in the repository i
 - [ ] `package.json` defines `bump-patch`, `bump-minor`, and `bump-major` scripts.
 - [ ] The bump scripts increment `package.json` using SemVer-compatible patch/minor/major semantics through npm-native tooling instead of a newly introduced release framework.
 - [ ] Repository-facing documentation explains when to use each bump command and how the version bump step relates to the existing tagged-release workflow.
-- [ ] `python3 /Users/tumf/.agents/skills/cflx-proposal/scripts/cflx.py validate add-semver-bump-scripts --strict` passes.
+- [ ] `python3 ~/.agents/skills/cflx-proposal/scripts/cflx.py validate add-semver-bump-scripts --strict` passes.
 
 ## Out of Scope
 

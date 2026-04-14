@@ -20,7 +20,7 @@ references:
 ## Premise / Context
 
 - 現セッションでは、macOS で再起動時に「成功しているのに `Bootstrap failed: 5: Input/output error` が出る」という運用不整合が報告された。
-- リポジトリ同梱の `hosting/ai.hermes.manager.plist` は現 repo 位置 `/Users/tumf/services/hermes-agents` ではなく旧パス `/Users/tumf/services/hermes-manager` を `WorkingDirectory` と log path に保持している。
+- リポジトリ同梱の `hosting/ai.hermes.manager.plist` は現 repo 位置 `<repo-root>` ではなく旧 repo path を `WorkingDirectory` と log path に保持している。
 - `hosting/README.md` は初回 install に `launchctl bootstrap`、更新後 reload に `launchctl kickstart -kp` を案内している一方、artifact 側の古い固定パスが bootstrap 失敗の温床になりうる。
 - 既存 launchd 実装では `Bootstrap failed: 5: Input/output error` は「service missing」ではない別失敗として扱われており、正常系として握りつぶす設計にはなっていない。
 

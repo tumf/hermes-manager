@@ -71,7 +71,7 @@ const defaultEquippedLinks: LinkEntry[] = [
   {
     id: 1,
     agent: 'alpha',
-    sourcePath: '/Users/tumf/.agents/skills/coding',
+    sourcePath: '/mock/skills/coding',
     targetPath: '/runtime/agents/alpha/skills/coding',
     exists: true,
     relativePath: 'coding',
@@ -105,7 +105,7 @@ function createFetchMock(opts?: { equippedLinks?: LinkEntry[] }) {
         currentLinks.push({
           id: newId,
           agent: body.agent,
-          sourcePath: `/Users/tumf/.agents/skills/${body.relativePath}`,
+          sourcePath: `/mock/skills/${body.relativePath}`,
           targetPath,
           exists: true,
           relativePath: body.relativePath,

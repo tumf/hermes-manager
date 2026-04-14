@@ -187,7 +187,7 @@ export function buildAgentDetailRoutes(options: AgentDetailFixtureOptions = {}):
           {
             id: 1,
             agent: 'alpha',
-            sourcePath: '/Users/tumf/.hermes/skills/coding',
+            sourcePath: '/mock/skills/coding',
             targetPath: '/runtime/agents/alpha/skills/coding',
             exists: true,
             relativePath: 'coding',

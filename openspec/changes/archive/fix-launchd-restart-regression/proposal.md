@@ -46,7 +46,7 @@ references:
 2. `restart` 中に plist / service definition の最新化が必要でも、失敗時に直前まで running だった service を単に re-bootstrap 失敗のためだけに停止状態へ落とさない。
 3. `install` / `start` / `restart` のうち、port backfill と service definition generation は必要に応じて継続されるが、restart の launchd 反映方法は install/register とは別 phase として扱われる。
 4. regression test が、running service restart 時に不要な `bootout -> bootstrap` を経由しないこと、また restart semantics の安全性を検証する。
-5. `python3 /Users/tumf/.agents/skills/cflx-proposal/scripts/cflx.py validate fix-launchd-restart-regression --strict` が通過する。
+5. `python3 ~/.agents/skills/cflx-proposal/scripts/cflx.py validate fix-launchd-restart-regression --strict` が通過する。
 
 ## Out of Scope
 

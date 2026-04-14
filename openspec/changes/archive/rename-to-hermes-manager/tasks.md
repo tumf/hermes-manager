@@ -4,7 +4,7 @@
 - [x] repository / package / product naming の変更方針を docs/documentation capability に反映する（verification: manual - `openspec/changes/rename-to-hermes-manager/specs/documentation/spec.md`）
 - [x] app shell / UI chrome 上のアプリ名称変更要件を spec 化する（verification: manual - `openspec/changes/rename-to-hermes-manager/specs/app-shell/spec.md`）
 - [x] hosting artifact / service label / public URL rename 要件を spec 化する（verification: manual - `openspec/changes/rename-to-hermes-manager/specs/hosting/spec.md`）
-- [x] strict validation を通す（verification: manual - `python3 /Users/tumf/.agents/skills/cflx-proposal/scripts/cflx.py validate rename-to-hermes-manager --strict`）
+- [x] strict validation を通す（verification: manual - `python3 ~/.agents/skills/cflx-proposal/scripts/cflx.py validate rename-to-hermes-manager --strict`）
 
 ## Acceptance #1 Failure Follow-up
 

@@ -6,7 +6,7 @@
 
 - [x] Modify agent detail UI to show Hermes version in the header info area with `--` fallback when unavailable (verification: unit - add or update component/page tests covering detail-page Hermes rendering and fallback behavior)
 
-- [x] Update OpenSpec deltas and validate the proposal strictly (verification: manual - run `python3 /Users/tumf/.agents/skills/cflx-proposal/scripts/cflx.py validate move-hermes-version-to-agent-detail --strict`)
+- [x] Update OpenSpec deltas and validate the proposal strictly (verification: manual - run `python3 ~/.agents/skills/cflx-proposal/scripts/cflx.py validate move-hermes-version-to-agent-detail --strict`)
 
 ## Future Work
 
