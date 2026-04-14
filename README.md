@@ -116,34 +116,6 @@ hermes-manager/
 
 See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the contribution workflow. This document is maintained in English.
 
-## Versioning and Releases
-
-This project uses SemVer-based versioning as it matures.
-
-- Version source of truth: `package.json`
-- Release notes: GitHub Releases (user-facing changes and operator upgrade notes)
-
-### Version bump commands
-
-Use the following npm scripts to increment the version in `package.json`:
-
-| Command              | When to use                                                                          |
-| -------------------- | ------------------------------------------------------------------------------------ |
-| `npm run bump-patch` | Bug fixes and minor corrections that do not change the public API or feature surface |
-| `npm run bump-minor` | New features or enhancements that are backward-compatible                            |
-| `npm run bump-major` | Breaking changes that require operator attention on upgrade                          |
-
-Each command runs `npm version <patch|minor|major>`, which updates the `version` field in `package.json` and creates a corresponding git tag (e.g. `v1.2.3`).
-
-**Prerequisites**: ensure the working tree is clean (`git status` shows no uncommitted changes) before running a bump command. `npm version` will refuse to run on a dirty tree.
-
-### Tagged release workflow
-
-1. Ensure all checks pass: `npm run test`, `npm run typecheck`, `npm run lint`, `npm run format:check`.
-2. Run the appropriate bump command (e.g. `npm run bump-patch`).
-3. Push the commit and tag: `git push && git push --tags`.
-4. Create a GitHub Release from the new tag with user-facing change notes.
-
 ## License
 
 MIT. See [`LICENSE`](./LICENSE).
