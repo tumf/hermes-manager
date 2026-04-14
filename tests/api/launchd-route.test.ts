@@ -363,6 +363,56 @@ describe('POST /api/launchd', () => {
     expect(body).toHaveProperty('manager', 'launchd');
   });
 
+  // --- regression: restart must not invoke bootout/bootstrap ---
+  it('restart: does not invoke ensureServiceBootstrapped (no bootout/bootstrap)', async () => {
+    mockState.agents = [makeAgent()];
+    mockState.execFileStdout = 'ok';
+    mockAdapter.parseRunning.mockReturnValue(true);
+    mockAdapter.parsePid.mockReturnValue(12345);
+
+    const { execFile } = await import('node:child_process');
+    const calls: { cmd: string; args: string[] }[] = [];
+    vi.mocked(execFile).mockImplementation(((...fnArgs: unknown[]) => {
+      const cmd = fnArgs[0] as string;
+      const args = fnArgs[1] as string[];
+      calls.push({ cmd, args });
+      const cb = fnArgs[fnArgs.length - 1] as (
+        err: Error | null,
+        result?: { stdout: string; stderr: string },
+      ) => void;
+      cb(null, { stdout: mockState.execFileStdout, stderr: '' });
+    }) as any);
+
+    const res = await POST(makeReq({ agent: 'test-agent', action: 'restart' }));
+    expect(res.status).toBe(200);
+
+    const bootstrapCalls = calls.filter(
+      (c) => c.cmd === 'launchctl' && (c.args[0] === 'bootstrap' || c.args[0] === 'bootout'),
+    );
+    expect(bootstrapCalls).toHaveLength(0);
+
+    const restartCalls = calls.filter((c) => c.cmd === 'launchctl' && c.args[0] === 'kickstart');
+    expect(restartCalls.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('restart: still writes service definition before restart', async () => {
+    const fsModule = await import('node:fs');
+    mockState.agents = [makeAgent()];
+    mockState.execFileStdout = 'ok';
+    mockAdapter.parseRunning.mockReturnValue(true);
+    mockAdapter.parsePid.mockReturnValue(12345);
+
+    vi.mocked(fsModule.default.writeFileSync).mockClear();
+    vi.mocked(fsModule.default.mkdirSync).mockClear();
+    vi.mocked(mockAdapter.generateServiceDefinition).mockClear();
+
+    const res = await POST(makeReq({ agent: 'test-agent', action: 'restart' }));
+    expect(res.status).toBe(200);
+
+    expect(mockAdapter.generateServiceDefinition).toHaveBeenCalled();
+    expect(fsModule.default.writeFileSync).toHaveBeenCalled();
+  });
+
   // --- 10. status ---
   it('status: returns { running, pid, output, stdout, stderr, code, manager }', async () => {
     mockState.agents = [makeAgent()];

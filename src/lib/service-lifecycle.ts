@@ -110,6 +110,20 @@ async function waitForState(
   };
 }
 
+function writeServiceDefinition(
+  adapter: ServiceAdapter,
+  agentName: string,
+  home: string,
+  label: string,
+  apiServerPort: number | null,
+): void {
+  const content = adapter.generateServiceDefinition(agentName, home, label, apiServerPort);
+  const defPath = adapter.getServiceDefinitionPath(agentName);
+
+  fs.mkdirSync(path.dirname(defPath), { recursive: true });
+  fs.writeFileSync(defPath, content, 'utf8');
+}
+
 async function ensureServiceBootstrapped(
   adapter: ServiceAdapter,
   agentName: string,
@@ -118,11 +132,7 @@ async function ensureServiceBootstrapped(
   uid: number,
   apiServerPort: number | null,
 ): Promise<ExecResult> {
-  const content = adapter.generateServiceDefinition(agentName, home, label, apiServerPort);
-  const defPath = adapter.getServiceDefinitionPath(agentName);
-
-  fs.mkdirSync(path.dirname(defPath), { recursive: true });
-  fs.writeFileSync(defPath, content, 'utf8');
+  writeServiceDefinition(adapter, agentName, home, label, apiServerPort);
 
   const cmds = adapter.buildInstallCommands(agentName, label);
 
@@ -277,25 +287,7 @@ export async function executeServiceAction(
   }
 
   if (action === 'restart') {
-    const bootstrapResult = await ensureServiceBootstrapped(
-      adapter,
-      agentName,
-      home,
-      label,
-      uid,
-      apiServerPort,
-    );
-    if (bootstrapResult.code !== 0) {
-      return {
-        action: 'restart',
-        ...bootstrapResult,
-        running: false,
-        pid: null,
-        timedOut: false,
-        manager: adapter.type,
-        failed: true,
-      };
-    }
+    writeServiceDefinition(adapter, agentName, home, label, apiServerPort);
 
     const restartCmd = adapter.buildRestartCommand(unitName, uid);
     const result = await runExecFile(restartCmd[0], restartCmd.slice(1));
