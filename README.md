@@ -7,23 +7,6 @@
 Hermes Manager is a Next.js control plane for operating many Hermes Agents on a single host from one web UI.
 Unlike the official Hermes dashboard, which focuses on managing a single Hermes installation, Hermes Manager is positioned for multi-agent lifecycle management: provisioning agents, applying templates and partials, layering per-agent environment variables, controlling local services, and inspecting logs and chat activity across agents. It is not intended to be a feature-parity replacement for the official single-install dashboard.
 
-The Web UI supports the following 10 languages:
-
-- Japanese (`ja`)
-- English (`en`)
-- Simplified Chinese (`zh-CN`)
-- Spanish (`es`)
-- Portuguese (Brazil) (`pt-BR`)
-- Vietnamese (`vi`)
-- Korean (`ko`)
-- Russian (`ru`)
-- French (`fr`)
-- German (`de`)
-
-You can switch languages from the Language Switcher in the shared app shell. The selected locale is stored in `localStorage`, and invalid or missing values fall back to Japanese.
-
-Note: only the application UI is localized. Operational content such as `SOUL.md`, memory files, logs, and chat transcripts is not translated automatically.
-
 > **Trusted-network application** — Hermes Manager is designed for trusted-network / intranet operation. It does not include public-internet authentication or multi-tenant access control. If you expose it outside a trusted network, add your own authentication and access-control layer in front of it.
 
 For detailed operational rules and design policies, refer to the following:
