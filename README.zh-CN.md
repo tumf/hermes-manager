@@ -4,135 +4,79 @@
 
 ![Hermes Manager 截图](./docs/images/ss-agents-1.png)
 
-Hermes Manager 是一个基于 Next.js 的控制平面，用于在单台主机上通过一个 Web UI 统一运营多个 Hermes Agent。
-与官方 Hermes dashboard 主要面向单个 Hermes 安装的管理不同，Hermes Manager 的定位不是功能对等的替代仪表盘，而是面向受信网络/内网中的多 agent 运维：更强调 agent 生命周期管理、批量/标准化 provisioning、templates/partials 复用、按 agent 分层的环境变量管理、本地服务控制，以及跨 agent 的日志与聊天活动检查。
+Hermes Manager 是一个基于 Next.js 的控制平面，用于在单台主机上集中运营多个 Hermes Agent。
+与官方 Hermes dashboard 作为管理单个 Hermes 安装的 UI 不同，Hermes Manager 并不是一个追求功能对等的替代品，而是定位于受信网络 / 内网环境下的多 Agent 运维。它更强调 agent 的 provisioning、templates / partials 的应用、按 agent 分层的环境变量管理、本地服务控制，以及对配置、日志和聊天历史的跨 agent 统一管理。
 
-Web UI 支持以下 10 种语言：
+本应用的另一项核心差异化能力，是通过“partial prompt”来维护多个 agent 的 SOUL。每个 agent 一方面保留与 runtime 兼容的已部署 `SOUL.md`，另一方面又可以在用于编辑的 `SOUL.src.md` 中通过 `embed/include` 引入共享 partial。这样一来，你就可以在一个地方更新跨多个 agent 的通用策略和运维规则，同时仅为各 agent 单独保留其差异部分。
 
-- 日语 (`ja`)
-- 英语 (`en`)
-- 简体中文 (`zh-CN`)
-- 西班牙语 (`es`)
-- 葡萄牙语（巴西） (`pt-BR`)
-- 越南语 (`vi`)
-- 韩语 (`ko`)
-- 俄语 (`ru`)
-- 法语 (`fr`)
-- 德语 (`de`)
+## 本应用的特点
 
-您可以通过共享 app shell 中的语言切换器切换语言。所选语言存储在 `localStorage` 中，无效值或缺失值将回退为日语。
+- 在单台主机上集中运营多个 agent 的控制平面
+- 提供 agent 之间 managed delegation / dispatch 的子代理运维基础设施
+- 通过 per-agent delegation policy 控制委派目标、防止循环并限制最大 hop 数
+- 允许 operator 自由设计 domain agent / specialist agent 等角色分工模型
+- 通过 templates / partials / memory assets 实现可复用的 provisioning
+- 支持将共享 partial prompt 嵌入多个 agent 的 `SOUL.md`，实现 SOUL composability
+- 在保持 Hermes runtime 兼容性的同时，自动重新生成组装后的 `SOUL.md`
+- 将各 agent 的差异与整个 fleet 的共享规范分离维护的运维模型
+- 与 launchd / systemd 集成的本地服务控制
 
-注意：仅应用程序 UI 进行了本地化。`SOUL.md`、记忆文件、日志和聊天记录等运营内容不会自动翻译。
+### Managed Subagent Delegation
 
-> **受信网络应用程序** — Hermes Manager 设计用于受信网络/内网运行。它不包含面向公共互联网的身份验证或多租户访问控制。如果将其暴露在受信网络之外，请自行添加身份验证和访问控制层。
+![Managed subagent delegation 架构图](./docs/images/hermes-managed-subagent-delegation-org.png)
 
-如需详细的操作规则和设计策略，请参阅以下文档：
+通过 Hermes Manager 的子代理功能，你可以构建一种按角色分工、协同工作的运维模型，而不是让每个 agent 独自完成所有事情。图中展示的是：按业务域划分的 agent（如 Project A / Project B / Client C）作为用户请求的入口，再将所需工作委派给 Python Developer、Marketing Analyzer、Web Designer、Flutter Developer 等 specialist agent。
 
-- 需求文档: [`docs/requirements.md`](./docs/requirements.md)
-- 设计文档: [`docs/design.md`](./docs/design.md)
+在这种模式下，Hermes Manager 不只是提供 agent 之间通信的入口。它更像一个控制平面，允许 operator 管理“哪个 agent 可以使用哪些 specialist”以及“最多允许委派多少层”。因此，即使增加了更多按业务域划分的 agent，也可以把专业能力作为 shared resource 复用，同时保持整个 fleet 行为的一致性。
+
+这一能力的价值在于，operator 设计好的角色分工，可以通过 managed delegation 与策略控制被安全地运行起来。即使前台入口 agent 的数量增加，specialist agent 依然容易被复用，委派规则也能集中管理，从而使由多个 agent 组合而成的实际工作流更容易长期维护。
+
+### Shared Partial Prompt / SOUL Composability
+
+![Partial prompt 架构图](./docs/images/hermes-partial-prompts.png)
+
+在这一结构中，共享 partial prompt 作为 shared asset 被统一管理，并从多个 agent 的 `SOUL.src.md` 中通过 `embed/include` 引入，最终组装出 `SOUL.md`。operator 可以把所有 agent 共享的规则、安全方针和主机运维规范集中放在 partial 侧，而每个 agent 只需要编写其角色特有的差异部分。结果就是，它能减少共享指令不同步的问题，并让整个 fleet 的 SOUL 维护更加一致。
+
+## 文档地图
+
+- 需求定义: [`docs/requirements.md`](./docs/requirements.md)
+- 架构 / API 设计: [`docs/design.md`](./docs/design.md)
+- 英文版 README: [`README.md`](./README.md)
 - 贡献指南: [`CONTRIBUTING.md`](./CONTRIBUTING.md)
 - 安全报告: [`SECURITY.md`](./SECURITY.md)
-- 支持: [`SUPPORT.md`](./SUPPORT.md)
+- 面向使用者的说明: [`SUPPORT.md`](./SUPPORT.md)
 
-## 主要功能
+## 概要
 
-- 通过集中式 Web UI 在一台主机上统一运营多个 Hermes Agent
-- 对 agent 进行 provisioning、复制、删除，以及启动、停止、重启等生命周期管理
-- 编辑 `SOUL.md`、`SOUL.src.md`、`memories/MEMORY.md`、`memories/USER.md` 和 `config.yaml`
-- 管理带有可见性元数据的全局/agent 分层环境变量
-- 复用 templates/partials，并基于本地资源装备/卸载技能
-- 控制本地服务、管理定时任务并查看其输出
-- 通过 agent API 服务器查看聊天会话和历史记录
-- 查看 gateway/webapp 日志，支持 tail/stream
-- 在 10 种支持的语言之间切换 UI
+在 Hermes Manager 中，你可以通过浏览器 UI 执行以下操作。
+
+- 在单台主机上集中运营多个 agent
+- 对 agent 进行 provisioning、复制和删除
+- 通过 launchd（macOS）/ systemd（Linux）执行启动、停止和重启
+- 编辑 `SOUL.md`、`SOUL.src.md`、`memories/MEMORY.md`、`memories/USER.md`、`config.yaml` 和 `.env`
+- 管理带有 visibility 元数据的 global / agent 环境变量分层
+- 复用 templates / partials，并从本地技能目录中为 agent equip 技能
+- 查看本地服务控制、日志、Cron 作业和聊天会话
+
+## 安全性 / 信任边界
+
+该项目假定运行在 trusted-network / intranet 环境中。
+默认不包含面向公共互联网的身份验证、面向多人使用的权限隔离，或对外公开所需的内建防护。
+如果要在内网之外运行，请务必在前面加上你自己的身份验证和访问控制层。
 
 ## 截图
 
-### Agent 列表
+### Agents 列表
 
 ![Hermes Manager 截图](./docs/images/ss-agents-1.png)
 
-### 记忆管理
+### 内存管理
 
-![Hermes Manager 记忆管理界面](./docs/images/ss-agent_memory-1.png)
+![Hermes Manager 内存管理界面](./docs/images/ss-agent_memory-1.png)
 
-## 技术栈
+## 贡献方式
 
-- Next.js (App Router)
-- React / TypeScript
-- Tailwind CSS + shadcn/ui
-- Zod（API 输入验证）
-- 基于文件系统的数据层（`runtime/` 为数据源）
-
-## 安装
-
-前提条件：
-
-- Node.js 20+
-- npm
-
-推荐的引导入口：
-
-```bash
-./.wt/setup
-```
-
-该脚本会在需要时安装依赖、准备运行时目录并安装可用的本地钩子。
-
-或手动操作：
-
-```bash
-npm install
-npm run build
-PORT=18470 npm run start
-```
-
-## 开发命令
-
-```bash
-npm run dev
-npm run test
-npm run test:e2e
-npm run typecheck
-npm run lint
-npm run format:check
-npm run build
-```
-
-## 测试边界
-
-- `npm run test` (Vitest)：`tests/api`、`tests/components`、`tests/hooks`、`tests/lib` 和 `tests/ui` 下的单元、组件和集成倾向测试。
-- `npm run test:e2e` (Playwright)：`tests/e2e` 下的浏览器 E2E 测试。
-- 目前 `tests/e2e` 中没有已提交的 Playwright 测试，因此 `npm run test:e2e` 仅通过 `--pass-with-no-tests` 验证执行路径。
-- Playwright 测试假定应用已在运行（例如使用 `npm run dev`）。
-
-## 目录结构（概览）
-
-```text
-hermes-manager/
-├── app/                    # Next.js App Router (UI / API)
-├── components/             # 共享 UI 组件
-├── src/lib/                # 文件系统/Env/SkillLink 辅助工具
-├── docs/                   # 需求和设计文档
-├── openspec/changes/       # Conflux 变更提案
-├── tests/
-│   ├── api|components|hooks|lib|ui/  # Vitest 单元/组件/集成倾向测试
-│   └── e2e/                         # Playwright 浏览器 E2E 测试（需要运行中的应用）
-├── runtime/                # 运行时数据（agents/globals/logs）
-```
-
-## 贡献
-
-请参阅 [`CONTRIBUTING.md`](./CONTRIBUTING.md) 了解贡献流程。该文档以英语维护。
-
-## 版本管理和发布
-
-本项目在成熟过程中使用基于 SemVer 的版本管理。
-
-- 版本数据源：`package.json`
-- 发布说明：GitHub Releases（面向用户的变更和运维升级说明）
-
-在添加自动化发布工具之前，请从通过 `npm run test`、`npm run typecheck`、`npm run lint` 和 `npm run format:check` 的干净提交创建带标签的发布。
+关于提案流程、质量门禁和实现前提，请参阅 [`CONTRIBUTING.md`](./CONTRIBUTING.md)。
 
 ## 许可证
 

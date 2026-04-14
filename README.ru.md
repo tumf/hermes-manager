@@ -2,137 +2,81 @@
 
 [![日本語](https://img.shields.io/badge/%E6%97%A5%E6%9C%AC%E8%AA%9E-blue?style=flat-square)](./README.ja.md) [![English](https://img.shields.io/badge/English-blue?style=flat-square)](./README.md) [![简体中文](https://img.shields.io/badge/%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-blue?style=flat-square)](./README.zh-CN.md) [![Español](https://img.shields.io/badge/Espa%C3%B1ol-blue?style=flat-square)](./README.es.md) [![Português%20(BR)](<https://img.shields.io/badge/Portugu%C3%AAs%20(BR)-blue?style=flat-square>)](./README.pt-BR.md) [![한국어](https://img.shields.io/badge/%ED%95%9C%EA%B5%AD%EC%96%B4-blue?style=flat-square)](./README.ko.md) [![Français](https://img.shields.io/badge/Fran%C3%A7ais-blue?style=flat-square)](./README.fr.md) [![Deutsch](https://img.shields.io/badge/Deutsch-blue?style=flat-square)](./README.de.md) [![Русский](https://img.shields.io/badge/%D0%A0%D1%83%D1%81%D1%81%D0%BA%D0%B8%D0%B9-blue?style=flat-square)](./README.ru.md) [![Tiếng%20Việt](https://img.shields.io/badge/Ti%E1%BA%BFng%20Vi%E1%BB%87t-blue?style=flat-square)](./README.vi.md)
 
-![Снимок экрана Hermes Manager](./docs/images/ss-agents-1.png)
+![Скриншот Hermes Manager](./docs/images/ss-agents-1.png)
 
-Hermes Manager — это control plane на Next.js для управления множеством Hermes Agents на одном хосте через единый веб-интерфейс.
-В отличие от официального Hermes dashboard, ориентированного на управление одной установкой Hermes, Hermes Manager предназначен для multi-agent operations: управления жизненным циклом, provisioning с использованием templates и partials, послойного управления переменными окружения для каждого agent, контроля локальных сервисов и проверки логов и чат-активности между agents. Он не предназначен быть feature-parity заменой официального single-install dashboard.
+Hermes Manager — это control plane на базе Next.js для централизованной эксплуатации множества Hermes Agent на одном хосте.
+В отличие от официального Hermes dashboard, который представляет собой UI для управления одной установкой Hermes, Hermes Manager не является заменой с feature parity, а позиционируется как решение для эксплуатации нескольких агентов в trusted-network / intranet-среде. Основной акцент сделан на provisioning агентов, применении templates / partials, послойном управлении переменными окружения для каждого agent, контроле локальных сервисов и сквозном управлении конфигурациями, логами и историей чатов.
 
-Веб-интерфейс поддерживает следующие 10 языков:
+Ключевой особенностью приложения также является работа с «partial prompt», позволяющая сопровождать SOUL нескольких агентов через общие компоненты. Каждый agent сохраняет уже собранный `SOUL.md`, совместимый с runtime, и при этом может `embed/include` общие partial из редактируемого `SOUL.src.md`. Это позволяет обновлять общие политики и операционные правила для нескольких агентов в одном месте, сохраняя отдельно только различия между ними.
 
-- Японский (`ja`)
-- Английский (`en`)
-- Упрощённый китайский (`zh-CN`)
-- Испанский (`es`)
-- Португальский (Бразилия) (`pt-BR`)
-- Вьетнамский (`vi`)
-- Корейский (`ko`)
-- Русский (`ru`)
-- Французский (`fr`)
-- Немецкий (`de`)
+## Особенности приложения
 
-Вы можете переключить язык через переключатель языков в общей оболочке приложения. Выбранная локаль сохраняется в `localStorage`, а недопустимые или отсутствующие значения возвращают японский язык по умолчанию.
+- Control plane для централизованной эксплуатации нескольких агентов на одном хосте
+- Основа для работы с subagent, предоставляющая managed delegation / dispatch между agent
+- Управление доступными целями делегирования, предотвращение циклов и ограничение максимального hop через per-agent delegation policy
+- Возможность для operator свободно строить модель распределения ролей, например между domain agent и specialist agent
+- Переиспользуемый provisioning с помощью templates / partials / memory assets
+- SOUL composability, позволяющая встраивать общий partial prompt в `SOUL.md` нескольких агентов
+- Автоматическая регенерация собранного `SOUL.md` с сохранением совместимости с Hermes runtime
+- Операционная модель, в которой различия между агентами и общие правила всей fleet сопровождаются раздельно
+- Контроль локальных сервисов с интеграцией в launchd / systemd
 
-Примечание: локализован только интерфейс приложения. Операционный контент, такой как `SOUL.md`, файлы памяти, логи и расшифровки чатов, не переводится автоматически.
+### Managed Subagent Delegation
 
-> **Приложение для доверенной сети** — Hermes Manager разработан для работы в доверенных сетях/интранете. Он не включает аутентификацию для публичного интернета или мультиарендный контроль доступа. При размещении за пределами доверенной сети добавьте собственный уровень аутентификации и контроля доступа.
+![Схема managed subagent delegation](./docs/images/hermes-managed-subagent-delegation-org.png)
 
-Подробные правила эксплуатации и политики проектирования см. в следующих документах:
+Функция subagent в Hermes Manager позволяет построить операционную модель, где агенты не замыкаются сами на себе, а взаимодействуют, будучи разделёнными по ролям. На схеме показана конфигурация, в которой agents, разделённые по бизнес-доменам, такие как Project A / Project B / Client C, становятся точкой входа для пользовательских запросов и делегируют необходимые задачи specialist agents, таким как Python Developer, Marketing Analyzer, Web Designer и Flutter Developer.
 
-- Требования: [`docs/requirements.md`](./docs/requirements.md)
-- Проектирование: [`docs/design.md`](./docs/design.md)
+При этом Hermes Manager не просто предоставляет точку входа для связи между agent, а работает как control plane, в рамках которой operator может управлять тем, какой agent может использовать какого specialist и до скольких уровней допускается делегирование. Благодаря этому даже при увеличении числа ответственных агентов по бизнес-доменам можно переиспользовать специализированные способности как shared resource и при этом сохранять согласованное поведение всей fleet.
+
+Ценность этой функции заключается в том, что спроектированное operator распределение ролей можно безопасно эксплуатировать за счёт managed delegation и policy control. Даже если количество фронтовых agent увеличивается, specialist agent остаются легко переиспользуемыми, а благодаря централизованному управлению правилами делегирования становится проще поддерживать рабочие процессы, построенные из нескольких агентов, на постоянной основе.
+
+### Shared Partial Prompt / SOUL Composability
+
+![Схема partial prompt](./docs/images/hermes-partial-prompts.png)
+
+В этой конфигурации общий partial prompt управляется как shared asset и включается через `embed/include` из `SOUL.src.md` нескольких агентов, чтобы собрать итоговый `SOUL.md`. Operator может сосредоточить на стороне partial правила, политики безопасности и регламенты эксплуатации хоста, общие для всех агентов, а в каждом agent описывать только различия, связанные с его ролью. В результате уменьшается риск рассинхронизации общих инструкций и сопровождение SOUL по всей fleet становится более последовательным.
+
+## Карта документации
+
+- Определение требований: [`docs/requirements.md`](./docs/requirements.md)
+- Архитектура / проектирование API: [`docs/design.md`](./docs/design.md)
+- README на английском: [`README.md`](./README.md)
 - Руководство по участию: [`CONTRIBUTING.md`](./CONTRIBUTING.md)
-- Отчёт о безопасности: [`SECURITY.md`](./SECURITY.md)
-- Поддержка: [`SUPPORT.md`](./SUPPORT.md)
+- Сообщения о безопасности: [`SECURITY.md`](./SECURITY.md)
+- Информация для пользователей: [`SUPPORT.md`](./SUPPORT.md)
 
-## Основные возможности
+## Обзор
 
-- Централизованное управление несколькими Hermes Agents через веб-интерфейс
-- Создание, дублирование, удаление, запуск, остановка и перезапуск агентов
-- Редактирование `SOUL.md`, `SOUL.src.md`, `memories/MEMORY.md`, `memories/USER.md` и `config.yaml`
-- Управление переменными окружения агента/глобальными с метаданными видимости
-- Установка/удаление навыков путём копирования каталогов навыков
-- Управление cron-заданиями и просмотр их результатов
-- Просмотр сеансов чата и истории через API-сервер агента
-- Просмотр логов gateway/webapp с поддержкой tail/stream
-- Переключение интерфейса между 10 поддерживаемыми языками
+В Hermes Manager через браузерный UI доступны следующие действия.
 
-## Снимки экрана
+- Централизованная эксплуатация нескольких агентов на одном хосте
+- Provisioning, клонирование и удаление агентов
+- Запуск, остановка и перезапуск через launchd (macOS) / systemd (Linux)
+- Редактирование `SOUL.md`, `SOUL.src.md`, `memories/MEMORY.md`, `memories/USER.md`, `config.yaml` и `.env`
+- Управление global / agent layering переменных окружения с метаданными visibility
+- Переиспользование templates / partials и equip навыков из локального каталога skills
+- Просмотр управления локальными сервисами, логов, Cron jobs и chat sessions
 
-### Список агентов
+## Безопасность / граница доверия
 
-![Снимок экрана Hermes Manager](./docs/images/ss-agents-1.png)
+Этот проект предполагает эксплуатацию в trusted-network / intranet-среде.
+Аутентификация для публичного интернета, разделение прав для большого числа пользователей и механизмы защиты для внешней публикации по умолчанию не включены.
+Если вы развёртываете систему вне intranet, обязательно добавьте собственный внешний уровень аутентификации и контроля доступа.
+
+## Скриншоты
+
+### Список Agents
+
+![Скриншот Hermes Manager](./docs/images/ss-agents-1.png)
 
 ### Управление памятью
 
 ![Экран управления памятью Hermes Manager](./docs/images/ss-agent_memory-1.png)
 
-## Технологический стек
+## Как внести вклад
 
-- Next.js (App Router)
-- React / TypeScript
-- Tailwind CSS + shadcn/ui
-- Zod (валидация входных данных API)
-- Слой данных на основе файловой системы (`runtime/` — источник истины)
-
-## Установка
-
-Предварительные требования:
-
-- Node.js 20+
-- npm
-
-Предпочтительная точка входа для начальной настройки:
-
-```bash
-./.wt/setup
-```
-
-Этот скрипт устанавливает зависимости при необходимости, подготавливает каталоги выполнения и устанавливает доступные локальные хуки.
-
-Или вручную:
-
-```bash
-npm install
-npm run build
-PORT=18470 npm run start
-```
-
-## Команды разработки
-
-```bash
-npm run dev
-npm run test
-npm run test:e2e
-npm run typecheck
-npm run lint
-npm run format:check
-npm run build
-```
-
-## Границы тестирования
-
-- `npm run test` (Vitest): модульные, компонентные и интеграционные тесты в `tests/api`, `tests/components`, `tests/hooks`, `tests/lib` и `tests/ui`.
-- `npm run test:e2e` (Playwright): браузерные E2E-тесты в `tests/e2e`.
-- В настоящее время в `tests/e2e` нет закоммиченных тестов Playwright, поэтому `npm run test:e2e` только проверяет путь выполнения через `--pass-with-no-tests`.
-- Тесты Playwright предполагают, что приложение уже запущено (например, с помощью `npm run dev`).
-
-## Структура каталогов (обзор)
-
-```text
-hermes-manager/
-├── app/                    # Next.js App Router (UI / API)
-├── components/             # Общие UI-компоненты
-├── src/lib/                # Помощники файловой системы/Env/SkillLink
-├── docs/                   # Документы требований и проектирования
-├── openspec/changes/       # Предложения изменений Conflux
-├── tests/
-│   ├── api|components|hooks|lib|ui/  # Модульные/компонентные/интеграционные тесты Vitest
-│   └── e2e/                         # Браузерные E2E-тесты Playwright (требуется запущенное приложение)
-├── runtime/                # Данные выполнения (agents/globals/logs)
-```
-
-## Участие в проекте
-
-См. [`CONTRIBUTING.md`](./CONTRIBUTING.md) для процесса участия. Этот документ ведётся на английском языке.
-
-## Версионирование и релизы
-
-Этот проект использует версионирование на основе SemVer по мере его развития.
-
-- Источник истины версии: `package.json`
-- Примечания к релизам: GitHub Releases (изменения для пользователей и заметки по обновлению для операторов)
-
-До добавления автоматизированных инструментов выпуска создавайте тегированные релизы из чистых коммитов, прошедших `npm run test`, `npm run typecheck`, `npm run lint` и `npm run format:check`.
+Процесс предложений, quality gates и предпосылки реализации описаны в [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
 ## Лицензия
 

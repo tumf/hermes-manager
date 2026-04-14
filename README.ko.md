@@ -4,51 +4,69 @@
 
 ![Hermes Manager 스크린샷](./docs/images/ss-agents-1.png)
 
-Hermes Manager은 하나의 웹 UI에서 한 대의 호스트 위 여러 Hermes Agent를 운영하기 위한 Next.js 기반 control plane입니다.
-단일 Hermes 설치를 깊게 관리하는 공식 Hermes dashboard와 달리, Hermes Manager는 multi-agent lifecycle 관리에 초점을 둡니다. 즉, agent 프로비저닝, template/partial 재사용, agent별 환경 변수 레이어링, 로컬 서비스 제어, 그리고 여러 agent의 로그 및 채팅 활동 점검을 담당합니다. 공식 단일 설치 dashboard와의 feature parity 대체품을 목표로 하지는 않습니다.
+Hermes Manager는 하나의 호스트에서 많은 Hermes Agent를 통합 운영하기 위한 Next.js 기반 control plane입니다.
+공식 Hermes dashboard가 단일 Hermes 설치를 관리하는 UI인 것과 달리, Hermes Manager는 기능 동등성을 목표로 한 대체품이 아니라 trusted-network / 인트라넷 환경에서의 멀티 에이전트 운영을 위한 도구입니다. agent 프로비저닝, template/partial 적용, agent별 환경 변수 레이어링, 로컬 서비스 제어, 설정·로그·채팅 이력의 횡단 관리에 중점을 둡니다.
 
-웹 UI는 다음 10개 언어를 지원합니다:
+여러 agent의 SOUL을 공통 부품으로 유지·관리할 수 있는 “partial prompt” 운영도 이 앱의 핵심 차별점입니다. 각 agent는 runtime 호환이 보장된 전개 완료 `SOUL.md`를 유지한 채, 편집용 `SOUL.src.md`에서 공유 partial을 `embed/include`할 수 있습니다. 이를 통해 여러 agent에 걸친 공통 정책과 운영 규칙을 한 곳에서 갱신하면서도, agent별 차이만 개별적으로 유지할 수 있습니다.
 
-- 일본어 (`ja`)
-- 영어 (`en`)
-- 중국어 간체 (`zh-CN`)
-- 스페인어 (`es`)
-- 포르투갈어(브라질) (`pt-BR`)
-- 베트남어 (`vi`)
-- 한국어 (`ko`)
-- 러시아어 (`ru`)
-- 프랑스어 (`fr`)
-- 독일어 (`de`)
+## 이 앱의 특징
 
-공유 앱 셸의 언어 전환기에서 언어를 변경할 수 있습니다. 선택한 로케일은 `localStorage`에 저장되며, 잘못된 값이나 누락된 값은 일본어로 폴백됩니다.
+- 하나의 호스트 위 여러 에이전트를 중앙에서 운영하는 control plane
+- agent 간 managed delegation / dispatch를 제공하는 서브에이전트 운영 기반
+- agent별 delegation policy를 통한 위임 대상 제어, 순환 방지, 최대 hop 제어
+- domain agent / specialist agent 등 운영자가 원하는 역할 분담 모델을 자유롭게 구성 가능
+- templates / partials / memory assets를 활용한 재사용 가능한 프로비저닝
+- 공유 partial prompt를 여러 agent의 `SOUL.md`에 삽입할 수 있는 SOUL composability
+- Hermes runtime 호환성을 유지하는 assembled `SOUL.md` 자동 재생성
+- agent별 차이와 fleet 전체의 공통 규칙을 분리해 유지보수할 수 있는 운영 모델
+- launchd / systemd와 통합된 로컬 서비스 제어
 
-참고: 애플리케이션 UI만 현지화됩니다. `SOUL.md`, 메모리 파일, 로그, 채팅 기록 등의 운영 콘텐츠는 자동으로 번역되지 않습니다.
+### Managed Subagent Delegation
 
-> **신뢰 네트워크 애플리케이션** — Hermes Manager은 신뢰 네트워크/인트라넷 운영을 위해 설계되었습니다. 공용 인터넷 인증이나 멀티테넌트 접근 제어를 포함하지 않습니다. 신뢰 네트워크 외부에 노출하는 경우 직접 인증 및 접근 제어 계층을 추가하십시오.
+![Managed subagent delegation 구성도](./docs/images/hermes-managed-subagent-delegation-org.png)
 
-자세한 운영 규칙과 설계 정책은 다음을 참조하세요:
+Hermes Manager의 서브에이전트 기능은 agent를 각각 독립적으로 끝내는 것이 아니라, 역할별로 나누어 협업시키는 운영 모델을 만들 수 있게 합니다. 그림에서는 Project A / Project B / Client C와 같은 비즈니스 도메인별 agent가 사용자 요청의 창구가 되고, 필요한 작업을 Python Developer, Marketing Analyzer, Web Designer, Flutter Developer 등의 specialist agent에게 위임하는 구성을 보여줍니다.
 
-- 요구사항: [`docs/requirements.md`](./docs/requirements.md)
-- 설계: [`docs/design.md`](./docs/design.md)
+이때 Hermes Manager는 단순히 agent 간 통신 진입점만 제공하는 것이 아니라, 어떤 agent가 어떤 specialist를 사용할 수 있는지, 위임을 몇 단계까지 허용할지를 운영자가 관리할 수 있는 control plane으로 동작합니다. 이를 통해 비즈니스 도메인 담당 agent 수가 늘어나더라도 전문 역량을 shared resource로 재사용하면서 fleet 전체의 동작 일관성을 유지할 수 있습니다.
+
+이 기능의 가치는 운영자가 설계한 역할 분담을 managed delegation과 policy 제어를 통해 안전하게 운영할 수 있다는 데 있습니다. 창구 역할의 agent가 늘어나더라도 specialist agent를 재사용하기 쉽고, 위임 규칙도 중앙에서 관리할 수 있으므로 여러 agent를 조합한 실무 워크플로를 지속적으로 유지보수하기 쉬워집니다.
+
+### Shared Partial Prompt / SOUL Composability
+
+![Partial prompt 구성도](./docs/images/hermes-partial-prompts.png)
+
+이 구조에서는 공통 partial prompt를 shared asset로 관리하고, 여러 agent의 `SOUL.src.md`에서 `embed/include`하여 최종 `SOUL.md`를 조립합니다. 운영자는 모든 agent에 공통으로 적용되는 규칙, 안전 정책, 호스트 운영 규약을 partial 쪽에 모아둘 수 있고, 각 agent에는 역할 고유의 차이만 작성하면 됩니다. 그 결과 공통 지시의 동기화 누락을 줄일 수 있고, fleet 전체의 SOUL 유지보수를 일관된 방식으로 수행할 수 있습니다.
+
+## 문서 맵
+
+- 요구사항 정의: [`docs/requirements.md`](./docs/requirements.md)
+- 아키텍처 / API 설계: [`docs/design.md`](./docs/design.md)
+- 영어 README: [`README.md`](./README.md)
 - 기여 가이드: [`CONTRIBUTING.md`](./CONTRIBUTING.md)
 - 보안 보고: [`SECURITY.md`](./SECURITY.md)
-- 지원: [`SUPPORT.md`](./SUPPORT.md)
+- 사용자 지원 안내: [`SUPPORT.md`](./SUPPORT.md)
 
-## 주요 기능
+## 개요
 
-- 웹 UI에서 여러 Hermes Agent를 중앙 관리
-- 에이전트 생성, 복제, 삭제, 시작, 중지, 재시작
-- `SOUL.md`, `SOUL.src.md`, `memories/MEMORY.md`, `memories/USER.md`, `config.yaml` 편집
-- 가시성 메타데이터가 있는 에이전트/전역 환경 변수 관리
-- 스킬 디렉토리를 복사하여 스킬 장착/해제
-- 크론 작업 관리 및 출력 조회
-- 에이전트 API 서버를 통한 채팅 세션 및 기록 조회
-- gateway/webapp 로그를 tail/stream으로 열람
-- 10개 지원 언어 간 UI 전환
+Hermes Manager에서는 브라우저 UI를 통해 다음 작업을 수행할 수 있습니다.
+
+- 하나의 호스트에서 여러 agent를 중앙 집중식으로 운영
+- agent 프로비저닝, 복제, 삭제
+- launchd(macOS) / systemd(Linux)를 통한 시작, 중지, 재시작
+- `SOUL.md`, `SOUL.src.md`, `memories/MEMORY.md`, `memories/USER.md`, `config.yaml`, `.env` 편집
+- visibility 메타데이터가 포함된 global / agent 환경 변수 레이어링 관리
+- templates / partials 재사용 및 로컬 skill 카탈로그에서 skills equip
+- 로컬 서비스 제어, 로그, Cron 작업, 채팅 세션 확인
+
+## 안전성 / 신뢰 경계
+
+이 프로젝트는 trusted-network / 인트라넷 운영을 전제로 합니다.
+공개 인터넷용 인증, 다중 사용자용 권한 분리, 외부 공개를 위한 방어 기능은 기본적으로 포함하지 않습니다.
+인트라넷 외부에서 운영할 경우, 반드시 앞단에 자체 인증 및 접근 제어를 추가하십시오.
 
 ## 스크린샷
 
-### Agent 목록
+### Agents 목록
 
 ![Hermes Manager 스크린샷](./docs/images/ss-agents-1.png)
 
@@ -56,84 +74,10 @@ Hermes Manager은 하나의 웹 UI에서 한 대의 호스트 위 여러 Hermes 
 
 ![Hermes Manager 메모리 관리 화면](./docs/images/ss-agent_memory-1.png)
 
-## 기술 스택
+## 기여 방법
 
-- Next.js (App Router)
-- React / TypeScript
-- Tailwind CSS + shadcn/ui
-- Zod (API 입력 검증)
-- 파일 시스템 기반 데이터 레이어 (`runtime/`이 소스 오브 트루스)
-
-## 설치
-
-전제 조건:
-
-- Node.js 20+
-- npm
-
-권장 부트스트랩 진입점:
-
-```bash
-./.wt/setup
-```
-
-이 스크립트는 필요 시 의존성을 설치하고, 런타임 디렉토리를 준비하며, 사용 가능한 로컬 훅을 설치합니다.
-
-또는 수동으로:
-
-```bash
-npm install
-npm run build
-PORT=18470 npm run start
-```
-
-## 개발 명령어
-
-```bash
-npm run dev
-npm run test
-npm run test:e2e
-npm run typecheck
-npm run lint
-npm run format:check
-npm run build
-```
-
-## 테스트 범위
-
-- `npm run test` (Vitest): `tests/api`, `tests/components`, `tests/hooks`, `tests/lib`, `tests/ui` 하위의 유닛, 컴포넌트, 통합 경향 테스트.
-- `npm run test:e2e` (Playwright): `tests/e2e` 하위의 브라우저 E2E 테스트.
-- 현재 `tests/e2e`에 커밋된 Playwright 테스트가 없으므로 `npm run test:e2e`는 `--pass-with-no-tests`로 실행 경로만 확인합니다.
-- Playwright 테스트는 앱이 사전에 실행 중이어야 합니다 (예: `npm run dev`).
-
-## 디렉토리 구조 (개요)
-
-```text
-hermes-manager/
-├── app/                    # Next.js App Router (UI / API)
-├── components/             # 공유 UI 컴포넌트
-├── src/lib/                # 파일 시스템/Env/SkillLink 헬퍼
-├── docs/                   # 요구사항 및 설계 문서
-├── openspec/changes/       # Conflux 변경 제안
-├── tests/
-│   ├── api|components|hooks|lib|ui/  # Vitest 유닛/컴포넌트/통합 경향 테스트
-│   └── e2e/                         # Playwright 브라우저 E2E 테스트 (앱 실행 필요)
-├── runtime/                # 런타임 데이터 (agents/globals/logs)
-```
-
-## 기여
-
-기여 워크플로우는 [`CONTRIBUTING.md`](./CONTRIBUTING.md)를 참조하세요. 이 문서는 영어로 유지됩니다.
-
-## 버전 관리 및 릴리스
-
-이 프로젝트는 성숙해가면서 SemVer 기반 버전 관리를 사용합니다.
-
-- 버전 소스 오브 트루스: `package.json`
-- 릴리스 노트: GitHub Releases (사용자 대상 변경 사항 및 운영자 업그레이드 참고 사항)
-
-자동화된 릴리스 도구가 추가될 때까지 `npm run test`, `npm run typecheck`, `npm run lint`, `npm run format:check`를 통과한 클린 커밋에서 태그된 릴리스를 생성하세요.
+제안 흐름, 품질 게이트, 구현 전제 조건은 [`CONTRIBUTING.md`](./CONTRIBUTING.md)를 참고하세요.
 
 ## 라이선스
 
-MIT. [`LICENSE`](./LICENSE)를 참조하세요.
+MIT. [`LICENSE`](./LICENSE)를 참고하세요.

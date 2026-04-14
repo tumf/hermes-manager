@@ -30,6 +30,49 @@ Start the development server:
 npm run dev
 ```
 
+Manual setup alternative:
+
+```bash
+npm install
+npm run build
+PORT=18470 npm run start
+```
+
+## 1.1 Development Commands
+
+```bash
+npm run dev
+npm run test
+npm run test:e2e
+npm run typecheck
+npm run lint
+npm run format:check
+npm run build
+```
+
+## 1.2 Test Boundaries
+
+- `npm run test` (Vitest): unit, component, and integration-leaning tests under `tests/api`, `tests/components`, `tests/hooks`, `tests/lib`, and `tests/ui`
+- `npm run test:e2e` (Playwright): browser E2E tests under `tests/e2e`
+- At present there are no committed Playwright specs in `tests/e2e`, so `npm run test:e2e` currently only verifies the execution path via `--pass-with-no-tests`
+- Playwright tests assume the app is already running beforehand (for example with `npm run dev`)
+
+## 1.3 Directory Structure (Overview)
+
+```text
+hermes-manager/
+├── app/                    # Next.js App Router (UI / API)
+├── components/             # Shared UI components
+├── src/lib/                # Filesystem / Env / SkillLink helpers
+├── docs/                   # Requirements and design documents
+├── hosting/                # launchd/systemd/Caddy hosting configuration
+├── openspec/changes/       # Conflux change proposals
+├── tests/
+│   ├── api|components|hooks|lib|ui/  # Vitest unit/component/integration-leaning tests
+│   └── e2e/                         # Playwright browser E2E tests (requires a running app)
+├── runtime/                # Runtime data (agents/globals/logs/templates/partials)
+```
+
 ## 2. Core Coding Rules
 
 - Review the rules in `AGENTS.md` before making any implementation changes

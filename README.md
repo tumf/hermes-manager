@@ -4,38 +4,65 @@
 
 ![Hermes Manager screenshot](./docs/images/ss-agents-1.png)
 
-Hermes Manager is a Next.js control plane for operating many Hermes Agents on a single host from one web UI.
-Unlike the official Hermes dashboard, which focuses on managing a single Hermes installation, Hermes Manager is positioned for multi-agent lifecycle management: provisioning agents, applying templates and partials, layering per-agent environment variables, controlling local services, and inspecting logs and chat activity across agents. It is not intended to be a feature-parity replacement for the official single-install dashboard.
+Hermes Manager is a Next.js control plane for operating many Hermes Agents together on a single host.
+Unlike the official Hermes dashboard, which is a UI for managing a single Hermes installation, Hermes Manager is not a feature-parity replacement. It is positioned for multi-agent operations in trusted-network / intranet environments. It emphasizes agent provisioning, template/partial application, per-agent environment variable layering, local service control, and cross-agent management of settings, logs, and chat history.
 
-> **Trusted-network application** — Hermes Manager is designed for trusted-network / intranet operation. It does not include public-internet authentication or multi-tenant access control. If you expose it outside a trusted network, add your own authentication and access-control layer in front of it.
+Another core differentiator of this app is “partial prompt” operations, which let you maintain the SOUL of multiple agents using shared components. Each agent keeps a runtime-compatible deployed `SOUL.md`, while shared partials can be `embed/include`d from the editable `SOUL.src.md`. This lets you update common policies and operational conventions for multiple agents in one place while preserving only the role-specific differences per agent.
 
-For detailed operational rules and design policies, refer to the following:
+## Features
 
-- Requirements: [`docs/requirements.md`](./docs/requirements.md)
-- Design: [`docs/design.md`](./docs/design.md)
-- Contribution guide: [`CONTRIBUTING.md`](./CONTRIBUTING.md)
-- Security reporting: [`SECURITY.md`](./SECURITY.md)
-- Support: [`SUPPORT.md`](./SUPPORT.md)
+- A control plane for centralized operation of multiple agents on one host
+- A subagent operations platform that provides managed delegation / dispatch between agents
+- Delegation target control, loop prevention, and maximum hop control through per-agent delegation policies
+- Flexible operator-defined role models such as domain agents and specialist agents
+- Reusable provisioning with templates / partials / memory assets
+- SOUL composability that embeds shared partial prompts into multiple agents’ `SOUL.md`
+- Automatic regeneration of assembled `SOUL.md` while maintaining Hermes runtime compatibility
+- An operational model that separates per-agent differences from fleet-wide shared conventions
+- Local service control integrated with launchd / systemd
 
-## Key Features
+### Managed Subagent Delegation
 
-- Operate many Hermes Agents on one host from a centralized web UI
-- Provision agents, duplicate them, delete them, and manage lifecycle actions such as start, stop, and restart
-- Edit `SOUL.md`, `SOUL.src.md`, `memories/MEMORY.md`, `memories/USER.md`, and `config.yaml`
-- Manage layered global/agent environment variables with visibility metadata
-- Reuse templates/partials and equip / unequip skills from local assets
-- Control local services, manage cron jobs, and inspect their outputs
-- Inspect chat sessions and history through the agent API server
-- View gateway / webapp logs with tail / stream
-- Switch the UI across 10 supported languages
+![Managed subagent delegation diagram](./docs/images/hermes-managed-subagent-delegation-org.png)
+
+With Hermes Manager’s subagent features, you can build an operating model where agents collaborate by role instead of forcing each one to handle everything alone. In the diagram, business-domain agents such as Project A, Project B, and Client C serve as the front door for user requests, and delegate necessary work to specialist agents such as Python Developer, Marketing Analyzer, Web Designer, and Flutter Developer.
+
+In this model, Hermes Manager does more than simply provide an entry point for agent-to-agent communication. It acts as a control plane where the operator can manage which specialists each agent is allowed to use and how many delegation hops are permitted. As a result, even as you add more business-domain agents, you can reuse specialist capabilities as shared resources while keeping fleet-wide behavior consistent.
+
+The value of this feature is that the operator’s role design can be run safely through managed delegation and policy controls. Even if you increase the number of front-door agents, specialist agents remain easy to reuse, and delegation rules can be managed centrally, which makes real operational workflows built from multiple agents easier to maintain over time.
+
+### Shared Partial Prompt / SOUL Composability
+
+![Partial prompt diagram](./docs/images/hermes-partial-prompts.png)
+
+In this setup, common partial prompts are managed as shared assets and `embed/include`d from multiple agents’ `SOUL.src.md` files to assemble the final `SOUL.md`. The operator can consolidate rules, safety policies, and host operation conventions shared by all agents into the partial side, while each agent only needs to define its role-specific differences. As a result, it reduces drift in shared instructions and makes fleet-wide SOUL maintenance more consistent.
 
 ## Documentation Map
 
-- Overview: this `README.md`
-- Japanese README: [`README.ja.md`](./README.ja.md)
 - Requirements: [`docs/requirements.md`](./docs/requirements.md)
 - Architecture / API design: [`docs/design.md`](./docs/design.md)
-- Contribution workflow: [`CONTRIBUTING.md`](./CONTRIBUTING.md)
+- Japanese README: [`README.ja.md`](./README.ja.md)
+- Contribution guide: [`CONTRIBUTING.md`](./CONTRIBUTING.md)
+- Security reporting: [`SECURITY.md`](./SECURITY.md)
+- User support: [`SUPPORT.md`](./SUPPORT.md)
+
+## Overview
+
+In Hermes Manager, you can perform the following operations from the browser UI.
+
+- Centralized operation of multiple agents on one host
+- Provisioning, duplicating, and deleting agents
+- Start, stop, and restart via launchd (macOS) / systemd (Linux)
+- Editing `SOUL.md`, `SOUL.src.md`, `memories/MEMORY.md`, `memories/USER.md`, `config.yaml`, and `.env`
+- Managing layered global / agent environment variables with visibility metadata
+- Reusing templates / partials and equipping skills from a local skill catalog
+- Inspecting local service control, logs, cron jobs, and chat sessions
+
+## Safety / Trust Boundary
+
+This project assumes operation on a trusted network / intranet.
+It does not include public-internet authentication, multi-user privilege separation, or built-in defenses for public exposure by default.
+If you operate it outside an intranet, make sure to add your own authentication and access-control layer in front of it.
 
 ## Screenshots
 
@@ -47,74 +74,9 @@ For detailed operational rules and design policies, refer to the following:
 
 ![Hermes Manager memory management screen](./docs/images/ss-agent_memory-1.png)
 
-## Tech Stack
-
-- Next.js (App Router)
-- React / TypeScript
-- Tailwind CSS + shadcn/ui
-- Zod (API input validation)
-- Filesystem-based data layer (`runtime/` is the source of truth)
-
-## Setup
-
-Prerequisites:
-
-- Node.js 20+
-- npm
-
-Preferred bootstrap entrypoint:
-
-```bash
-./.wt/setup
-```
-
-This script installs dependencies when needed, prepares runtime directories, and installs available local hooks.
-
-Or manually:
-
-```bash
-npm install
-npm run build
-PORT=18470 npm run start
-```
-
-## Development Commands
-
-```bash
-npm run dev
-npm run test
-npm run test:e2e
-npm run typecheck
-npm run lint
-npm run format:check
-npm run build
-```
-
-## Test Boundaries
-
-- `npm run test` (Vitest): unit, component, and integration-leaning tests under `tests/api`, `tests/components`, `tests/hooks`, `tests/lib`, and `tests/ui`.
-- `npm run test:e2e` (Playwright): browser E2E tests under `tests/e2e`.
-- At present there are no committed Playwright specs in `tests/e2e`, so `npm run test:e2e` currently only verifies the execution path via `--pass-with-no-tests`.
-- Playwright tests assume the app is already running beforehand (for example with `npm run dev`).
-
-## Directory Structure (Overview)
-
-```text
-hermes-manager/
-├── app/                    # Next.js App Router (UI / API)
-├── components/             # Shared UI components
-├── src/lib/                # Filesystem / Env / SkillLink helpers
-├── docs/                   # Requirements and design documents
-├── openspec/changes/       # Conflux change proposals
-├── tests/
-│   ├── api|components|hooks|lib|ui/  # Vitest unit/component/integration-leaning tests
-│   └── e2e/                         # Playwright browser E2E tests (requires a running app)
-├── runtime/                # Runtime data (agents/globals/logs)
-```
-
 ## Contributing
 
-See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the contribution workflow. This document is maintained in English.
+For the proposal flow, quality gates, and implementation prerequisites, see [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
 ## License
 

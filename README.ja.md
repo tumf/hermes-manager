@@ -7,11 +7,7 @@
 Hermes Manager は、1 台のホスト上で多数の Hermes Agent をまとめて運用するための Next.js 製コントロールプレーンです。
 公式 Hermes dashboard が単一の Hermes インストールを管理する UI であるのに対し、Hermes Manager は feature parity な置き換えではなく、trusted-network / イントラネット環境でのマルチエージェント運用に位置づけられています。agent のプロビジョニング、テンプレート/partials 適用、agent ごとの環境変数レイヤリング、ローカルサービス制御、設定・ログ・チャット履歴の横断管理を重視しています。
 
-特に、Hermes Manager のサブエージェント機能は「agent が別の agent を安全に呼び出すための managed な枠組み」を提供します。README に載せている図はその活用例のひとつであり、Project A / Project B / Client C のようなビジネスドメイン別 agent から、Python Developer、Marketing Analyzer、Web Designer、Flutter Developer のような専門 agent へ委譲する運用モデルを例示しています。つまり、製品が固定の組織構造を前提にしているのではなく、operator が自分の fleet 設計に応じて domain agent と specialist agent の関係を構成できる、というのがこの機能の本質です。
-
-Hermes Manager 自体は、どの agent がどの agent を呼べるか、何段まで委譲できるか、循環や再訪をどう防ぐかを policy と dispatch 経路として管理し、許可された委譲だけを再現可能に運用できるようにします。
-
-加えて、複数 agent の SOUL を共通部品で保守できる「partial prompt」運用も本アプリの中核的な差別化要素です。各 agent は runtime 互換の展開済み `SOUL.md` を持ったまま、編集用の `SOUL.src.md` から共有 partial を `embed/include` できます。これにより、複数 agent にまたがる共通ポリシーや運用規約を 1 か所で更新しつつ、agent ごとの差分だけを個別に保てます。
+複数 agent の SOUL を共通部品で保守できる「partial prompt」運用も本アプリの中核的な差別化要素です。各 agent は runtime 互換の展開済み `SOUL.md` を持ったまま、編集用の `SOUL.src.md` から共有 partial を `embed/include` できます。これにより、複数 agent にまたがる共通ポリシーや運用規約を 1 か所で更新しつつ、agent ごとの差分だけを個別に保てます。
 
 ## 本アプリの特徴
 
@@ -29,11 +25,11 @@ Hermes Manager 自体は、どの agent がどの agent を呼べるか、何段
 
 ![Managed subagent delegation の構成図](./docs/images/hermes-managed-subagent-delegation-org.png)
 
-この図は、Hermes Manager のサブエージェント機能そのものを固定的な組織図として示しているのではなく、「agent 間委譲の枠組みをどう活用できるか」の一例です。例では、Project A / Project B / Client C のようなビジネスドメイン担当 agent が、Python Developer、Marketing Analyzer、Web Designer、Flutter Developer などの専門家 agent を subagent として呼び分ける運用モデルを描いています。
+Hermes Manager のサブエージェント機能では、agent を単独で完結させるのではなく、役割ごとに分けて協調させる運用モデルを作れます。図では、Project A / Project B / Client C のようなビジネスドメイン別 agent がユーザ要求の窓口となり、必要な処理を Python Developer、Marketing Analyzer、Web Designer、Flutter Developer などの specialist agent へ委譲する構成を示しています。
 
-重要なのは、Hermes Manager が提供するのは agent 間の managed delegation / dispatch の仕組みであり、domain agent と specialist agent という役割分担そのものは operator が自由に設計できるという点です。つまり、この図は代表的ユースケースの説明であって、製品がこの構成だけを前提にしているわけではありません。
+このとき Hermes Manager は、単に agent 間通信の入口を置くだけではなく、どの agent がどの specialist を使えるか、何段まで委譲できるかを operator が管理できる control plane として振る舞います。これにより、ビジネスドメイン別の担当 agent を増やしても、専門能力を shared resource として再利用しながら fleet 全体の振る舞いを一貫して保てます。
 
-Hermes Manager は、どの agent がどの agent を呼べるか、何段まで委譲できるか、同一 workflow 内での循環や再訪をどう防ぐかを policy と dispatch 経路として一元管理します。結果として、単一 agent を深く触る dashboard ではなく、複数 agent を役割分担させながら安全に組み合わせる local fleet control plane という本製品の立ち位置が明確になります。
+この機能の価値は、operator が設計した役割分担を、managed delegation と policy 制御で安全に運用できることにあります。窓口 agent を増やしても specialist agent を再利用しやすく、委譲ルールも一元管理できるため、複数 agent を組み合わせた実務フローを継続的に保守しやすくなります。
 
 ### Shared Partial Prompt / SOUL Composability
 
@@ -78,89 +74,9 @@ Hermes Manager では、ブラウザ UI から次の操作を行えます。
 
 ![Hermes Manager メモリ管理画面](./docs/images/ss-agent_memory-1.png)
 
-## 技術スタック
-
-- Next.js (App Router)
-- React / TypeScript
-- Tailwind CSS + shadcn/ui
-- Zod（API 入力バリデーション）
-- ファイルシステムベースのデータ層（`runtime/` が source-of-truth）
-
-## クイックスタート
-
-前提:
-
-- Node.js 20+
-- npm
-- UI から常駐サービスを操作したい場合は macOS launchd または Linux systemd
-
-安定したブートストラップ入口:
-
-```bash
-./.wt/setup
-```
-
-手動で行う場合:
-
-```bash
-npm install
-npm run build
-PORT=18470 npm run start
-```
-
-開発サーバー:
-
-```bash
-npm run dev
-```
-
-## 開発コマンド
-
-```bash
-npm run dev
-npm run test
-npm run test:e2e
-npm run typecheck
-npm run lint
-npm run format:check
-npm run build
-```
-
-## テスト境界
-
-- `npm run test` (Vitest): `tests/api`、`tests/components`、`tests/hooks`、`tests/lib`、`tests/ui` 配下のユニット/コンポーネント/統合寄りテスト。
-- `npm run test:e2e` (Playwright): `tests/e2e` 配下のブラウザ E2E テスト。
-- 現在、`tests/e2e` にはコミット済みの Playwright テストが存在しないため、`npm run test:e2e` は `--pass-with-no-tests` により実行経路の確認のみを行います。
-- Playwright テストは事前にアプリを起動済みであることが前提です（`npm run dev` など）。
-
-## ディレクトリ構成（概要）
-
-```text
-hermes-manager/
-├── app/                    # Next.js App Router (UI / API)
-├── components/             # 共有 UI コンポーネント
-├── src/lib/                # ファイルシステム/Env/SkillLink ヘルパー
-├── docs/                   # 要件・設計ドキュメント
-├── hosting/                # launchd/systemd/Caddy 用ホスティング設定
-├── openspec/changes/       # Conflux 変更提案
-├── tests/
-│   ├── api|components|hooks|lib|ui/  # Vitest ユニット/コンポーネント/統合寄りテスト
-│   └── e2e/                         # Playwright ブラウザ E2E テスト（事前にアプリ起動が必要）
-├── runtime/                # 実行時データ（agents/globals/logs/templates/partials）
-```
-
 ## 貢献方法
 
 提案フロー、品質ゲート、実装前提は [`CONTRIBUTING.md`](./CONTRIBUTING.md) を参照してください。
-
-## バージョニングとリリース
-
-このプロジェクトは成熟するまで SemVer ベースで運用します。
-
-- バージョンの source of truth: `package.json`
-- 変更点の案内先: GitHub Releases（利用者向け変更点と運用者向けアップグレード注意を記載）
-
-自動化された release tooling を追加するまでは、`npm run test`、`npm run typecheck`、`npm run lint`、`npm run format:check` をすべて通したクリーンなコミットからタグ付きリリースを作成してください。
 
 ## ライセンス
 
