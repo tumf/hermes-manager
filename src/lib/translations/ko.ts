@@ -142,6 +142,10 @@ export const ko: TranslationDictionary = {
     failedToLoadSessions: '세션을 불러오지 못했습니다',
     failedToLoadMessages: '메시지를 불러오지 못했습니다',
     failedToSendMessage: '메시지 전송에 실패했습니다',
+    searchPlaceholder: '메시지 검색...',
+    searchNoResults: '일치하는 세션이 없습니다.',
+    searching: '검색 중...',
+    clearSearch: '검색 지우기',
   },
   memory: {
     descriptions: {

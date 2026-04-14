@@ -143,6 +143,10 @@ export const ru: TranslationDictionary = {
     failedToLoadSessions: 'Не удалось загрузить сессии',
     failedToLoadMessages: 'Не удалось загрузить сообщения',
     failedToSendMessage: 'Не удалось отправить сообщение',
+    searchPlaceholder: 'Поиск сообщений...',
+    searchNoResults: 'Совпадающих сессий не найдено.',
+    searching: 'Поиск...',
+    clearSearch: 'Очистить поиск',
   },
   memory: {
     descriptions: {

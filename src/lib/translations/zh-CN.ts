@@ -126,6 +126,10 @@ export const zhCN: TranslationDictionary = {
     failedToLoadSessions: '加载会话失败',
     failedToLoadMessages: '加载消息失败',
     failedToSendMessage: '发送消息失败',
+    searchPlaceholder: '搜索消息...',
+    searchNoResults: '没有匹配的会话。',
+    searching: '搜索中...',
+    clearSearch: '清除搜索',
   },
   memory: {
     descriptions: {

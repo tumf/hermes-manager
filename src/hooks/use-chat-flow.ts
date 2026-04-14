@@ -14,6 +14,20 @@ type Session = {
   message_count: number;
 };
 
+export type SearchResult = {
+  sessionId: string;
+  source: string | null;
+  title: string | null;
+  messageCount: number;
+  startedAt: string;
+  match: {
+    messageId: number;
+    role: string;
+    timestamp: string;
+    snippet: string;
+  };
+};
+
 export type Message = {
   session_id?: string;
   role: string;
@@ -51,6 +65,10 @@ export function useChatFlow(name: string) {
   const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
   const [isMobileSessionsOpen, setIsMobileSessionsOpen] = useState(false);
   const [collapsedTools, setCollapsedTools] = useState<Set<number>>(new Set());
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const streamAbortRef = useRef<AbortController | null>(null);
 
   const selectedSessionIdRef = useRef(selectedSessionId);
@@ -139,6 +157,54 @@ export function useChatFlow(name: string) {
     setStatus('ready');
     setIsMobileSessionsOpen(false);
   }, []);
+
+  const performSearch = useCallback(
+    async (query: string) => {
+      setSearchQuery(query);
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+
+      if (query.trim().length < 2) {
+        setSearchResults([]);
+        setSearchLoading(false);
+        return;
+      }
+
+      setSearchLoading(true);
+      searchDebounceRef.current = setTimeout(async () => {
+        try {
+          const params = new URLSearchParams({ q: query.trim() });
+          if (sourceFilter !== 'all') params.set('source', sourceFilter);
+          const res = await fetch(
+            `/api/agents/${encodeURIComponent(name)}/sessions/search?${params.toString()}`,
+          );
+          if (!res.ok) throw new Error('search failed');
+          const data: SearchResult[] = await res.json();
+          setSearchResults(data);
+        } catch {
+          setSearchResults([]);
+        } finally {
+          setSearchLoading(false);
+        }
+      }, 300);
+    },
+    [name, sourceFilter],
+  );
+
+  const clearSearch = useCallback(() => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    setSearchQuery('');
+    setSearchResults([]);
+    setSearchLoading(false);
+  }, []);
+
+  const selectSearchResult = useCallback(
+    (result: SearchResult) => {
+      clearSearch();
+      setSelectedSessionId(result.sessionId);
+      setIsMobileSessionsOpen(false);
+    },
+    [clearSearch],
+  );
 
   const submitMessage = useCallback(
     async (messageToSend?: string) => {
@@ -256,6 +322,7 @@ export function useChatFlow(name: string) {
   useEffect(() => {
     return () => {
       streamAbortRef.current?.abort();
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     };
   }, []);
 
@@ -285,5 +352,11 @@ export function useChatFlow(name: string) {
     startNewChat,
     submitMessage,
     stopStreaming,
+    searchQuery,
+    searchResults,
+    searchLoading,
+    performSearch,
+    clearSearch,
+    selectSearchResult,
   };
 }
