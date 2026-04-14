@@ -23,11 +23,26 @@ export type MessageRow = {
   tool_name: string | null;
 };
 
+export type SearchResultRow = {
+  sessionId: string;
+  source: string | null;
+  title: string | null;
+  messageCount: number;
+  startedAt: string;
+  match: {
+    messageId: number;
+    role: string;
+    timestamp: string;
+    snippet: string;
+  };
+};
+
 export type ChatFixtureOptions = {
   name?: string;
   status?: AgentStatus;
   sessions?: SessionRow[];
   messages?: MessageRow[];
+  searchResults?: SearchResultRow[];
   onChatPost?: (body: { message?: string }) => MockResponse;
 };
 
@@ -64,8 +79,16 @@ export function buildChatFixtureRoutes(options: ChatFixtureOptions = {}): FetchR
   const status = options.status ?? 'connected';
   const sessions = options.sessions ?? DEFAULT_SESSIONS;
   const messages = options.messages ?? [];
+  const searchResults = options.searchResults ?? [];
 
   return [
+    (url, init) => {
+      const method = init?.method ?? 'GET';
+      if (url.includes('/sessions/search') && method === 'GET') {
+        return jsonOk(searchResults);
+      }
+      return undefined;
+    },
     (url, init) => {
       const method = init?.method ?? 'GET';
       if (url.includes(`/api/agents/${name}`) && !url.includes('/sessions') && method === 'GET') {

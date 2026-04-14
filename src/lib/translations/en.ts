@@ -143,6 +143,10 @@ export const en: TranslationDictionary = {
     failedToLoadSessions: 'Failed to load sessions',
     failedToLoadMessages: 'Failed to load messages',
     failedToSendMessage: 'Failed to send message',
+    searchPlaceholder: 'Search messages...',
+    searchNoResults: 'No matching sessions.',
+    searching: 'Searching...',
+    clearSearch: 'Clear search',
   },
   memory: {
     descriptions: {

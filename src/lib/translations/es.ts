@@ -144,6 +144,10 @@ export const es: TranslationDictionary = {
     failedToLoadSessions: 'Error al cargar las sesiones',
     failedToLoadMessages: 'Error al cargar los mensajes',
     failedToSendMessage: 'Error al enviar el mensaje',
+    searchPlaceholder: 'Buscar mensajes...',
+    searchNoResults: 'No hay sesiones coincidentes.',
+    searching: 'Buscando...',
+    clearSearch: 'Limpiar búsqueda',
   },
   memory: {
     descriptions: {

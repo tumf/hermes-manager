@@ -144,6 +144,10 @@ export const fr: TranslationDictionary = {
     failedToLoadSessions: 'Échec du chargement des sessions',
     failedToLoadMessages: 'Échec du chargement des messages',
     failedToSendMessage: "Échec de l'envoi du message",
+    searchPlaceholder: 'Rechercher des messages...',
+    searchNoResults: 'Aucune session correspondante.',
+    searching: 'Recherche en cours...',
+    clearSearch: 'Effacer la recherche',
   },
   memory: {
     descriptions: {

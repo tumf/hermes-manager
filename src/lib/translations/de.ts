@@ -146,6 +146,10 @@ export const de: TranslationDictionary = {
     failedToLoadSessions: 'Sitzungen konnten nicht geladen werden',
     failedToLoadMessages: 'Nachrichten konnten nicht geladen werden',
     failedToSendMessage: 'Nachricht konnte nicht gesendet werden',
+    searchPlaceholder: 'Nachrichten durchsuchen...',
+    searchNoResults: 'Keine passenden Sitzungen.',
+    searching: 'Suche...',
+    clearSearch: 'Suche löschen',
   },
   memory: {
     descriptions: {
