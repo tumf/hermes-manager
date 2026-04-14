@@ -53,6 +53,7 @@ export const ptBR: TranslationDictionary = {
       config: 'Configuração',
       env: 'Env',
       skills: 'Habilidades',
+      delegation: 'Delegação',
       cron: 'Cron',
       chat: 'Chat',
       logs: 'Logs',

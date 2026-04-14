@@ -44,6 +44,7 @@ export interface TranslationDictionary {
       config: string;
       env: string;
       skills: string;
+      delegation: string;
       cron: string;
       chat: string;
       logs: string;

@@ -53,6 +53,7 @@ export const ru: TranslationDictionary = {
       config: 'Конфигурация',
       env: 'Переменные',
       skills: 'Навыки',
+      delegation: 'Делегирование',
       cron: 'Расписание',
       chat: 'Чат',
       logs: 'Логи',

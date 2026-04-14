@@ -1,6 +1,14 @@
 'use client';
 
-import { ChevronLeft, Clock, FileText, MessageCircle, ScrollText, Settings } from 'lucide-react';
+import {
+  ChevronLeft,
+  Clock,
+  FileText,
+  MessageCircle,
+  Network,
+  ScrollText,
+  Settings,
+} from 'lucide-react';
 import Link from 'next/link';
 import { use, useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -13,6 +21,7 @@ import { AgentMetadataCard } from '@/src/components/agent-metadata-card';
 import { AgentStatusHeader } from '@/src/components/agent-status-header';
 import { ChatTab } from '@/src/components/chat-tab';
 import { CronTab } from '@/src/components/cron-tab';
+import { DelegationTab } from '@/src/components/delegation-tab';
 import { useLocale } from '@/src/components/locale-provider';
 import { SkillsTab } from '@/src/components/skills-tab';
 import { Badge } from '@/src/components/ui/badge';
@@ -153,6 +162,10 @@ export default function AgentPage({ params }: AgentPageProps) {
             <Settings className="size-3.5" />
             <span className="hidden sm:inline">{t.agentDetail.tabs.skills}</span>
           </TabsTrigger>
+          <TabsTrigger value="delegation" className="gap-1.5">
+            <Network className="size-3.5" />
+            <span className="hidden sm:inline">{t.agentDetail.tabs.delegation}</span>
+          </TabsTrigger>
           <TabsTrigger value="cron" className="gap-1.5">
             <Clock className="size-3.5" />
             <span className="hidden sm:inline">{t.agentDetail.tabs.cron}</span>
@@ -192,6 +205,10 @@ export default function AgentPage({ params }: AgentPageProps) {
 
         <TabsContent value="skills">
           <SkillsTab name={name} />
+        </TabsContent>
+
+        <TabsContent value="delegation">
+          <DelegationTab name={name} />
         </TabsContent>
 
         <TabsContent value="cron">

@@ -53,6 +53,7 @@ export const ja: TranslationDictionary = {
       config: '設定',
       env: '環境変数',
       skills: 'スキル',
+      delegation: '委任',
       cron: 'Cron',
       chat: 'チャット',
       logs: 'ログ',

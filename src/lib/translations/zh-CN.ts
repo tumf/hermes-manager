@@ -44,6 +44,7 @@ export const zhCN: TranslationDictionary = {
       config: '配置',
       env: '环境变量',
       skills: '技能',
+      delegation: '委派',
       cron: 'Cron',
       chat: '聊天',
       logs: '日志',
