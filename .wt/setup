@@ -24,11 +24,13 @@ mkdir -p runtime/agents runtime/globals runtime/logs runtime/templates runtime/p
 # Husky / pre-commit hooks
 if [ -f .pre-commit-config.yaml ]; then
   if command -v pre-commit >/dev/null 2>&1; then
-    pre-commit install || true
+    if [ -z "$(git config --get core.hooksPath || true)" ]; then
+      pre-commit install || true
+    fi
   fi
 fi
 if [ -d .husky ]; then
-  npx husky install || true
+  chmod +x .husky/pre-commit .husky/pre-push 2>/dev/null || true
 fi
 
 # Local overrides from source repo
