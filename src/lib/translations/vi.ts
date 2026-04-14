@@ -142,6 +142,10 @@ export const vi: TranslationDictionary = {
     failedToLoadSessions: 'Không thể tải danh sách phiên',
     failedToLoadMessages: 'Không thể tải tin nhắn',
     failedToSendMessage: 'Không thể gửi tin nhắn',
+    searchPlaceholder: 'Tìm kiếm tin nhắn...',
+    searchNoResults: 'Không có phiên nào khớp.',
+    searching: 'Đang tìm kiếm...',
+    clearSearch: 'Xóa tìm kiếm',
   },
   memory: {
     descriptions: {

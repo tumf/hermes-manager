@@ -9,13 +9,31 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const mockDb = vi.hoisted(() => ({
   sessionRows: [] as unknown[],
   messageRows: [] as unknown[],
+  searchRows: [] as unknown[],
+  hasFtsTable: true,
   closed: false,
 }));
 
 vi.mock('better-sqlite3', () => ({
   default: vi.fn(() => ({
     prepare: (sql: string) => ({
-      all: (params?: { source?: string; sessionId?: string }) => {
+      get: () => {
+        if (sql.includes("name='messages_fts'")) {
+          return mockDb.hasFtsTable ? { name: 'messages_fts' } : undefined;
+        }
+        return undefined;
+      },
+      all: (params?: Record<string, unknown>) => {
+        if (sql.includes('FROM messages_fts')) {
+          let rows = mockDb.searchRows;
+          if (params?.source) {
+            rows = rows.filter(
+              (row) => (row as { source?: string }).source === params.source,
+            );
+          }
+          const limit = (params?.limit as number) ?? 50;
+          return rows.slice(0, limit);
+        }
         if (sql.includes('FROM sessions')) {
           if (params?.source) {
             return mockDb.sessionRows.filter(
@@ -38,7 +56,7 @@ vi.mock('better-sqlite3', () => ({
   })),
 }));
 
-import { getMessages, getSessionList } from '../../src/lib/state-db';
+import { getMessages, getSessionList, searchSessionMessages } from '../../src/lib/state-db';
 
 let tmpDir: string;
 let agentHome: string;
@@ -125,5 +143,109 @@ describe('state-db helpers', () => {
     expect(messages).toHaveLength(2);
     expect(messages[0].content).toBe('hello');
     expect(messages[1].content).toBe('hi');
+  });
+});
+
+describe('searchSessionMessages', () => {
+  beforeEach(() => {
+    mockDb.hasFtsTable = true;
+    mockDb.searchRows = [];
+  });
+
+  it('returns empty array when state.db does not exist', () => {
+    expect(searchSessionMessages(agentHome, 'test')).toEqual([]);
+  });
+
+  it('returns empty array when messages_fts table does not exist', async () => {
+    await seedDb();
+    mockDb.hasFtsTable = false;
+    expect(searchSessionMessages(agentHome, 'gateway')).toEqual([]);
+  });
+
+  it('returns matching results with snippet', async () => {
+    await seedDb();
+    mockDb.searchRows = [
+      {
+        sessionId: 's1',
+        source: 'tool',
+        title: 'Session 1',
+        messageCount: 2,
+        startedAt: '2026-01-01T00:00:00Z',
+        messageId: 1,
+        role: 'user',
+        timestamp: '2026-01-01T00:00:01Z',
+        snippet: '...error in <mark>gateway</mark> startup...',
+      },
+    ];
+    const results = searchSessionMessages(agentHome, 'gateway');
+    expect(results).toHaveLength(1);
+    expect(results[0].sessionId).toBe('s1');
+    expect(results[0].match.snippet).toContain('<mark>gateway</mark>');
+    expect(results[0].match.role).toBe('user');
+  });
+
+  it('filters by source when provided', async () => {
+    await seedDb();
+    mockDb.searchRows = [
+      {
+        sessionId: 's1',
+        source: 'tool',
+        title: 'Session 1',
+        messageCount: 2,
+        startedAt: '2026-01-01T00:00:00Z',
+        messageId: 1,
+        role: 'user',
+        timestamp: '2026-01-01T00:00:01Z',
+        snippet: 'match',
+      },
+      {
+        sessionId: 's2',
+        source: 'telegram',
+        title: 'Session 2',
+        messageCount: 1,
+        startedAt: '2026-01-02T00:00:00Z',
+        messageId: 2,
+        role: 'assistant',
+        timestamp: '2026-01-02T00:00:01Z',
+        snippet: 'match',
+      },
+    ];
+    const results = searchSessionMessages(agentHome, 'match', { source: 'telegram' });
+    expect(results).toHaveLength(1);
+    expect(results[0].source).toBe('telegram');
+  });
+
+  it('respects limit option', async () => {
+    await seedDb();
+    mockDb.searchRows = Array.from({ length: 10 }, (_, i) => ({
+      sessionId: `s${i}`,
+      source: 'tool',
+      title: `Session ${i}`,
+      messageCount: 1,
+      startedAt: '2026-01-01T00:00:00Z',
+      messageId: i,
+      role: 'user',
+      timestamp: '2026-01-01T00:00:01Z',
+      snippet: 'match',
+    }));
+    const results = searchSessionMessages(agentHome, 'match', { limit: 3 });
+    expect(results).toHaveLength(3);
+  });
+
+  it('caps limit at 50', async () => {
+    await seedDb();
+    mockDb.searchRows = Array.from({ length: 60 }, (_, i) => ({
+      sessionId: `s${i}`,
+      source: 'tool',
+      title: `Session ${i}`,
+      messageCount: 1,
+      startedAt: '2026-01-01T00:00:00Z',
+      messageId: i,
+      role: 'user',
+      timestamp: '2026-01-01T00:00:01Z',
+      snippet: 'match',
+    }));
+    const results = searchSessionMessages(agentHome, 'match', { limit: 100 });
+    expect(results).toHaveLength(50);
   });
 });

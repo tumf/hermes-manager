@@ -132,6 +132,10 @@ export interface TranslationDictionary {
     failedToLoadSessions: string;
     failedToLoadMessages: string;
     failedToSendMessage: string;
+    searchPlaceholder: string;
+    searchNoResults: string;
+    searching: string;
+    clearSearch: string;
   };
   memory: {
     descriptions: {

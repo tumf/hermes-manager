@@ -1,16 +1,16 @@
 ## Implementation Tasks
 
-- [ ] Add `searchSessionMessages()` helper to `src/lib/state-db.ts` using the existing FTS-backed `state.db` schema.
+- [x] Add `searchSessionMessages()` helper to `src/lib/state-db.ts` using the existing FTS-backed `state.db` schema.
       verification: unit tests cover empty DB, valid matches, source filtering, limit handling, and snippet formatting.
-- [ ] Add `GET /api/agents/[id]/sessions/search` with zod query validation and agent path safety checks.
+- [x] Add `GET /api/agents/[id]/sessions/search` with zod query validation and agent path safety checks.
       verification: API tests cover 404 agent, 400 invalid query, and successful search results.
-- [ ] Extend `src/hooks/use-chat-flow.ts` to manage search query, result loading, result selection, and return-to-session-list behavior.
+- [x] Extend `src/hooks/use-chat-flow.ts` to manage search query, result loading, result selection, and return-to-session-list behavior.
       verification: hook-driven UI tests cover query entry, clearing search, and selecting a search result.
-- [ ] Update `src/components/chat-tab.tsx` to render a search box and matching result list without hiding the existing new-chat and source filter controls.
+- [x] Update `src/components/chat-tab.tsx` to render a search box and matching result list without hiding the existing new-chat and source filter controls.
       verification: component tests assert search UI rendering, result previews, and session-opening behavior.
-- [ ] Update `docs/requirements.md` and `docs/design.md` so Chat explicitly includes per-agent session search as an operational diagnostic tool.
+- [x] Update `docs/requirements.md` and `docs/design.md` so Chat explicitly includes per-agent session search as an operational diagnostic tool.
       verification: docs mention the new API and Chat-tab workflow.
-- [ ] Run `npm run test && npm run typecheck && npm run lint`.
+- [x] Run `npm run test && npm run typecheck && npm run lint`.
       verification: all commands pass.
 
 ## Future Work

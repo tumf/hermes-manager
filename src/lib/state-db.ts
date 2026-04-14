@@ -77,6 +77,84 @@ export function getSessionList(
   return Array.isArray(result) ? (result as ChatSession[]) : [];
 }
 
+export interface SessionSearchResult {
+  sessionId: string;
+  source: string | null;
+  title: string | null;
+  messageCount: number;
+  startedAt: string;
+  match: {
+    messageId: number;
+    role: string;
+    timestamp: string;
+    snippet: string;
+  };
+}
+
+export function searchSessionMessages(
+  agentHome: string,
+  query: string,
+  options?: { source?: string; limit?: number },
+): SessionSearchResult[] {
+  const limit = Math.min(options?.limit ?? 50, 50);
+  const result = withReadOnlyDb(agentHome, (db) => {
+    const hasTable = db
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='messages_fts'")
+      .get();
+    if (!hasTable) return [];
+
+    const sourceClause = options?.source ? 'AND s.source = @source' : '';
+    const stmt = db.prepare(
+      `SELECT
+         s.id            AS sessionId,
+         s.source        AS source,
+         s.title         AS title,
+         s.message_count AS messageCount,
+         s.started_at    AS startedAt,
+         m.rowid         AS messageId,
+         m.role          AS role,
+         m.timestamp     AS timestamp,
+         snippet(messages_fts, 0, '<mark>', '</mark>', '...', 32) AS snippet
+       FROM messages_fts
+       JOIN messages m ON m.rowid = messages_fts.rowid
+       JOIN sessions s ON m.session_id = s.id
+       WHERE messages_fts MATCH @query
+         ${sourceClause}
+       ORDER BY m.timestamp DESC
+       LIMIT @limit`,
+    );
+    const params: Record<string, string | number> = { query, limit };
+    if (options?.source) params.source = options.source;
+    return stmt.all(params) as Array<{
+      sessionId: string;
+      source: string | null;
+      title: string | null;
+      messageCount: number;
+      startedAt: string;
+      messageId: number;
+      role: string;
+      timestamp: string;
+      snippet: string;
+    }>;
+  });
+
+  if (!Array.isArray(result)) return [];
+
+  return result.map((row) => ({
+    sessionId: row.sessionId,
+    source: row.source,
+    title: row.title,
+    messageCount: row.messageCount,
+    startedAt: row.startedAt,
+    match: {
+      messageId: row.messageId,
+      role: row.role,
+      timestamp: row.timestamp,
+      snippet: row.snippet,
+    },
+  }));
+}
+
 export function getMessages(agentHome: string, sessionId: string): ChatMessage[] {
   const result = withReadOnlyDb(agentHome, (db) => {
     const stmt = db.prepare(

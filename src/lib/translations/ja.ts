@@ -142,6 +142,10 @@ export const ja: TranslationDictionary = {
     failedToLoadSessions: 'セッションの読み込みに失敗しました',
     failedToLoadMessages: 'メッセージの読み込みに失敗しました',
     failedToSendMessage: 'メッセージの送信に失敗しました',
+    searchPlaceholder: 'メッセージを検索...',
+    searchNoResults: '一致するセッションがありません。',
+    searching: '検索中...',
+    clearSearch: '検索をクリア',
   },
   memory: {
     descriptions: {

@@ -1,12 +1,23 @@
 'use client';
 
-import { Bot, ChevronRight, Menu, MessageSquare, Plus, Terminal, Wrench, X } from 'lucide-react';
+import {
+  Bot,
+  ChevronRight,
+  Menu,
+  MessageSquare,
+  Plus,
+  Search,
+  Terminal,
+  Wrench,
+  X,
+} from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 
 import { useLocale } from '@/src/components/locale-provider';
 import { Button } from '@/src/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/card';
+import { Input } from '@/src/components/ui/input';
 import { Skeleton } from '@/src/components/ui/skeleton';
 import { Textarea } from '@/src/components/ui/textarea';
 import { useChatFlow } from '@/src/hooks/use-chat-flow';
@@ -47,6 +58,12 @@ export function ChatTab({ name }: { name: string }) {
     submitMessage,
     stopStreaming,
     messages,
+    searchQuery,
+    searchResults,
+    searchLoading,
+    performSearch,
+    clearSearch,
+    selectSearchResult,
   } = useChatFlow(name);
 
   const [messagesViewportHeight, setMessagesViewportHeight] = useState<number | null>(null);
@@ -130,9 +147,66 @@ export function ChatTab({ name }: { name: string }) {
             ))}
           </select>
         </label>
+
+        <div className="relative mt-2">
+          <Search className="absolute left-2 top-2.5 size-3.5 text-muted-foreground" />
+          <Input
+            aria-label={t.chat.searchPlaceholder}
+            placeholder={t.chat.searchPlaceholder}
+            value={searchQuery}
+            onChange={(e) => void performSearch(e.target.value)}
+            className="h-8 pl-7 pr-7 text-xs"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              className="absolute right-2 top-2.5 text-muted-foreground hover:text-foreground"
+              aria-label={t.chat.clearSearch}
+              onClick={clearSearch}
+            >
+              <X className="size-3.5" />
+            </button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="min-h-0 flex-1 space-y-2 overflow-y-auto">
-        {loadingSessions ? (
+        {searchQuery.trim().length >= 2 ? (
+          searchLoading ? (
+            <>
+              <Skeleton className="h-14 w-full" />
+              <Skeleton className="h-14 w-full" />
+            </>
+          ) : searchResults.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t.chat.searchNoResults}</p>
+          ) : (
+            searchResults.map((result, idx) => {
+              const Icon = sourceIcon(result.source);
+              return (
+                <button
+                  key={`${result.sessionId}-${result.match.messageId}-${idx}`}
+                  type="button"
+                  className="w-full rounded-md border p-2 text-left text-xs transition-colors hover:bg-muted"
+                  onClick={() => selectSearchResult(result)}
+                >
+                  <div className="flex items-center gap-2 font-medium">
+                    <Icon className="size-3.5" />
+                    <span>{result.source ?? 'unknown'}</span>
+                  </div>
+                  <div className="mt-1 line-clamp-1 text-muted-foreground">
+                    {result.title || result.sessionId}
+                  </div>
+                  <div
+                    className="mt-1 line-clamp-2 text-muted-foreground"
+                    dangerouslySetInnerHTML={{ __html: result.match.snippet }}
+                  />
+                  <div className="mt-1 text-muted-foreground">
+                    {new Date(result.match.timestamp).toLocaleString()} · {result.match.role}
+                  </div>
+                </button>
+              );
+            })
+          )
+        ) : loadingSessions ? (
           <>
             <Skeleton className="h-14 w-full" />
             <Skeleton className="h-14 w-full" />

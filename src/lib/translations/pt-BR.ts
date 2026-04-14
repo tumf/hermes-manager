@@ -143,6 +143,10 @@ export const ptBR: TranslationDictionary = {
     failedToLoadSessions: 'Falha ao carregar sessões',
     failedToLoadMessages: 'Falha ao carregar mensagens',
     failedToSendMessage: 'Falha ao enviar mensagem',
+    searchPlaceholder: 'Pesquisar mensagens...',
+    searchNoResults: 'Nenhuma sessão correspondente.',
+    searching: 'Pesquisando...',
+    clearSearch: 'Limpar pesquisa',
   },
   memory: {
     descriptions: {

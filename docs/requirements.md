@@ -52,7 +52,7 @@
 - FR-6 Skills API: skills tree 取得（~/.agents/skills、階層構造、SKILL.md 検出）、コピー管理（相対パス保持で `{HERMES_HOME}/skills` にディレクトリをコピー/削除、既存コピー検出）
 - FR-7 Logs API: 読み取り（tail）、SSE で追尾
 - FR-8 Cron API: jobs.json CRUD、pause/resume/run action、output ファイル閲覧（GET/POST/PUT/DELETE、原子書き込み）
-- FR-9 UI: Agents 一覧（起動/停止/状態表示/追加/削除/コピー。process-level 情報として Memory を表示し、Hermes バージョンは表示しない）、詳細タブ UI（Metadata/Memory/Config/Env/Cron/Logs/Chat。ヘッダー情報エリアに Hermes バージョンを表示し、未取得時は `--` を表示）。Chat / Logs / Cron / Skills / Env は agent 運用と診断を支援する範囲で提供し、単一 agent 向け総合 dashboard の feature parity は要件としない。Globals UI
+- FR-9 UI: Agents 一覧（起動/停止/状態表示/追加/削除/コピー。process-level 情報として Memory を表示し、Hermes バージョンは表示しない）、詳細タブ UI（Metadata/Memory/Config/Env/Cron/Logs/Chat。ヘッダー情報エリアに Hermes バージョンを表示し、未取得時は `--` を表示）。Chat / Logs / Cron / Skills / Env は agent 運用と診断を支援する範囲で提供し、単一 agent 向け総合 dashboard の feature parity は要件としない。Chat タブはセッション一覧の上に検索ボックスを配置し、`state.db` の FTS5 インデックスを使用した per-agent メッセージ全文検索を提供する（`GET /api/agents/{id}/sessions/search?q=...`）。検索結果からセッションを開き、該当メッセージのコンテキストを確認できる。Globals UI
 - FR-10 Templates API: テンプレート CRUD（GET/POST/PUT/DELETE）、fileType + name で UNIQUE 制約。エージェント作成時のテンプレート選択、default テンプレートへのフォールバック、既存ファイルからの Save as Template
 - FR-11 Partials API: 共有 partial CRUD（`/api/partials`）、`runtime/partials/{name}.md` 保存、`usedBy` 逆引き、利用中削除の 409 拒否、partial 更新時の参照 agent `SOUL.md` 再生成
 - FR-12 Memory UI partial mode: agent ごとの partial mode 有効化（`SOUL.md`→`SOUL.src.md`）、partial 挿入、assembled `SOUL.md` の read-only 確認
