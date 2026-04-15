@@ -51,6 +51,7 @@ export const vi: TranslationDictionary = {
       metadata: 'Siêu dữ liệu',
       memory: 'Bộ nhớ',
       config: 'Cấu hình',
+      mcp: 'MCP',
       env: 'Biến môi trường',
       skills: 'Kỹ năng',
       delegation: 'Ủy quyền',

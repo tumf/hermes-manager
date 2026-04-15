@@ -51,6 +51,7 @@ export const fr: TranslationDictionary = {
       metadata: 'Métadonnées',
       memory: 'Mémoire',
       config: 'Config',
+      mcp: 'MCP',
       env: 'Env',
       skills: 'Compétences',
       delegation: 'Délégation',

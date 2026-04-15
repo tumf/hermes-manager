@@ -51,6 +51,7 @@ export const ptBR: TranslationDictionary = {
       metadata: 'Metadados',
       memory: 'Memória',
       config: 'Configuração',
+      mcp: 'MCP',
       env: 'Env',
       skills: 'Habilidades',
       delegation: 'Delegação',

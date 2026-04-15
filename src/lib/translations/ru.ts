@@ -51,6 +51,7 @@ export const ru: TranslationDictionary = {
       metadata: 'Метаданные',
       memory: 'Память',
       config: 'Конфигурация',
+      mcp: 'MCP',
       env: 'Переменные',
       skills: 'Навыки',
       delegation: 'Делегирование',

@@ -51,6 +51,7 @@ export const ko: TranslationDictionary = {
       metadata: '메타데이터',
       memory: '메모리',
       config: '설정',
+      mcp: 'MCP',
       env: '환경변수',
       skills: '스킬',
       delegation: '위임',

@@ -51,6 +51,7 @@ export const ja: TranslationDictionary = {
       metadata: 'メタデータ',
       memory: 'メモリ',
       config: '設定',
+      mcp: 'MCP',
       env: '環境変数',
       skills: 'スキル',
       delegation: '委任',

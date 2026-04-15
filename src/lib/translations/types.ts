@@ -42,6 +42,7 @@ export interface TranslationDictionary {
       metadata: string;
       memory: string;
       config: string;
+      mcp: string;
       env: string;
       skills: string;
       delegation: string;
