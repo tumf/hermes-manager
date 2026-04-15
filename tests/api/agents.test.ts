@@ -110,6 +110,11 @@ vi.mock('../../src/lib/id', () => ({
   generateAgentId: vi.fn(() => 'abc1234'),
 }));
 
+// --- mock src/lib/delegation-sync ---
+vi.mock('@/src/lib/delegation-sync', () => ({
+  refreshDependentSoulsForTarget: vi.fn(async () => undefined),
+}));
+
 // --- mock src/lib/dotenv-parser ---
 vi.mock('@/src/lib/dotenv-parser', () => ({
   clearTokenValues: vi.fn(async () => undefined),
@@ -121,6 +126,7 @@ import { POST as COPY_POST } from '../../app/api/agents/copy/route';
 import { DELETE, GET, POST } from '../../app/api/agents/route';
 import type { Agent } from '../../src/lib/agents';
 import { PLATFORM_TOKEN_KEYS } from '../../src/lib/constants';
+import { refreshDependentSoulsForTarget } from '../../src/lib/delegation-sync';
 import { clearTokenValues } from '../../src/lib/dotenv-parser';
 
 function makeReq(url: string, init?: ConstructorParameters<typeof NextRequest>[1]) {
@@ -401,6 +407,50 @@ describe('PUT /api/agents/[id]/meta', () => {
 
     const res = await META_PUT(req, { params: Promise.resolve({ id: 'ghost' }) });
     expect(res.status).toBe(404);
+  });
+
+  it('triggers dependent soul refresh after successful metadata update', async () => {
+    mockState.agents = [
+      {
+        agentId: 'research01',
+        home: '/runtime/agents/research01',
+        label: 'ai.hermes.gateway.research01',
+        enabled: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        name: '',
+        description: '',
+        tags: [],
+        apiServerStatus: 'disabled',
+        apiServerAvailable: false,
+        apiServerPort: null,
+        memoryRssBytes: null,
+        hermesVersion: null,
+      },
+    ];
+
+    const req = makeReq('http://localhost/api/agents/research01/meta', {
+      method: 'PUT',
+      body: JSON.stringify({ name: 'Updated', description: 'New desc', tags: ['v2'] }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const res = await META_PUT(req, { params: Promise.resolve({ id: 'research01' }) });
+    expect(res.status).toBe(200);
+    expect(vi.mocked(refreshDependentSoulsForTarget)).toHaveBeenCalledWith('research01');
+  });
+
+  it('does not trigger dependent soul refresh when agent not found', async () => {
+    mockState.agents = [];
+
+    const req = makeReq('http://localhost/api/agents/ghost/meta', {
+      method: 'PUT',
+      body: JSON.stringify({ name: 'x' }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    await META_PUT(req, { params: Promise.resolve({ id: 'ghost' }) });
+    expect(vi.mocked(refreshDependentSoulsForTarget)).not.toHaveBeenCalled();
   });
 });
 
