@@ -179,8 +179,8 @@ describe('refreshDependentSoulsForTarget', () => {
     vi.mocked(findDependentAgentIds).mockResolvedValueOnce(['dep1', 'dep2']);
 
     const runtimePaths = await import('../../src/lib/runtime-paths');
-    vi.spyOn(runtimePaths, 'getRuntimeAgentsRootPath').mockImplementation(
-      (...segments: string[]) => path.join(tmpDir, ...segments),
+    vi.spyOn(runtimePaths, 'getRuntimeAgentsRootPath').mockImplementation((...segments: string[]) =>
+      path.join(tmpDir, ...segments),
     );
 
     const { refreshDependentSoulsForTarget } = await import('../../src/lib/delegation-sync');
