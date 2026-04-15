@@ -111,6 +111,96 @@ describe('Agent detail page', () => {
     });
   });
 
+  it('shows MCP tab and loads only MCP fragment', async () => {
+    global.fetch = createFetchRouter(
+      buildAgentDetailRoutes({
+        mcpContent: ['github:', '  command: npx', '  args:', '    - -y'].join('\n'),
+      }),
+    );
+    window.history.replaceState(null, '', '#mcp');
+
+    await act(async () => {
+      renderPage('alpha');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'MCP' })).toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: 'Edit MCP servers YAML' })).toBeInTheDocument();
+    });
+
+    const calls = (global.fetch as ReturnType<typeof createFetchRouter>).mock.calls as [
+      string,
+      { method?: string; body?: string }?,
+    ][];
+    expect(
+      calls.some(
+        ([url, init]) => url === '/api/agents/alpha/mcp' && (init?.method ?? 'GET') === 'GET',
+      ),
+    ).toBe(true);
+    expect(screen.queryByDisplayValue(/name: alpha/)).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Hermes MCP Guide' })).toHaveAttribute(
+      'href',
+      'https://hermes-agent.nousresearch.com/docs/guides/use-mcp-with-hermes',
+    );
+  });
+
+  it('saves MCP fragment through dedicated API', async () => {
+    const fetchMock = createFetchRouter(
+      buildAgentDetailRoutes({ mcpContent: 'github:\n  command: npx' }),
+    );
+    global.fetch = fetchMock;
+    window.history.replaceState(null, '', '#mcp');
+
+    await act(async () => {
+      renderPage('alpha');
+    });
+
+    const editor = (await screen.findByRole('textbox', {
+      name: 'Edit MCP servers YAML',
+    })) as HTMLTextAreaElement;
+    fireEvent.change(editor, {
+      target: { value: 'github:\n  command: uvx\n  args:\n    - mcp-server-git' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      const calls = fetchMock.mock.calls as [string, { method?: string; body?: string }?][];
+      const putCall = calls.find(
+        ([url, init]) => url === '/api/agents/alpha/mcp' && init?.method === 'PUT',
+      );
+      expect(putCall).toBeDefined();
+      expect(JSON.parse(putCall?.[1]?.body ?? '{}')).toEqual({
+        content: 'github:\n  command: uvx\n  args:\n    - mcp-server-git',
+      });
+    });
+
+    expect(toast.success).toHaveBeenCalledWith('MCP config saved');
+  });
+
+  it('shows MCP save error from API response', async () => {
+    global.fetch = createFetchRouter(
+      buildAgentDetailRoutes({
+        onMcpPut: () => ({ ok: false, json: async () => ({ error: 'Invalid YAML: broken' }) }),
+      }),
+    );
+    window.history.replaceState(null, '', '#mcp');
+
+    await act(async () => {
+      renderPage('alpha');
+    });
+
+    const editor = (await screen.findByRole('textbox', {
+      name: 'Edit MCP servers YAML',
+    })) as HTMLTextAreaElement;
+    fireEvent.change(editor, { target: { value: 'broken' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('Invalid YAML: broken');
+    });
+  });
+
   it('shows legacy SOUL editor by default', async () => {
     global.fetch = createFetchRouter(buildAgentDetailRoutes({ partialModeEnabled: false }));
     window.history.replaceState(null, '', '#memory');

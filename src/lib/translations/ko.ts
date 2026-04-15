@@ -60,6 +60,21 @@ export const ko: TranslationDictionary = {
       logs: '로그',
     },
   },
+  mcp: {
+    title: 'MCP',
+    description: 'Edit the mcp_servers fragment for this agent.',
+    helper:
+      'Use allowlists where possible. Saving empty content removes mcp_servers from config.yaml.',
+    docsLink: 'Hermes MCP Guide',
+    fragmentLabel: 'mcp_servers fragment',
+    editorAriaLabel: 'Edit MCP servers YAML',
+    unsaved: 'unsaved',
+    save: 'Save',
+    saving: 'Saving...',
+    saved: 'MCP config saved',
+    failedToLoad: 'Failed to load MCP config',
+    failedToSave: 'Failed to save MCP config',
+  },
   agentStatus: {
     starting: '시작 중\u2026',
     stopping: '중지 중\u2026',

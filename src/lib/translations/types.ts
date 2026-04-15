@@ -51,6 +51,20 @@ export interface TranslationDictionary {
       logs: string;
     };
   };
+  mcp: {
+    title: string;
+    description: string;
+    helper: string;
+    docsLink: string;
+    fragmentLabel: string;
+    editorAriaLabel: string;
+    unsaved: string;
+    save: string;
+    saving: string;
+    saved: string;
+    failedToLoad: string;
+    failedToSave: string;
+  };
   agentStatus: {
     starting: string;
     stopping: string;

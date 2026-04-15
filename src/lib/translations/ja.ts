@@ -60,6 +60,21 @@ export const ja: TranslationDictionary = {
       logs: 'ログ',
     },
   },
+  mcp: {
+    title: 'MCP サーバー',
+    description: 'このエージェントの config.yaml 内にある mcp_servers 部分だけを編集します。',
+    helper:
+      '可能なら include による許可リストを使ってください。空で保存すると config.yaml から mcp_servers を削除します。',
+    docsLink: 'Hermes MCP ガイド',
+    fragmentLabel: 'mcp_servers フラグメント',
+    editorAriaLabel: 'MCP サーバー YAML を編集',
+    unsaved: '未保存',
+    save: '保存',
+    saving: '保存中...',
+    saved: 'MCP 設定を保存しました',
+    failedToLoad: 'MCP 設定の読み込みに失敗しました',
+    failedToSave: 'MCP 設定の保存に失敗しました',
+  },
   agentStatus: {
     starting: '起動中…',
     stopping: '停止中…',

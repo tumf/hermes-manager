@@ -5,6 +5,7 @@ import type { AgentMeta } from './agent-fs';
 import { isApiServerPortInRange, readMetaJson, writeMetaJson } from './agent-fs';
 import type { Agent } from './agent-view';
 import { buildAgentView, PROCESS_INFO_PLACEHOLDER, resolveAgentProcessInfo } from './agent-view';
+import { refreshDependentSoulsForTarget } from './delegation-sync';
 import { getRuntimeAgentsRootPath } from './runtime-paths';
 import { writeSoulSourceAndAssembled } from './soul-assembly';
 
@@ -124,6 +125,7 @@ export async function updateAgentMeta(agentId: string, meta: AgentMeta): Promise
         : existingMeta.apiServerPort,
     };
     await writeMetaJson(agentHome, nextMeta);
+    await refreshDependentSoulsForTarget(agentId);
     return nextMeta;
   } catch {
     return null;

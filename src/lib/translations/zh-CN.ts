@@ -51,6 +51,21 @@ export const zhCN: TranslationDictionary = {
       logs: '日志',
     },
   },
+  mcp: {
+    title: 'MCP',
+    description: 'Edit the mcp_servers fragment for this agent.',
+    helper:
+      'Use allowlists where possible. Saving empty content removes mcp_servers from config.yaml.',
+    docsLink: 'Hermes MCP Guide',
+    fragmentLabel: 'mcp_servers fragment',
+    editorAriaLabel: 'Edit MCP servers YAML',
+    unsaved: 'unsaved',
+    save: 'Save',
+    saving: 'Saving...',
+    saved: 'MCP config saved',
+    failedToLoad: 'Failed to load MCP config',
+    failedToSave: 'Failed to save MCP config',
+  },
   agentStatus: {
     starting: '启动中…',
     stopping: '停止中…',

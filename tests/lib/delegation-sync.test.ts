@@ -8,7 +8,11 @@ import { promisify } from 'node:util';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { MANAGED_DISPATCH_SCRIPT_NAME, MANAGED_DISPATCH_SKILL } from '../../src/lib/delegation';
+import {
+  findDependentAgentIds,
+  MANAGED_DISPATCH_SCRIPT_NAME,
+  MANAGED_DISPATCH_SKILL,
+} from '../../src/lib/delegation';
 
 const execFileAsync = promisify(execFile);
 
@@ -22,6 +26,7 @@ vi.mock('../../src/lib/delegation', async (importOriginal) => {
     resolveTargetMeta: vi.fn(async (ids: string[]) =>
       ids.map((id) => ({ id, name: id, description: `desc for ${id}`, tags: ['test'] })),
     ),
+    findDependentAgentIds: vi.fn(async () => []),
   };
 });
 
@@ -39,6 +44,82 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
   fs.rmSync(tmpDir, { recursive: true, force: true });
+});
+
+describe('delegation-sync helpers', () => {
+  it('finds only agents delegating to the target', async () => {
+    const targetId = 'target-a';
+    const agentsRoot = path.join(tmpDir, 'runtime', 'agents');
+    const plannerHome = path.join(agentsRoot, 'planner');
+    const unrelatedHome = path.join(agentsRoot, 'unrelated');
+    const targetHome = path.join(agentsRoot, targetId);
+
+    fs.mkdirSync(plannerHome, { recursive: true });
+    fs.mkdirSync(unrelatedHome, { recursive: true });
+    fs.mkdirSync(targetHome, { recursive: true });
+
+    await fsp.writeFile(
+      path.join(plannerHome, 'delegation.json'),
+      JSON.stringify({ allowedAgents: [targetId], maxHop: 3 }),
+      'utf-8',
+    );
+    await fsp.writeFile(
+      path.join(unrelatedHome, 'delegation.json'),
+      JSON.stringify({ allowedAgents: ['someone-else'], maxHop: 3 }),
+      'utf-8',
+    );
+
+    vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
+
+    const { findAgentsDelegatingTo } = await import('../../src/lib/delegation-sync');
+    const dependents = await findAgentsDelegatingTo(targetId);
+
+    expect(dependents).toEqual(['planner']);
+  });
+
+  it('refreshes SOUL.md for dependent agents only', async () => {
+    const targetId = 'target-a';
+    const agentsRoot = path.join(tmpDir, 'runtime', 'agents');
+    const plannerHome = path.join(agentsRoot, 'planner');
+    const unrelatedHome = path.join(agentsRoot, 'unrelated');
+    const targetHome = path.join(agentsRoot, targetId);
+
+    fs.mkdirSync(plannerHome, { recursive: true });
+    fs.mkdirSync(unrelatedHome, { recursive: true });
+    fs.mkdirSync(targetHome, { recursive: true });
+
+    await fsp.writeFile(path.join(plannerHome, 'SOUL.src.md'), '# Planner\n', 'utf-8');
+    await fsp.writeFile(path.join(plannerHome, 'SOUL.md'), '# Planner\n', 'utf-8');
+    await fsp.writeFile(path.join(unrelatedHome, 'SOUL.src.md'), '# Unrelated\n', 'utf-8');
+    await fsp.writeFile(path.join(unrelatedHome, 'SOUL.md'), '# Unrelated\n', 'utf-8');
+    await fsp.writeFile(
+      path.join(plannerHome, 'delegation.json'),
+      JSON.stringify({ allowedAgents: [targetId], maxHop: 3 }),
+      'utf-8',
+    );
+    await fsp.writeFile(
+      path.join(unrelatedHome, 'delegation.json'),
+      JSON.stringify({ allowedAgents: ['someone-else'], maxHop: 3 }),
+      'utf-8',
+    );
+    await fsp.writeFile(
+      path.join(targetHome, 'meta.json'),
+      JSON.stringify({ name: 'Target A', description: 'updated desc', tags: ['fresh'] }),
+      'utf-8',
+    );
+
+    vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
+
+    const { refreshDependentSoulsForTarget } = await import('../../src/lib/delegation-sync');
+    const rebuilt = await refreshDependentSoulsForTarget(targetId);
+
+    expect(rebuilt).toEqual(['planner']);
+    const plannerSoul = await fsp.readFile(path.join(plannerHome, 'SOUL.md'), 'utf-8');
+    const unrelatedSoul = await fsp.readFile(path.join(unrelatedHome, 'SOUL.md'), 'utf-8');
+    expect(plannerSoul).toContain('target-a');
+    expect(plannerSoul).toContain('desc for target-a');
+    expect(unrelatedSoul).toBe('# Unrelated\n');
+  });
 });
 
 describe('syncDelegationForAgent', () => {
@@ -147,5 +228,52 @@ describe('syncDelegationForAgent', () => {
 
     const soulContent = await fsp.readFile(path.join(agentHome, 'SOUL.md'), 'utf-8');
     expect(soulContent).not.toContain('HERMES_MANAGER_SUBAGENTS_V1');
+  });
+});
+
+describe('refreshDependentSoulsForTarget', () => {
+  it('rebuilds SOUL.md for each dependent agent', async () => {
+    const dep1Home = path.join(tmpDir, 'dep1');
+    const dep2Home = path.join(tmpDir, 'dep2');
+    fs.mkdirSync(dep1Home, { recursive: true });
+    fs.mkdirSync(dep2Home, { recursive: true });
+
+    await fsp.writeFile(path.join(dep1Home, 'SOUL.src.md'), '# Dep1 Soul\n', 'utf-8');
+    await fsp.writeFile(path.join(dep1Home, 'SOUL.md'), '# Dep1 Soul\n', 'utf-8');
+    await fsp.writeFile(
+      path.join(dep1Home, 'delegation.json'),
+      JSON.stringify({ allowedAgents: ['target01'], maxHop: 3 }),
+    );
+
+    await fsp.writeFile(path.join(dep2Home, 'SOUL.src.md'), '# Dep2 Soul\n', 'utf-8');
+    await fsp.writeFile(path.join(dep2Home, 'SOUL.md'), '# Dep2 Soul\n', 'utf-8');
+    await fsp.writeFile(
+      path.join(dep2Home, 'delegation.json'),
+      JSON.stringify({ allowedAgents: ['target01'], maxHop: 3 }),
+    );
+
+    vi.mocked(findDependentAgentIds).mockResolvedValueOnce(['dep1', 'dep2']);
+
+    const runtimePaths = await import('../../src/lib/runtime-paths');
+    vi.spyOn(runtimePaths, 'getRuntimeAgentsRootPath').mockImplementation((...segments: string[]) =>
+      path.join(tmpDir, ...segments),
+    );
+
+    const { refreshDependentSoulsForTarget } = await import('../../src/lib/delegation-sync');
+    await refreshDependentSoulsForTarget('target01');
+
+    const soul1 = await fsp.readFile(path.join(dep1Home, 'SOUL.md'), 'utf-8');
+    const soul2 = await fsp.readFile(path.join(dep2Home, 'SOUL.md'), 'utf-8');
+    expect(soul1).toContain('HERMES_MANAGER_SUBAGENTS_V1_BEGIN');
+    expect(soul1).toContain('target01');
+    expect(soul2).toContain('HERMES_MANAGER_SUBAGENTS_V1_BEGIN');
+    expect(soul2).toContain('target01');
+  });
+
+  it('does nothing when no dependents exist', async () => {
+    vi.mocked(findDependentAgentIds).mockResolvedValueOnce([]);
+
+    const { refreshDependentSoulsForTarget } = await import('../../src/lib/delegation-sync');
+    await refreshDependentSoulsForTarget('nonexistent');
   });
 });

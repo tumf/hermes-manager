@@ -5,12 +5,15 @@ import type { DelegationPolicy } from './delegation';
 import {
   buildManagedDispatchSkillContent,
   buildSubagentSoulBlock,
+  findDependentAgentIds,
   injectSubagentSoulBlock,
   MANAGED_DISPATCH_SCRIPT_NAME,
   MANAGED_DISPATCH_SKILL,
+  readDelegationPolicy,
   resolveTargetMeta,
 } from './delegation';
-import { assembleSoulSource } from './soul-assembly';
+import { getRuntimeAgentsRootPath } from './runtime-paths';
+import { assembleSoulSource, rebuildSoulForAgent } from './soul-assembly';
 import { stripZeroWidthSpace } from './text-sanitizer';
 
 async function ensureManagedSkill(agentHome: string): Promise<void> {
@@ -62,6 +65,32 @@ async function regenerateSoulWithDelegation(
   await fsp.rename(tmpPath, soulPath);
 }
 
+export async function findAgentsDelegatingTo(targetAgentId: string): Promise<string[]> {
+  const agentsRoot = getRuntimeAgentsRootPath();
+  let entries: string[];
+  try {
+    entries = await fsp.readdir(agentsRoot);
+  } catch {
+    return [];
+  }
+
+  const dependents: string[] = [];
+  const emptyPolicy: DelegationPolicy = { allowedAgents: [], maxHop: 3 };
+  for (const agentId of entries) {
+    if (agentId === targetAgentId) continue;
+    const agentHome = path.join(agentsRoot, agentId);
+    const stat = await fsp.stat(agentHome).catch(() => null);
+    if (!stat?.isDirectory()) continue;
+
+    const policy = await readDelegationPolicy(agentHome).catch(() => emptyPolicy);
+    if (policy.allowedAgents.includes(targetAgentId)) {
+      dependents.push(agentId);
+    }
+  }
+
+  return dependents;
+}
+
 export async function syncDelegationForAgent(
   agentId: string,
   agentHome: string,
@@ -74,4 +103,12 @@ export async function syncDelegationForAgent(
   }
 
   await regenerateSoulWithDelegation(agentHome, policy);
+}
+
+export async function refreshDependentSoulsForTarget(targetId: string): Promise<void> {
+  const dependentIds = await findDependentAgentIds(targetId);
+  for (const depId of dependentIds) {
+    const depHome = getRuntimeAgentsRootPath(depId);
+    await rebuildSoulForAgent(depHome);
+  }
 }

@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import { AgentEnvTab } from '@/src/components/agent-env-tab';
 import { FileEditor } from '@/src/components/agent-file-editor';
 import { AgentLogViewer } from '@/src/components/agent-log-viewer';
+import { AgentMcpTab } from '@/src/components/agent-mcp-tab';
 import { AgentMemoryTab } from '@/src/components/agent-memory-tab';
 import { AgentMetadataCard } from '@/src/components/agent-metadata-card';
 import { AgentStatusHeader } from '@/src/components/agent-status-header';
@@ -206,7 +207,7 @@ export default function AgentPage({ params }: AgentPageProps) {
         </TabsContent>
 
         <TabsContent value="mcp">
-          <McpTab name={name} />
+          <AgentMcpTab name={name} />
         </TabsContent>
 
         <TabsContent value="env">

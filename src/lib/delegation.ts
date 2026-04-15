@@ -286,6 +286,17 @@ export async function resolveTargetMeta(agentIds: string[]): Promise<SubagentMet
   return results;
 }
 
+export async function findDependentAgentIds(targetId: string): Promise<string[]> {
+  const edges = await loadAllDelegationEdges();
+  const dependents: string[] = [];
+  for (const [agentId, allowed] of edges) {
+    if (allowed.includes(targetId)) {
+      dependents.push(agentId);
+    }
+  }
+  return dependents;
+}
+
 export const DispatchRequestSchema = z.object({
   targetAgent: z.string().min(1),
   message: z.string().min(1).max(4096),

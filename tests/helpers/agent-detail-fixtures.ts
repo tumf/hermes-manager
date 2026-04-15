@@ -14,8 +14,8 @@ export type AgentDetailFixtureOptions = {
   launchdStartError?: string;
   partialModeEnabled?: boolean;
   hermesVersion?: string | null;
-  onFilePut?: (body: { agent: string; path: string; content: string }) => MockResponse | undefined;
   mcpContent?: string;
+  onFilePut?: (body: { agent: string; path: string; content: string }) => MockResponse | undefined;
   onMcpPut?: (body: { content: string }) => MockResponse | undefined;
 };
 
@@ -25,6 +25,8 @@ const legacyFileContents: Record<string, string> = {
   'SOUL.md': '# Soul file\n',
   'config.yaml': 'name: alpha\n',
 };
+
+const defaultMcpContent = ['github:', '  command: npx', '  args:', '    - -y'].join('\n');
 
 const partialFileContents: Record<string, string> = {
   'memories/MEMORY.md': '# Memory file\n',
@@ -47,6 +49,7 @@ export function buildAgentDetailRoutes(options: AgentDetailFixtureOptions = {}):
   const fileContents: Record<string, string> = {
     ...(partialModeEnabled ? partialFileContents : legacyFileContents),
   };
+  let mcpContent = options.mcpContent ?? defaultMcpContent;
 
   return [
     (url, init) => {
@@ -133,6 +136,25 @@ export function buildAgentDetailRoutes(options: AgentDetailFixtureOptions = {}):
         if (body.path === 'SOUL.src.md') {
           fileContents['SOUL.md'] = `# Assembled from source\n\n${body.content}`;
         }
+        return jsonOk({ ok: true });
+      }
+      return undefined;
+    },
+    (url, init) => {
+      const method = init?.method ?? 'GET';
+      if (url === '/api/agents/alpha/mcp' && method === 'GET') {
+        return jsonOk({
+          content: mcpContent,
+          docsUrl: 'https://hermes-agent.nousresearch.com/docs/guides/use-mcp-with-hermes',
+        });
+      }
+      if (url === '/api/agents/alpha/mcp' && method === 'PUT') {
+        const body = JSON.parse(init?.body ?? '{}') as { content: string };
+        if (options.onMcpPut) {
+          const result = options.onMcpPut(body);
+          if (result !== undefined) return result;
+        }
+        mcpContent = body.content;
         return jsonOk({ ok: true });
       }
       return undefined;
