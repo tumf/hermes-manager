@@ -124,11 +124,15 @@ function parseValidPort(value: unknown): number | null {
 
   if (typeof value === 'string' && value.trim().length > 0) {
     // Strip surrounding quotes and literal \n that dotenvx may inject
+<<<<<<< Updated upstream
     const cleaned = value
       .trim()
       .replace(/^["']|["']$/g, '')
       .replace(/\\n/g, '')
       .trim();
+=======
+    const cleaned = value.trim().replace(/^["']|["']$/g, '').replace(/\\n/g, '').trim();
+>>>>>>> Stashed changes
     const port = Number(cleaned);
     if (Number.isInteger(port) && port > 0 && port <= 65535) {
       return port;

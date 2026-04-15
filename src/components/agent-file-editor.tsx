@@ -39,12 +39,16 @@ interface FileEditorProps {
   savePath?: string;
   readOnly?: boolean;
   hideTemplateButton?: boolean;
+<<<<<<< Updated upstream
   previewOnly?: boolean;
   onSaveSuccess?: () => void;
+=======
+>>>>>>> Stashed changes
   className?: string;
 }
 
 export const FileEditor = forwardRef<FileEditorHandle, FileEditorProps>(function FileEditor(
+<<<<<<< Updated upstream
   {
     name,
     filePath,
@@ -56,6 +60,9 @@ export const FileEditor = forwardRef<FileEditorHandle, FileEditorProps>(function
     onSaveSuccess,
     className,
   },
+=======
+  { name, filePath, label, savePath, readOnly = false, hideTemplateButton = false, className },
+>>>>>>> Stashed changes
   ref,
 ) {
   const [content, setContent] = useState('');
@@ -190,6 +197,7 @@ export const FileEditor = forwardRef<FileEditorHandle, FileEditorProps>(function
             </span>
           )}
         </div>
+<<<<<<< Updated upstream
         {!previewOnly && (
           <div className="flex gap-1.5">
             {!hideTemplateButton && (
@@ -236,6 +244,67 @@ export const FileEditor = forwardRef<FileEditorHandle, FileEditorProps>(function
                   </div>
                 </DialogContent>
               </Dialog>
+=======
+        <div className="flex gap-1.5">
+          {!hideTemplateButton && (
+            <Dialog open={saveAsTemplateOpen} onOpenChange={setSaveAsTemplateOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={loading || readOnly}
+                  className="gap-1.5"
+                  onClick={() => setTemplateName('')}
+                >
+                  <FileText className="size-3.5" />
+                  <span className="hidden sm:inline">Template</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <div className="flex min-h-0 flex-1 flex-col">
+                  <DialogHeader>
+                    <DialogTitle>Save as Template</DialogTitle>
+                    <DialogDescription>
+                      Save the current content of {label} as a reusable template.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-1">
+                    <Input
+                      value={templateName}
+                      onChange={(e) => setTemplateName(e.target.value)}
+                      placeholder="template-name"
+                      aria-label="Template name"
+                    />
+                  </div>
+                  <DialogFooter>
+                    <DialogClose asChild>
+                      <Button variant="outline">Cancel</Button>
+                    </DialogClose>
+                    <Button
+                      onClick={() => void saveAsTemplate()}
+                      disabled={savingTemplate || !templateName.trim()}
+                    >
+                      {savingTemplate ? 'Saving...' : 'Save'}
+                    </Button>
+                  </DialogFooter>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void save()}
+            disabled={readOnly || saving || loading || !dirty}
+            className="gap-1.5"
+          >
+            {saving ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : dirty ? (
+              <Save className="size-3.5" />
+            ) : (
+              <Undo2 className="size-3.5 text-muted-foreground" />
+>>>>>>> Stashed changes
             )}
             <Button
               variant="outline"

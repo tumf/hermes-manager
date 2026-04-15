@@ -44,8 +44,13 @@
 
 ## 5. 機能要件（FR）
 
+<<<<<<< Updated upstream
 - FR-1 Agents API: GET/POST/DELETE/copy と `PUT /api/agents/{id}/meta`（id 自動生成 `[0-9a-z]{7}`、標準ファイル作成、DB 登録、POST はボディ不要。新規作成と copy は必ず 8642〜8699 の未使用 `apiServerPort` を agent metadata に保持する。`PUT /api/agents/{id}/meta` は name/description/tags 更新時に既存 `apiServerPort` を保持し、当該 agent を `allowedAgents` に含む利用側 agent の generated `SOUL.md` も再 assemble する）
 - FR-2 Service API: install/uninstall/start/stop/restart/status（child_process.execFile、stdout/err/code返却。エンドポイントは `/api/launchd` を互換パスとして維持。macOS では launchctl + plist、Linux では systemctl --user + systemd unit を使用。install/start/restart 時に `apiServerPort` 未設定の legacy/misconfigured agent は未使用ポートを補完保存してからサービス定義を再生成する）
+=======
+- FR-1 Agents API: GET/POST/DELETE/copy（id 自動生成 `[0-9a-z]{7}`、標準ファイル作成、DB 登録、POST はボディ不要。新規作成と copy は必ず 8642〜8699 の未使用 `apiServerPort` を agent metadata に保持する）
+- FR-2 Launchd API: install/uninstall/start/stop/status（child_process.execFile、stdout/err/code返却。install/start/restart 時に `apiServerPort` 未設定の legacy/misconfigured agent は未使用ポートを補完保存してから plist を再生成する）
+>>>>>>> Stashed changes
 - FR-3 Files API: SOUL.md / SOUL.src.md / memories/MEMORY.md / memories/USER.md / config.yaml の read/put（YAML 構文検証、原子書き込み、partial mode では SOUL.src.md 保存時に SOUL.md を再生成）
 - FR-3b MCP API: `GET/PUT /api/agents/{id}/mcp` により `config.yaml` の `mcp_servers` フラグメントを read/write できる。PUT は YAML mapping/object のみ受け付け、空文字保存時は `mcp_servers` を削除し、他の config keys は保持する
 - FR-4 Env API: agent .env CRUD、resolved（global+agent マージ）、各変数に `visibility`（plain/secure）を保持し secure は管理表示でマスク

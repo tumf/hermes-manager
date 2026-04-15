@@ -55,9 +55,13 @@ describe('chat messages UI', () => {
       value: 900,
     });
 
+<<<<<<< Updated upstream
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
       this: HTMLElement,
     ) {
+=======
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+>>>>>>> Stashed changes
       const testId = this.getAttribute('data-testid');
       if (testId === 'chat-tab-layout') {
         return {
@@ -128,11 +132,15 @@ describe('chat messages UI', () => {
   });
 
   it('keeps only chat history scrollable and leaves the composer visible in the viewport', async () => {
+<<<<<<< Updated upstream
     render(
       <LocaleProvider initialLocale="en">
         <ChatTab name="alpha" />
       </LocaleProvider>,
     );
+=======
+    render(<ChatTab name="alpha" />);
+>>>>>>> Stashed changes
 
     const messagesScroll = await screen.findByTestId('chat-messages-scroll');
     const composer = screen.getByTestId('chat-input-composer');

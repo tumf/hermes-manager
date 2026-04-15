@@ -517,12 +517,17 @@ describe('Agent detail page', () => {
     });
 
     await waitFor(() => {
+<<<<<<< Updated upstream
       expect(screen.getByText('Could not connect to api_server.')).toBeInTheDocument();
+=======
+      expect(screen.getByText('api_server に接続できませんでした。')).toBeInTheDocument();
+>>>>>>> Stashed changes
     });
 
     expect(screen.getByText(/hermes gateway restart/)).toBeInTheDocument();
   });
 
+<<<<<<< Updated upstream
   it('renders MCP tab and loads MCP fragment', async () => {
     const mcpYaml = 'filesystem:\n  command: npx\n';
     global.fetch = createFetchRouter(buildAgentDetailRoutes({ mcpContent: mcpYaml }));
@@ -610,6 +615,8 @@ describe('Agent detail page', () => {
     });
   });
 
+=======
+>>>>>>> Stashed changes
   it('uses a growable min-height-safe layout for the chat tab', async () => {
     global.fetch = createFetchRouter(buildAgentDetailRoutes({ partialModeEnabled: false }));
     window.history.replaceState(null, '', '#chat');

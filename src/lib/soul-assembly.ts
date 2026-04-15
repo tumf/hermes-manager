@@ -63,10 +63,14 @@ export async function writeSoulSourceAndAssembled(
   source: string,
 ): Promise<{ assembled: string }> {
   const sanitizedSource = stripZeroWidthSpace(source);
+<<<<<<< Updated upstream
   let assembled = await assembleSoulSource(sanitizedSource);
 
   const delegationBlock = await buildDelegationBlock(agentHome);
   assembled = injectSubagentSoulBlock(assembled, delegationBlock);
+=======
+  const assembled = await assembleSoulSource(sanitizedSource);
+>>>>>>> Stashed changes
 
   const sourcePath = path.join(agentHome, 'SOUL.src.md');
   const soulPath = path.join(agentHome, 'SOUL.md');

@@ -627,9 +627,15 @@ describe('POST /api/agents/copy', () => {
       expect.stringContaining('My Bot (Copy)'),
       'utf-8',
     );
+<<<<<<< Updated upstream
     const metaWrite = vi
       .mocked(fs.writeFile)
       .mock.calls.find((call) => String(call[0]).includes('/runtime/agents/abc1234/meta.json'));
+=======
+    const metaWrite = vi.mocked(fs.writeFile).mock.calls.find((call) =>
+      String(call[0]).includes('/runtime/agents/abc1234/meta.json'),
+    );
+>>>>>>> Stashed changes
     expect(metaWrite?.[1]).toContain('"apiServerPort": 8642');
   });
 
@@ -663,9 +669,15 @@ describe('POST /api/agents/copy', () => {
 
     await COPY_POST(req);
 
+<<<<<<< Updated upstream
     const metaWrite = vi
       .mocked(fs.writeFile)
       .mock.calls.find((call) => String(call[0]).includes('/runtime/agents/abc1234/meta.json'));
+=======
+    const metaWrite = vi.mocked(fs.writeFile).mock.calls.find((call) =>
+      String(call[0]).includes('/runtime/agents/abc1234/meta.json'),
+    );
+>>>>>>> Stashed changes
     expect(metaWrite?.[1]).toContain('"apiServerPort": 8642');
   });
 

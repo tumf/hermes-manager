@@ -5,7 +5,10 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 import { CodeEditor } from '@/src/components/code-editor';
+<<<<<<< Updated upstream
 import { useLocale } from '@/src/components/locale-provider';
+=======
+>>>>>>> Stashed changes
 import {
   AlertDialog,
   AlertDialogAction,
@@ -94,7 +97,11 @@ export default function PartialsPage() {
   const persistPartial = useCallback(async () => {
     const normalizedName = formName.trim();
     if (!PARTIAL_NAME_PATTERN.test(normalizedName)) {
+<<<<<<< Updated upstream
       toast.error(t.partials.invalidName);
+=======
+      toast.error('Partial name must only contain alphanumeric, underscore, or hyphen');
+>>>>>>> Stashed changes
       return false;
     }
 
@@ -108,11 +115,19 @@ export default function PartialsPage() {
 
       if (!response.ok) {
         const body = (await response.json().catch(() => ({}))) as { error?: string };
+<<<<<<< Updated upstream
         toast.error(body.error ?? t.partials.failedToSave);
         return false;
       }
 
       toast.success(t.partials.savedPartial(normalizedName));
+=======
+        toast.error(body.error ?? 'Failed to save partial');
+        return false;
+      }
+
+      toast.success(`Saved partial: ${normalizedName}`);
+>>>>>>> Stashed changes
       setInitialFormName(normalizedName);
       setInitialFormContent(formContent);
       setDialogOpen(false);
@@ -121,7 +136,11 @@ export default function PartialsPage() {
     } finally {
       setSaving(false);
     }
+<<<<<<< Updated upstream
   }, [editingName, fetchPartials, formContent, formName, t]);
+=======
+  }, [editingName, fetchPartials, formContent, formName]);
+>>>>>>> Stashed changes
 
   async function handleSave(event?: React.FormEvent) {
     event?.preventDefault();
@@ -290,16 +309,27 @@ export default function PartialsPage() {
               <div className="flex min-h-0 flex-1 flex-col rounded-md border">
                 <div className="flex shrink-0 items-center justify-between gap-3 border-b px-4 py-3">
                   <div>
+<<<<<<< Updated upstream
                     <p className="text-sm font-medium">{t.partials.contentLabel}</p>
                     {dirty && (
                       <span className="text-[10px] text-orange-500" aria-live="polite">
                         {t.partials.unsaved}
+=======
+                    <p className="text-sm font-medium">Content</p>
+                    {dirty && (
+                      <span className="text-[10px] text-orange-500" aria-live="polite">
+                        unsaved
+>>>>>>> Stashed changes
                       </span>
                     )}
                     <p className="text-xs text-muted-foreground">Markdown editor</p>
                   </div>
                   <Button type="submit" size="sm" disabled={saving || !dirty} className="gap-1.5">
+<<<<<<< Updated upstream
                     {saving ? t.partials.saving : t.partials.save}
+=======
+                    {saving ? 'Saving...' : 'Save'}
+>>>>>>> Stashed changes
                   </Button>
                 </div>
                 <div className="flex min-h-0 flex-1 flex-col p-3">
@@ -308,6 +338,7 @@ export default function PartialsPage() {
                     onChange={setFormContent}
                     filePath="partial.md"
                     className="min-h-0 w-full flex-1 overflow-hidden rounded-md border border-input"
+<<<<<<< Updated upstream
                     ariaLabel={t.partials.contentLabel}
                   />
                   <div className="mt-1.5 flex items-center justify-end gap-3 text-[10px] text-muted-foreground/70">
@@ -317,6 +348,13 @@ export default function PartialsPage() {
                     <span>
                       {contentCharCount.toLocaleString()} {t.partials.chars}
                     </span>
+=======
+                    ariaLabel="Content"
+                  />
+                  <div className="mt-1.5 flex items-center justify-end gap-3 text-[10px] text-muted-foreground/70">
+                    <span>{contentLineCount} lines</span>
+                    <span>{contentCharCount.toLocaleString()} chars</span>
+>>>>>>> Stashed changes
                   </div>
                 </div>
               </div>

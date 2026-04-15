@@ -64,8 +64,12 @@ export default function AgentPage({ params }: AgentPageProps) {
     <div
       className={cn(
         'space-y-6',
+<<<<<<< Updated upstream
         activeTab === 'chat' &&
           'flex min-h-[calc(100dvh-6rem)] flex-col space-y-4 overflow-hidden md:min-h-[calc(100dvh-4rem)]',
+=======
+        activeTab === 'chat' && 'flex min-h-[calc(100dvh-6rem)] flex-col space-y-4 overflow-hidden md:min-h-[calc(100dvh-4rem)]',
+>>>>>>> Stashed changes
       )}
     >
       <div>

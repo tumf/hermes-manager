@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { getAgent } from '@/src/lib/agents';
+import { allocateApiServerPort, getAgent, readAgentMeta, updateAgentMeta } from '@/src/lib/agents';
 import {
   ensureAgentApiServerPort,
   executeServiceAction,
@@ -13,6 +13,103 @@ const RequestSchema = z.object({
   action: z.enum(['install', 'uninstall', 'start', 'stop', 'restart', 'status']),
 });
 
+<<<<<<< Updated upstream
+=======
+async function runExecFile(cmd: string, args: string[]): Promise<ExecResult> {
+  try {
+    const { stdout, stderr } = await execFileAsync(cmd, args);
+    return { stdout, stderr, code: 0 };
+  } catch (err: unknown) {
+    const e = err as { stdout?: string; stderr?: string; code?: number };
+    return {
+      stdout: e.stdout ?? '',
+      stderr: e.stderr ?? '',
+      code: typeof e.code === 'number' ? e.code : 1,
+    };
+  }
+}
+
+function getUid(): number {
+  return process.getuid ? process.getuid() : 501;
+}
+
+const POLL_INTERVAL = 500;
+const POLL_TIMEOUT = 10_000;
+
+async function waitForState(
+  target: 'running' | 'stopped',
+  uid: number,
+  label: string,
+): Promise<{ running: boolean; pid: number | null; timedOut: boolean }> {
+  const deadline = Date.now() + POLL_TIMEOUT;
+  while (Date.now() < deadline) {
+    const r = await runExecFile('launchctl', ['print', `gui/${uid}/${label}`]);
+    const running = parseRunning(r.stdout);
+    const pid = parsePid(r.stdout);
+    if (target === 'running' && running && pid !== null) {
+      return { running: true, pid, timedOut: false };
+    }
+    if (target === 'stopped' && !running) {
+      return { running: false, pid: null, timedOut: false };
+    }
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL));
+  }
+  const r = await runExecFile('launchctl', ['print', `gui/${uid}/${label}`]);
+  return { running: parseRunning(r.stdout), pid: parsePid(r.stdout), timedOut: true };
+}
+
+async function ensureServiceBootstrapped(
+  agentName: string,
+  home: string,
+  label: string,
+  uid: number,
+  apiServerPort: number | null,
+): Promise<ExecResult> {
+  const plistContent = generatePlist(agentName, home, label, apiServerPort);
+  const plistPath = getPlistPath(agentName);
+
+  fs.mkdirSync(path.dirname(plistPath), { recursive: true });
+  fs.writeFileSync(plistPath, plistContent, 'utf8');
+
+  // Always reload the job so launchd picks up the regenerated plist.
+  const check = await runExecFile('launchctl', ['print', `gui/${uid}/${label}`]);
+  if (check.code === 0) {
+    const bootout = await runExecFile('launchctl', ['bootout', `gui/${uid}/${label}`]);
+    if (bootout.code !== 0 && !isServiceMissing(bootout)) {
+      return bootout;
+    }
+    // Wait for launchd to fully release the old job before re-bootstrapping
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+
+  return runExecFile('launchctl', ['bootstrap', `gui/${uid}`, plistPath]);
+}
+
+async function ensureAgentApiServerPort(agentName: string): Promise<number | null> {
+  const agentMeta = await readAgentMeta(agentName);
+  if (!agentMeta) {
+    return null;
+  }
+
+  if (typeof agentMeta.apiServerPort === 'number') {
+    return agentMeta.apiServerPort;
+  }
+
+  const apiServerPort = await allocateApiServerPort();
+  const updated = await updateAgentMeta(agentName, {
+    ...agentMeta,
+    apiServerPort,
+  });
+
+  if (typeof updated?.apiServerPort === 'number') {
+    return updated.apiServerPort;
+  }
+
+  const refreshedMeta = await readAgentMeta(agentName);
+  return typeof refreshedMeta?.apiServerPort === 'number' ? refreshedMeta.apiServerPort : null;
+}
+
+>>>>>>> Stashed changes
 export async function POST(request: Request) {
   let body: unknown;
   try {
@@ -33,6 +130,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `Agent "${agentName}" not found` }, { status: 404 });
   }
 
+<<<<<<< Updated upstream
   const needsPort = action === 'install' || action === 'start' || action === 'restart';
   const apiServerPort = needsPort
     ? await ensureAgentApiServerPort(agentName)
@@ -42,6 +140,29 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: 'Failed to resolve api server port for agent' },
       { status: 500 },
+=======
+  const { home, label } = agentRow;
+  const uid = getUid();
+  const ensuredApiServerPort =
+    action === 'install' || action === 'start' || action === 'restart'
+      ? await ensureAgentApiServerPort(agentName)
+      : agentRow.apiServerPort;
+
+  if ((action === 'install' || action === 'start' || action === 'restart') && ensuredApiServerPort === null) {
+    return NextResponse.json(
+      { error: 'Failed to resolve api server port for agent' },
+      { status: 500 },
+    );
+  }
+
+  if (action === 'install') {
+    const result = await ensureServiceBootstrapped(
+      agentName,
+      home,
+      label,
+      uid,
+      ensuredApiServerPort,
+>>>>>>> Stashed changes
     );
   }
 
@@ -53,7 +174,28 @@ export async function POST(request: Request) {
     action: action as ServiceAction,
   });
 
+<<<<<<< Updated upstream
   if (result.action === 'install' || result.action === 'uninstall') {
+=======
+  if (action === 'start') {
+    // Always regenerate plist so that meta.json changes (e.g. apiServerPort) are reflected
+    const bootstrapResult = await ensureServiceBootstrapped(
+      agentName,
+      home,
+      label,
+      uid,
+      ensuredApiServerPort,
+    );
+    if (bootstrapResult.code !== 0) {
+      return NextResponse.json(bootstrapResult, { status: 500 });
+    }
+
+    const result = await runExecFile('launchctl', ['start', label]);
+    if (result.code !== 0) {
+      return NextResponse.json({ ...result, running: false }, { status: 500 });
+    }
+    const state = await waitForState('running', uid, label);
+>>>>>>> Stashed changes
     return NextResponse.json({
       stdout: result.stdout,
       stderr: result.stderr,
@@ -74,9 +216,43 @@ export async function POST(request: Request) {
     });
   }
 
+<<<<<<< Updated upstream
   // start, stop, restart (result is LifecycleResult at this point)
   if (result.action !== 'start' && result.action !== 'stop' && result.action !== 'restart') {
     return NextResponse.json({ error: 'Unexpected action' }, { status: 500 });
+=======
+  if (action === 'restart') {
+    // Ensure service is bootstrapped (writes plist + registers if needed)
+    const bootstrapResult = await ensureServiceBootstrapped(
+      agentName,
+      home,
+      label,
+      uid,
+      ensuredApiServerPort,
+    );
+    if (bootstrapResult.code !== 0) {
+      return NextResponse.json(bootstrapResult, { status: 500 });
+    }
+
+    // kickstart -k kills the existing process and restarts it atomically
+    const result = await runExecFile('launchctl', ['kickstart', '-kp', `gui/${uid}/${label}`]);
+    if (result.code !== 0) {
+      return NextResponse.json({ ...result, running: false }, { status: 500 });
+    }
+    const state = await waitForState('running', uid, label);
+    if (!state.running) {
+      return NextResponse.json(
+        { ...result, running: false, pid: null, timedOut: state.timedOut },
+        { status: 500 },
+      );
+    }
+    return NextResponse.json({
+      ...result,
+      running: state.running,
+      pid: state.pid,
+      timedOut: state.timedOut,
+    });
+>>>>>>> Stashed changes
   }
 
   const payload = {

@@ -50,7 +50,11 @@ const AlertDialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDiv
 const AlertDialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
+<<<<<<< Updated upstream
       'mt-6 flex shrink-0 flex-col-reverse border-t bg-background pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 sm:flex-row sm:justify-end sm:gap-2',
+=======
+      'mt-6 flex shrink-0 flex-col-reverse border-t bg-background pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:flex-row sm:justify-end sm:gap-2',
+>>>>>>> Stashed changes
       className,
     )}
     {...props}
