@@ -11,6 +11,12 @@
 - [x] Run strict proposal validation and repository verification before implementation.
       verification: `python3 ~/.hermes/skills/cflx-proposal/scripts/cflx.py validate clarify-managed-dispatch-guidance --strict` passes, and future implementation work is expected to pass `npm run test && npm run typecheck && npm run lint`.
 
+## Acceptance #1 Failure Follow-up
+
+- [x] Format `tests/lib/delegation.test.ts` and `tests/lib/delegation-sync.test.ts` so `npm run format:check` and the `npx lint-staged` pre-commit hook pass on the changed files.
+- [x] Fix `tests/api/mcp.test.ts` so the MCP route tests exercise the current `app/api/agents/[id]/mcp/route.ts` implementation instead of stale mocked helpers, then rerun `npm run test`.
+- [x] Fix `tests/ui/agent-detail-page.test.tsx` MCP assertions so they match the current MCP editor label/copy (or restore the UI contract consistently), then rerun `npm run test`.
+
 ## Future Work
 
 - Consider a follow-up proposal for durable lineage / completion tracking if operators later need enforceable end-to-end workflow ownership across multi-hop dispatch.

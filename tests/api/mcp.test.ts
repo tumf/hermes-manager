@@ -14,22 +14,28 @@ vi.mock('@/src/lib/agents', () => ({
   getAgent: vi.fn(async () => mockState.agent),
 }));
 
-vi.mock('@/src/lib/mcp-config', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../src/lib/mcp-config')>();
+vi.mock('@/src/lib/agent-config', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/lib/agent-config')>();
   return {
     ...actual,
-    readMcpConfig: vi.fn(async () => mockState.configContent),
-    writeMcpConfig: vi.fn(async (_home: string, content: string) => {
-      const { parseMcpFragment } = actual;
+    readAgentMcpConfigContent: vi.fn(async () => mockState.configContent),
+    writeAgentMcpConfigContent: vi.fn(async (_home: string, content: string) => {
+      const { AgentConfigError } = actual;
       const trimmed = content.trim();
       if (trimmed === '') {
         mockState.configContent = '';
-        return {};
+        return;
       }
-      const result = parseMcpFragment(content);
-      if (result.error) return { error: result.error };
+      let parsed: unknown;
+      try {
+        parsed = (await import('js-yaml')).load(content);
+      } catch {
+        throw new AgentConfigError('Invalid YAML: mocked parse failure', 422);
+      }
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new AgentConfigError('MCP config must be a YAML mapping/object', 422);
+      }
       mockState.configContent = content;
-      return {};
     }),
   };
 });

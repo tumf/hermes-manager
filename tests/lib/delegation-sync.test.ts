@@ -8,10 +8,7 @@ import { promisify } from 'node:util';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  MANAGED_DISPATCH_SCRIPT_NAME,
-  MANAGED_DISPATCH_SKILL,
-} from '../../src/lib/delegation';
+import { MANAGED_DISPATCH_SCRIPT_NAME, MANAGED_DISPATCH_SKILL } from '../../src/lib/delegation';
 
 const execFileAsync = promisify(execFile);
 

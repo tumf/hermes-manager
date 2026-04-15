@@ -156,12 +156,8 @@ describe('buildSubagentSoulBlock', () => {
     expect(block).toContain(
       'Prefer dispatching work to a listed managed subagent when one is a clear fit',
     );
-    expect(block).toContain(
-      'Built-in `delegate_task` is a separate mechanism',
-    );
-    expect(block).toContain(
-      'parent resumes ownership and delivers the final result',
-    );
+    expect(block).toContain('Built-in `delegate_task` is a separate mechanism');
+    expect(block).toContain('parent resumes ownership and delivers the final result');
     expect(block).toContain('dispatchSkill: hermes-manager-subagent-dispatch');
     expect(block).toContain('maxHop: 3');
 
