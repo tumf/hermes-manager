@@ -23,15 +23,11 @@ async function updateCopiedMetaNameAndPort(toHome: string, apiServerPort: number
     };
 
     const baseName = typeof parsed.name === 'string' ? parsed.name.trim() : '';
-<<<<<<< Updated upstream
     const copiedName = baseName
       ? baseName.endsWith(' (Copy)')
         ? baseName
         : `${baseName} (Copy)`
       : '';
-=======
-    const copiedName = baseName ? (baseName.endsWith(' (Copy)') ? baseName : `${baseName} (Copy)`) : '';
->>>>>>> Stashed changes
     const normalized = {
       name: copiedName,
       description: typeof parsed.description === 'string' ? parsed.description : '',

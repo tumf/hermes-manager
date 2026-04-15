@@ -5,10 +5,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { CodeEditor } from '@/src/components/code-editor';
-<<<<<<< Updated upstream
 import { useLocale } from '@/src/components/locale-provider';
-=======
->>>>>>> Stashed changes
 import {
   AlertDialog,
   AlertDialogAction,
@@ -149,11 +146,7 @@ export default function TemplatesPage() {
   const persistTemplate = useCallback(async () => {
     const trimmedName = formName.trim();
     if (!trimmedName || !formContent) {
-<<<<<<< Updated upstream
       toast.error(t.templates.nameAndContentRequired);
-=======
-      toast.error('Name and content are required');
->>>>>>> Stashed changes
       return false;
     }
 
@@ -171,17 +164,10 @@ export default function TemplatesPage() {
         });
         if (!res.ok) {
           const d = await res.json().catch(() => ({}));
-<<<<<<< Updated upstream
           toast.error(typeof d.error === 'string' ? d.error : t.templates.failedToUpdate);
           return false;
         }
         toast.success(t.templates.savedTemplate(trimmedName, formFile));
-=======
-          toast.error(typeof d.error === 'string' ? d.error : 'Failed to update');
-          return false;
-        }
-        toast.success(`Template "${trimmedName}/${formFile}" saved`);
->>>>>>> Stashed changes
       } else {
         const res = await fetch('/api/templates', {
           method: 'POST',
@@ -194,17 +180,10 @@ export default function TemplatesPage() {
         });
         if (!res.ok) {
           const d = await res.json().catch(() => ({}));
-<<<<<<< Updated upstream
           toast.error(typeof d.error === 'string' ? d.error : t.templates.failedToCreate);
           return false;
         }
         toast.success(t.templates.savedTemplate(trimmedName, formFile));
-=======
-          toast.error(typeof d.error === 'string' ? d.error : 'Failed to create');
-          return false;
-        }
-        toast.success(`Template "${trimmedName}/${formFile}" saved`);
->>>>>>> Stashed changes
       }
       setInitialFormFile(formFile);
       setInitialFormName(trimmedName);
@@ -215,11 +194,7 @@ export default function TemplatesPage() {
     } finally {
       setBusy(false);
     }
-<<<<<<< Updated upstream
   }, [editing, fetchTemplates, formContent, formFile, formName, t]);
-=======
-  }, [editing, fetchTemplates, formContent, formFile, formName]);
->>>>>>> Stashed changes
 
   async function handleSave(e?: React.FormEvent) {
     e?.preventDefault();
@@ -422,27 +397,16 @@ export default function TemplatesPage() {
               <div className="flex min-h-0 flex-1 flex-col rounded-md border">
                 <div className="flex shrink-0 items-center justify-between gap-3 border-b px-4 py-3">
                   <div>
-<<<<<<< Updated upstream
                     <p className="text-sm font-medium">{t.templates.contentLabel}</p>
                     {dirty && (
                       <span className="text-[10px] text-orange-500" aria-live="polite">
                         {t.templates.unsaved}
-=======
-                    <p className="text-sm font-medium">Content</p>
-                    {dirty && (
-                      <span className="text-[10px] text-orange-500" aria-live="polite">
-                        unsaved
->>>>>>> Stashed changes
                       </span>
                     )}
                     <p className="text-xs text-muted-foreground">Markdown / YAML editor</p>
                   </div>
                   <Button type="submit" size="sm" disabled={busy || !dirty} className="gap-1.5">
-<<<<<<< Updated upstream
                     {busy ? t.templates.saving : t.templates.save}
-=======
-                    {busy ? 'Saving...' : 'Save'}
->>>>>>> Stashed changes
                   </Button>
                 </div>
                 <div className="flex min-h-0 flex-1 flex-col p-3">
@@ -451,7 +415,6 @@ export default function TemplatesPage() {
                     onChange={setFormContent}
                     filePath={formFile}
                     className="min-h-0 w-full flex-1 overflow-hidden rounded-md border border-input"
-<<<<<<< Updated upstream
                     ariaLabel={t.templates.contentLabel}
                   />
                   <div className="mt-1.5 flex items-center justify-end gap-3 text-[10px] text-muted-foreground/70">
@@ -461,13 +424,6 @@ export default function TemplatesPage() {
                     <span>
                       {contentCharCount.toLocaleString()} {t.templates.chars}
                     </span>
-=======
-                    ariaLabel="Content"
-                  />
-                  <div className="mt-1.5 flex items-center justify-end gap-3 text-[10px] text-muted-foreground/70">
-                    <span>{contentLineCount} lines</span>
-                    <span>{contentCharCount.toLocaleString()} chars</span>
->>>>>>> Stashed changes
                   </div>
                 </div>
               </div>

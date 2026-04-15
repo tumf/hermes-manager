@@ -1,6 +1,5 @@
 'use client';
 
-<<<<<<< Updated upstream
 import {
   Bot,
   ChevronRight,
@@ -13,10 +12,6 @@ import {
   X,
 } from 'lucide-react';
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
-=======
-import { Bot, ChevronRight, Menu, MessageSquare, Plus, Terminal, Wrench, X } from 'lucide-react';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
->>>>>>> Stashed changes
 import ReactMarkdown from 'react-markdown';
 
 import { useLocale } from '@/src/components/locale-provider';
@@ -28,7 +23,6 @@ import { Textarea } from '@/src/components/ui/textarea';
 import { useChatFlow } from '@/src/hooks/use-chat-flow';
 import { cn } from '@/src/lib/utils';
 
-<<<<<<< Updated upstream
 function renderSnippet(html: string): ReactNode[] {
   const parts = html.split(/(<mark>|<\/mark>)/);
   const nodes: ReactNode[] = [];
@@ -48,36 +42,6 @@ function renderSnippet(html: string): ReactNode[] {
   }
   return nodes;
 }
-=======
-type Session = {
-  id: string;
-  source: string | null;
-  title: string | null;
-  started_at: string;
-  message_count: number;
-};
-
-type Message = {
-  session_id?: string;
-  role: string;
-  content: string;
-  timestamp?: string;
-  tool_name?: string | null;
-  optimistic?: boolean;
-};
-
-type ApiServerStatus = 'disabled' | 'configured-needs-restart' | 'starting' | 'connected' | 'error';
-
-type AgentMeta = {
-  agentId: string;
-  apiServerStatus?: ApiServerStatus;
-  apiServerStatusReason?: string;
-  apiServerAvailable?: boolean;
-  apiServerPort?: number | null;
-};
-
-type ChatStatus = 'ready' | 'submitted' | 'streaming' | 'error';
->>>>>>> Stashed changes
 
 function sourceIcon(source: string | null) {
   if (source === 'telegram') return MessageSquare;
@@ -87,7 +51,6 @@ function sourceIcon(source: string | null) {
 }
 
 export function ChatTab({ name }: { name: string }) {
-<<<<<<< Updated upstream
   const { t } = useLocale();
   const {
     sourceFilter,
@@ -123,114 +86,10 @@ export function ChatTab({ name }: { name: string }) {
     selectSearchResult,
   } = useChatFlow(name);
 
-=======
-  const [sourceFilter, setSourceFilter] = useState('all');
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [loadingSessions, setLoadingSessions] = useState(true);
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [loadingMessages, setLoadingMessages] = useState(false);
-  const [message, setMessage] = useState('');
-  const [status, setStatus] = useState<ChatStatus>('ready');
-  const [lastUserMessage, setLastUserMessage] = useState<string | null>(null);
-  const [apiServerStatus, setApiServerStatus] = useState<ApiServerStatus>('disabled');
-  const [apiServerStatusReason, setApiServerStatusReason] = useState<string | null>(null);
-  const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
->>>>>>> Stashed changes
   const [messagesViewportHeight, setMessagesViewportHeight] = useState<number | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
   const inputComposerRef = useRef<HTMLDivElement | null>(null);
-<<<<<<< Updated upstream
-=======
-  const [isMobileSessionsOpen, setIsMobileSessionsOpen] = useState(false);
-
-  const [collapsedTools, setCollapsedTools] = useState<Set<number>>(new Set());
-
-  const visibleMessages = useMemo(
-    () => messages.filter((msg) => !(msg.role === 'assistant' && !msg.content.trim())),
-    [messages],
-  );
-  function toggleToolCollapse(idx: number) {
-    setCollapsedTools((prev) => {
-      const next = new Set(prev);
-      if (next.has(idx)) next.delete(idx);
-      else next.add(idx);
-      return next;
-    });
-  }
-
-  async function loadAgentMeta() {
-    try {
-      const res = await fetch(`/api/agents/${encodeURIComponent(name)}`);
-      if (!res.ok) throw new Error('failed to load agent meta');
-      const data = (await res.json()) as AgentMeta;
-      setApiServerStatusReason(data.apiServerStatusReason ?? null);
-      if (data.apiServerStatus) {
-        setApiServerStatus(data.apiServerStatus);
-        return;
-      }
-      setApiServerStatus(data.apiServerAvailable === true ? 'connected' : 'disabled');
-    } catch {
-      setApiServerStatus('error');
-      setApiServerStatusReason('failed to load agent metadata');
-    }
-  }
-
-  async function loadSessions() {
-    setLoadingSessions(true);
-    try {
-      const params = new URLSearchParams();
-      if (sourceFilter !== 'all') params.set('source', sourceFilter);
-      const res = await fetch(
-        `/api/agents/${encodeURIComponent(name)}/sessions?${params.toString()}`,
-      );
-      if (!res.ok) throw new Error('failed to load sessions');
-      const data: Session[] = await res.json();
-      setSessions(data);
-      if (data.length > 0 && !selectedSessionId) {
-        setSelectedSessionId(data[0].id);
-      }
-      if (data.length === 0) {
-        setSelectedSessionId(null);
-        setMessages([]);
-      }
-    } catch {
-      toast.error('Failed to load sessions');
-    } finally {
-      setLoadingSessions(false);
-    }
-  }
-
-  async function loadMessages(sessionId: string) {
-    setLoadingMessages(true);
-    try {
-      const res = await fetch(
-        `/api/agents/${encodeURIComponent(name)}/sessions/${encodeURIComponent(sessionId)}/messages`,
-      );
-      if (!res.ok) throw new Error('failed to load messages');
-      const data: Message[] = await res.json();
-      setMessages(data);
-    } catch {
-      toast.error('Failed to load messages');
-    } finally {
-      setLoadingMessages(false);
-    }
-  }
-
-  useEffect(() => {
-    void Promise.all([loadAgentMeta(), loadSessions()]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [name, sourceFilter]);
-
-  useEffect(() => {
-    if (selectedSessionId) {
-      void loadMessages(selectedSessionId);
-      setIsMobileSessionsOpen(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSessionId]);
->>>>>>> Stashed changes
 
   useEffect(() => {
     if (!isAutoScrollEnabled) return;
@@ -245,21 +104,10 @@ export function ChatTab({ name }: { name: string }) {
       const composer = inputComposerRef.current;
       if (!grid || !composer || typeof window === 'undefined') return;
 
-<<<<<<< Updated upstream
-=======
-  useLayoutEffect(() => {
-    function updateMessagesViewportHeight() {
-      const grid = gridRef.current;
-      const composer = inputComposerRef.current;
-      if (!grid || !composer || typeof window === 'undefined') return;
-
->>>>>>> Stashed changes
       const gridRect = grid.getBoundingClientRect();
       const composerRect = composer.getBoundingClientRect();
       const available = Math.floor(composerRect.top - gridRect.top - 12);
       setMessagesViewportHeight(Math.max(160, available));
-<<<<<<< Updated upstream
-=======
     }
 
     updateMessagesViewportHeight();
@@ -277,172 +125,17 @@ export function ChatTab({ name }: { name: string }) {
     status,
   ]);
 
-  const sourceOptions = useMemo(() => ['all', 'tool', 'telegram', 'cli'], []);
-
-  function parseSseChunk(buffer: string): { events: string[]; rest: string } {
-    const events: string[] = [];
-    const blocks = buffer.split('\n\n');
-    const rest = blocks.pop() ?? '';
-
-    for (const block of blocks) {
-      const lines = block.split('\n');
-      for (const line of lines) {
-        if (!line.startsWith('data:')) continue;
-        events.push(line.slice(5).trim());
-      }
->>>>>>> Stashed changes
-    }
-
-    updateMessagesViewportHeight();
-    window.addEventListener('resize', updateMessagesViewportHeight);
-    return () => window.removeEventListener('resize', updateMessagesViewportHeight);
-  }, [
-    apiServerStatus,
-    loadingMessages,
-    loadingSessions,
-    isMobileSessionsOpen,
-    message,
-    messages.length,
-    selectedSessionId,
-    sessions.length,
-    status,
-  ]);
-
-<<<<<<< Updated upstream
-=======
-  async function submitMessage(messageToSend?: string) {
-    const text = (messageToSend ?? message).trim();
-    if (!text || status === 'submitted' || status === 'streaming') return;
-
-    setStatus('submitted');
-    setLastUserMessage(text);
-
-    const optimisticUser: Message = {
-      role: 'user',
-      content: text,
-      optimistic: true,
-    };
-    const optimisticAssistant: Message = {
-      role: 'assistant',
-      content: '',
-      optimistic: true,
-    };
-
-    setMessages((prev) => [...prev, optimisticUser, optimisticAssistant]);
-    if (!messageToSend) {
-      setMessage('');
-    }
-
-    const abortController = new AbortController();
-    streamAbortRef.current = abortController;
-
-    try {
-      const res = await fetch(`/api/agents/${encodeURIComponent(name)}/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text }),
-        signal: abortController.signal,
-      });
-
-      if (!res.ok || !res.body) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error((err as { error?: string }).error ?? 'failed to send message');
-      }
-
-      setStatus('streaming');
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const parsed = parseSseChunk(buffer);
-        buffer = parsed.rest;
-
-        for (const evt of parsed.events) {
-          if (evt === '[DONE]') {
-            setStatus('ready');
-            await loadSessions();
-            if (selectedSessionId) {
-              await loadMessages(selectedSessionId);
-            }
-            return;
-          }
-
-          try {
-            const json = JSON.parse(evt) as {
-              choices?: Array<{ delta?: { content?: string } }>;
-            };
-            const delta = json.choices?.[0]?.delta?.content ?? '';
-            if (!delta) continue;
-
-            setMessages((prev) => {
-              if (prev.length === 0) return prev;
-              const next = [...prev];
-              const lastIndex = next.length - 1;
-              const last = next[lastIndex];
-              if (last.role !== 'assistant') return prev;
-              next[lastIndex] = {
-                ...last,
-                content: `${last.content}${delta}`,
-              };
-              return next;
-            });
-          } catch {
-            // ignore non-JSON SSE lines
-          }
-        }
-      }
-
-      setStatus('ready');
-      await loadSessions();
-      if (selectedSessionId) {
-        await loadMessages(selectedSessionId);
-      }
-    } catch (e) {
-      if (abortController.signal.aborted) {
-        setStatus('ready');
-        return;
-      }
-      setStatus('error');
-      toast.error(e instanceof Error ? e.message : 'Failed to send message');
-    }
-  }
-
-  function stopStreaming() {
-    streamAbortRef.current?.abort();
-    streamAbortRef.current = null;
-    setStatus('ready');
-  }
-
->>>>>>> Stashed changes
   const sessionsPanel = (
     <>
       <CardHeader>
         <div className="flex items-center justify-between gap-2">
-<<<<<<< Updated upstream
           <CardTitle className="text-sm">{t.chat.sessions}</CardTitle>
-=======
-          <CardTitle className="text-sm">Sessions</CardTitle>
->>>>>>> Stashed changes
           <div className="flex items-center gap-2">
             <Button
               size="sm"
               variant="outline"
               className="h-7 gap-1 text-xs"
-<<<<<<< Updated upstream
               onClick={startNewChat}
-=======
-              onClick={() => {
-                setSelectedSessionId(null);
-                setMessages([]);
-                setStatus('ready');
-                setIsMobileSessionsOpen(false);
-              }}
->>>>>>> Stashed changes
             >
               <Plus className="size-3" />
               {t.chat.newChat}
@@ -457,7 +150,6 @@ export function ChatTab({ name }: { name: string }) {
             >
               <X className="size-4" />
             </Button>
-<<<<<<< Updated upstream
           </div>
         </div>
         <label className="text-xs text-muted-foreground">
@@ -534,50 +226,12 @@ export function ChatTab({ name }: { name: string }) {
             })
           )
         ) : loadingSessions ? (
-=======
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7 md:hidden"
-              onClick={() => setIsMobileSessionsOpen(false)}
-              aria-label="Close sessions"
-            >
-              <X className="size-4" />
-            </Button>
-          </div>
-        </div>
-        <label className="text-xs text-muted-foreground">
-          Source filter
-          <select
-            aria-label="Source filter"
-            className="mt-1 h-8 w-full rounded-md border bg-background px-2 text-sm"
-            value={sourceFilter}
-            onChange={(e) => setSourceFilter(e.target.value)}
-          >
-            {sourceOptions.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
-            ))}
-          </select>
-        </label>
-      </CardHeader>
-      <CardContent className="min-h-0 flex-1 space-y-2 overflow-y-auto">
-        {loadingSessions ? (
->>>>>>> Stashed changes
           <>
             <Skeleton className="h-14 w-full" />
             <Skeleton className="h-14 w-full" />
           </>
         ) : sessions.length === 0 ? (
-<<<<<<< Updated upstream
           <p className="text-sm text-muted-foreground">{t.chat.noSessions}</p>
-=======
-          <p className="text-sm text-muted-foreground">
-            state.db が見つからないか、セッションがありません。
-          </p>
->>>>>>> Stashed changes
         ) : (
           sessions.map((session) => {
             const Icon = sourceIcon(session.source);
@@ -620,11 +274,7 @@ export function ChatTab({ name }: { name: string }) {
       <Card className="flex min-h-0 flex-col overflow-hidden">
         <CardHeader className="shrink-0">
           <div className="flex items-center justify-between gap-2">
-<<<<<<< Updated upstream
             <CardTitle className="text-sm">{t.chat.chatTitle}</CardTitle>
-=======
-            <CardTitle className="text-sm">Chat</CardTitle>
->>>>>>> Stashed changes
             <Button
               type="button"
               variant="outline"
@@ -633,19 +283,11 @@ export function ChatTab({ name }: { name: string }) {
               onClick={() => setIsMobileSessionsOpen(true)}
             >
               <Menu className="size-3.5" />
-<<<<<<< Updated upstream
               {t.chat.sessions}
             </Button>
           </div>
         </CardHeader>
         <CardContent className="flex min-h-0 flex-1 flex-col space-y-3 overflow-hidden">
-=======
-              Sessions
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden space-y-3">
->>>>>>> Stashed changes
           {apiServerStatus === 'disabled' ? (
             <div className="space-y-2 rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
               <p className="font-medium">{t.chat.disabled.title}</p>
@@ -686,7 +328,6 @@ export function ChatTab({ name }: { name: string }) {
             </div>
           ) : apiServerStatus === 'error' ? (
             <div className="space-y-2 rounded-md border bg-destructive/10 p-4 text-sm text-muted-foreground">
-<<<<<<< Updated upstream
               <p className="font-medium">{t.chat.error.title}</p>
               {apiServerStatusReason && (
                 <p className="text-xs">
@@ -700,26 +341,6 @@ export function ChatTab({ name }: { name: string }) {
                   <code className="rounded bg-muted px-1">hermes gateway restart</code>
                 </li>
                 <li>{t.chat.error.step3}</li>
-=======
-              <p className="font-medium">api_server に接続できませんでした。</p>
-              {apiServerStatusReason && (
-                <p className="text-xs">
-                  原因: <code className="rounded bg-muted px-1">{apiServerStatusReason}</code>
-                </p>
-              )}
-              <ol className="list-inside list-decimal space-y-1 text-xs">
-                <li>logs タブでエラーを確認する</li>
-                <li>
-                  <code className="rounded bg-muted px-1">hermes gateway restart</code>{' '}
-                  で再起動する
-                </li>
-                <li>
-                  それでも解決しない場合は{' '}
-                  <code className="rounded bg-muted px-1">meta.json</code> の{' '}
-                  <code className="rounded bg-muted px-1">apiServerPort</code> と config.yaml
-                  を確認する
-                </li>
->>>>>>> Stashed changes
               </ol>
             </div>
           ) : apiServerStatus === 'connected' ? (
@@ -728,13 +349,9 @@ export function ChatTab({ name }: { name: string }) {
                 ref={scrollContainerRef}
                 data-testid="chat-messages-scroll"
                 className="flex-1 overflow-y-auto rounded-md border p-3"
-<<<<<<< Updated upstream
                 style={
                   messagesViewportHeight ? { height: `${messagesViewportHeight}px` } : undefined
                 }
-=======
-                style={messagesViewportHeight ? { height: `${messagesViewportHeight}px` } : undefined}
->>>>>>> Stashed changes
                 onScroll={(e) => {
                   const node = e.currentTarget;
                   const threshold = 24;
@@ -748,13 +365,7 @@ export function ChatTab({ name }: { name: string }) {
                     <Skeleton className="h-20 w-full" />
                   ) : visibleMessages.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
-<<<<<<< Updated upstream
                       {selectedSessionId ? t.chat.noMessages : t.chat.startConversation}
-=======
-                      {selectedSessionId
-                        ? 'メッセージがありません。'
-                        : 'メッセージを入力して新しい会話を始めましょう。'}
->>>>>>> Stashed changes
                     </p>
                   ) : (
                     visibleMessages.map((msg, idx) =>
@@ -816,11 +427,7 @@ export function ChatTab({ name }: { name: string }) {
                       e.currentTarget.style.height = 'auto';
                       e.currentTarget.style.height = `${Math.min(e.currentTarget.scrollHeight, 220)}px`;
                     }}
-<<<<<<< Updated upstream
                     placeholder={t.chat.typeMessage}
-=======
-                    placeholder="Type a message"
->>>>>>> Stashed changes
                     disabled={status === 'submitted' || status === 'streaming'}
                     rows={1}
                     className="min-h-[44px] resize-none sm:flex-1"
@@ -833,33 +440,21 @@ export function ChatTab({ name }: { name: string }) {
                   />
                   {status === 'streaming' ? (
                     <Button type="button" variant="destructive" onClick={stopStreaming}>
-<<<<<<< Updated upstream
                       {t.chat.stop}
-=======
-                      Stop
->>>>>>> Stashed changes
                     </Button>
                   ) : (
                     <Button
                       onClick={() => void submitMessage()}
                       disabled={(status !== 'ready' && status !== 'error') || !message.trim()}
                     >
-<<<<<<< Updated upstream
                       {status === 'submitted' ? t.chat.sending : t.chat.send}
-=======
-                      {status === 'submitted' ? 'Sending...' : 'Send'}
->>>>>>> Stashed changes
                     </Button>
                   )}
                 </div>
 
                 {status === 'error' && (
                   <div className="flex items-center justify-between rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs">
-<<<<<<< Updated upstream
                     <span>{t.chat.sendFailed}</span>
-=======
-                    <span>送信に失敗しました。</span>
->>>>>>> Stashed changes
                     <Button
                       type="button"
                       size="sm"
@@ -871,11 +466,7 @@ export function ChatTab({ name }: { name: string }) {
                       }}
                       disabled={!lastUserMessage}
                     >
-<<<<<<< Updated upstream
                       {t.chat.retry}
-=======
-                      Retry
->>>>>>> Stashed changes
                     </Button>
                   </div>
                 )}
@@ -890,17 +481,10 @@ export function ChatTab({ name }: { name: string }) {
           <button
             type="button"
             className="absolute inset-0 bg-background/80 backdrop-blur-sm"
-<<<<<<< Updated upstream
             aria-label={t.chat.closeSessions}
             onClick={() => setIsMobileSessionsOpen(false)}
           />
           <Card className="absolute inset-x-4 bottom-4 top-4 flex min-h-0 flex-col overflow-hidden">
-=======
-            aria-label="Close sessions overlay"
-            onClick={() => setIsMobileSessionsOpen(false)}
-          />
-          <Card className="absolute inset-x-4 top-4 bottom-4 flex min-h-0 flex-col overflow-hidden">
->>>>>>> Stashed changes
             {sessionsPanel}
           </Card>
         </div>

@@ -13,275 +13,6 @@ export type { AgentMeta } from './agent-fs';
 export type { Agent, AgentProcessInfo } from './agent-view';
 export { allocateApiServerPort } from './agent-port';
 
-<<<<<<< Updated upstream
-=======
-const API_SERVER_PORT_MIN = 8642;
-const API_SERVER_PORT_MAX = 8699;
-
-export interface AgentProcessInfo {
-  memoryRssBytes: number | null;
-  hermesVersion: string | null;
-}
-
-export interface Agent extends AgentMeta, AgentProcessInfo {
-  agentId: string;
-  home: string;
-  label: string;
-  enabled: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  apiServerStatus: ApiServerStatus;
-  apiServerStatusReason?: string;
-  apiServerAvailable: boolean;
-  apiServerPort: number | null;
-}
-
-const DEFAULT_AGENT_META: AgentMeta = {
-  name: '',
-  description: '',
-  tags: [],
-};
-
-const execFileAsync = promisify(execFile);
-const PROCESS_INFO_PLACEHOLDER: AgentProcessInfo = {
-  memoryRssBytes: null,
-  hermesVersion: null,
-};
-
-function getAgentLabel(agentId: string): string {
-  return `ai.hermes.gateway.${agentId}`;
-}
-
-async function resolveAgentPid(agentId: string): Promise<number | null> {
-  const label = getAgentLabel(agentId);
-  const uid = process.getuid?.() ?? os.userInfo().uid;
-
-  try {
-    console.debug('[agents] resolving launchd pid', { agentId, label, uid });
-    const { stdout } = await execFileAsync('launchctl', ['print', `gui/${uid}/${label}`]);
-    if (!parseRunning(stdout)) {
-      return null;
-    }
-
-    return parsePid(stdout);
-  } catch (error) {
-    console.warn('[agents] failed to resolve launchd pid', {
-      agentId,
-      label,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return null;
-  }
-}
-
-async function resolveMemoryRssBytes(pid: number): Promise<number | null> {
-  try {
-    console.debug('[agents] resolving memory rss', { pid });
-    const { stdout } = await execFileAsync('ps', ['-o', 'rss=', '-p', String(pid)]);
-    const rssKb = Number.parseInt(stdout.trim(), 10);
-    if (!Number.isFinite(rssKb) || rssKb <= 0) {
-      return null;
-    }
-
-    return rssKb * 1024;
-  } catch (error) {
-    console.warn('[agents] failed to resolve memory rss', {
-      pid,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return null;
-  }
-}
-
-async function resolveHermesVersion(agentHome: string): Promise<string | null> {
-  try {
-    console.debug('[agents] resolving hermes version', { agentHome });
-    const { stdout } = await execFileAsync('hermes', ['--version'], {
-      env: {
-        ...process.env,
-        HERMES_HOME: agentHome,
-      },
-    });
-    const version = stdout
-      .trim()
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .find((line) => line.length > 0);
-    return version ?? null;
-  } catch (error) {
-    console.warn('[agents] failed to resolve hermes version', {
-      agentHome,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return null;
-  }
-}
-
-async function resolveAgentProcessInfo(
-  agentId: string,
-  agentHome: string,
-): Promise<AgentProcessInfo> {
-  console.info('[agents] resolving process info', { agentId, agentHome });
-  const pid = await resolveAgentPid(agentId);
-  const memoryRssBytes = pid !== null ? await resolveMemoryRssBytes(pid) : null;
-  const hermesVersion = await resolveHermesVersion(agentHome);
-
-  console.info('[agents] resolved process info', {
-    agentId,
-    pid,
-    memoryRssBytes,
-    hermesVersionAvailable: hermesVersion !== null,
-  });
-
-  return {
-    memoryRssBytes,
-    hermesVersion,
-  };
-}
-
-/**
- * Parse config.yaml from an agent directory.
- * Returns an empty object if the file doesn't exist or is invalid.
- */
-function readConfigYaml(agentHome: string): Record<string, unknown> {
-  const configPath = path.join(agentHome, 'config.yaml');
-  try {
-    const content = fs.readFileSync(configPath, 'utf-8');
-    const parsed = yaml.load(content);
-    return typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : {};
-  } catch {
-    return {};
-  }
-}
-
-/**
- * Parse meta.json from an agent directory.
- * Returns default values if missing/invalid.
- */
-function readMetaJson(agentHome: string): AgentMeta {
-  const metaPath = path.join(agentHome, 'meta.json');
-  try {
-    const content = fs.readFileSync(metaPath, 'utf-8');
-    const parsed = JSON.parse(content) as Partial<AgentMeta>;
-    return {
-      name: typeof parsed.name === 'string' ? parsed.name : '',
-      description: typeof parsed.description === 'string' ? parsed.description : '',
-      tags: Array.isArray(parsed.tags)
-        ? parsed.tags.filter((tag): tag is string => typeof tag === 'string')
-        : [],
-      apiServerPort:
-        typeof parsed.apiServerPort === 'number' &&
-        Number.isInteger(parsed.apiServerPort) &&
-        parsed.apiServerPort >= API_SERVER_PORT_MIN &&
-        parsed.apiServerPort <= API_SERVER_PORT_MAX
-          ? parsed.apiServerPort
-          : undefined,
-    };
-  } catch {
-    return { ...DEFAULT_AGENT_META };
-  }
-}
-
-async function writeMetaJson(agentHome: string, meta: AgentMeta): Promise<void> {
-  const metaPath = path.join(agentHome, 'meta.json');
-  const payload: Record<string, unknown> = {
-    name: meta.name,
-    description: meta.description,
-    tags: meta.tags,
-  };
-  if (typeof meta.apiServerPort === 'number') {
-    payload.apiServerPort = meta.apiServerPort;
-  }
-  await fsp.writeFile(metaPath, JSON.stringify(payload, null, 2), 'utf-8');
-}
-
-function isApiServerPortInRange(value: unknown): value is number {
-  return (
-    typeof value === 'number' &&
-    Number.isInteger(value) &&
-    value >= API_SERVER_PORT_MIN &&
-    value <= API_SERVER_PORT_MAX
-  );
-}
-
-/**
- * Parse API_SERVER_PORT from .env file.
- * Handles legacy values like "8644\n" or "8644".
- */
-function parseEnvApiServerPort(content: string): number | null {
-  for (const line of content.split(/\r?\n/)) {
-    if (line.startsWith('API_SERVER_PORT=')) {
-      const value = line.slice('API_SERVER_PORT='.length);
-      const trimmed = value.replace(/^"|"$/g, '').trim();
-      const num = Number.parseInt(trimmed, 10);
-      if (Number.isInteger(num) && num >= API_SERVER_PORT_MIN && num <= API_SERVER_PORT_MAX) {
-        return num;
-      }
-    }
-  }
-  return null;
-}
-
-export async function allocateApiServerPort(): Promise<number> {
-  const agentsRoot = getRuntimeAgentsRootPath();
-  let entries: string[];
-  try {
-    entries = await fsp.readdir(agentsRoot);
-  } catch {
-    entries = [];
-  }
-
-  const usedPorts = new Set<number>();
-  for (const entry of entries) {
-    const agentHome = path.join(agentsRoot, entry);
-    const stat = await fsp.stat(agentHome).catch(() => null);
-    if (!stat?.isDirectory()) {
-      continue;
-    }
-
-    // Check meta.json first
-    const meta = readMetaJson(agentHome);
-    if (isApiServerPortInRange(meta.apiServerPort)) {
-      usedPorts.add(meta.apiServerPort);
-    }
-
-    // Also check .env for legacy port assignments
-    try {
-      const envPath = path.join(agentHome, '.env');
-      const envContent = await fsp.readFile(envPath, 'utf-8');
-      const envPort = parseEnvApiServerPort(envContent);
-      if (envPort !== null) {
-        usedPorts.add(envPort);
-      }
-    } catch {
-      // .env might not exist — that's fine
-    }
-  }
-
-  for (let candidate = API_SERVER_PORT_MIN; candidate <= API_SERVER_PORT_MAX; candidate += 1) {
-    if (!usedPorts.has(candidate)) {
-      console.info('[agents] allocated api server port', {
-        candidate,
-        usedPortsCount: usedPorts.size,
-      });
-      return candidate;
-    }
-  }
-
-  const error = new Error('No available API server ports in range 8642-8699');
-  console.error('[agents] api server port allocation failed', {
-    min: API_SERVER_PORT_MIN,
-    max: API_SERVER_PORT_MAX,
-    usedPortsCount: usedPorts.size,
-  });
-  throw error;
-}
-
-/**
- * List all agents by scanning runtime/agents/ directories.
- * Each subdirectory that contains a config.yaml is treated as an agent.
- */
->>>>>>> Stashed changes
 export async function listAgents(): Promise<Agent[]> {
   const agentsRoot = getRuntimeAgentsRootPath();
   let entries: string[];
@@ -304,30 +35,8 @@ export async function listAgents(): Promise<Agent[]> {
       continue;
     }
 
-<<<<<<< Updated upstream
     const processInfo = await resolveAgentProcessInfo(name, agentHome);
     agents.push(buildAgentView({ agentId: name, agentHome, stat, processInfo }));
-=======
-    const config = readConfigYaml(agentHome);
-    const meta = readMetaJson(agentHome);
-    const discovery = discoverApiServerStatus(agentHome);
-    const apiServerPort = discovery.port ?? meta.apiServerPort ?? null;
-    const processInfo = await resolveAgentProcessInfo(name, agentHome);
-    agents.push({
-      agentId: name,
-      home: agentHome,
-      label: getAgentLabel(name),
-      enabled: config.enabled === true,
-      createdAt: stat.birthtime,
-      updatedAt: stat.mtime,
-      ...meta,
-      apiServerStatus: discovery.status,
-      apiServerStatusReason: discovery.reason,
-      apiServerAvailable: discovery.status === 'connected' && apiServerPort !== null,
-      apiServerPort,
-      ...processInfo,
-    });
->>>>>>> Stashed changes
   }
 
   return agents;
@@ -341,30 +50,8 @@ export async function getAgent(agentId: string): Promise<Agent | null> {
 
     await fsp.access(path.join(agentHome, 'config.yaml'));
 
-<<<<<<< Updated upstream
     const processInfo = await resolveAgentProcessInfo(agentId, agentHome);
     return buildAgentView({ agentId, agentHome, stat, processInfo });
-=======
-    const config = readConfigYaml(agentHome);
-    const meta = readMetaJson(agentHome);
-    const discovery = discoverApiServerStatus(agentHome);
-    const apiServerPort = discovery.port ?? meta.apiServerPort ?? null;
-    const processInfo = await resolveAgentProcessInfo(agentId, agentHome);
-    return {
-      agentId,
-      home: agentHome,
-      label: getAgentLabel(agentId),
-      enabled: config.enabled === true,
-      createdAt: stat.birthtime,
-      updatedAt: stat.mtime,
-      ...meta,
-      apiServerStatus: discovery.status,
-      apiServerStatusReason: discovery.reason,
-      apiServerAvailable: discovery.status === 'connected' && apiServerPort !== null,
-      apiServerPort,
-      ...processInfo,
-    };
->>>>>>> Stashed changes
   } catch {
     return null;
   }
@@ -413,25 +100,10 @@ export async function createAgent(
   const stat = await fsp.stat(home);
   return buildAgentView({
     agentId,
-<<<<<<< Updated upstream
     agentHome: home,
     stat,
     processInfo: PROCESS_INFO_PLACEHOLDER,
   });
-=======
-    home,
-    label: getAgentLabel(agentId),
-    enabled: config.enabled === true,
-    createdAt: stat.birthtime,
-    updatedAt: stat.mtime,
-    ...normalizedMeta,
-    apiServerStatus: discovery.status,
-    apiServerStatusReason: discovery.reason,
-    apiServerAvailable: discovery.status === 'connected' && apiServerPort !== null,
-    apiServerPort,
-    ...PROCESS_INFO_PLACEHOLDER,
-  };
->>>>>>> Stashed changes
 }
 
 export async function updateAgentMeta(agentId: string, meta: AgentMeta): Promise<AgentMeta | null> {
@@ -453,10 +125,7 @@ export async function updateAgentMeta(agentId: string, meta: AgentMeta): Promise
         : existingMeta.apiServerPort,
     };
     await writeMetaJson(agentHome, nextMeta);
-<<<<<<< Updated upstream
     await refreshDependentSoulsForTarget(agentId);
-=======
->>>>>>> Stashed changes
     return nextMeta;
   } catch {
     return null;

@@ -61,11 +61,7 @@ DialogHeader.displayName = 'DialogHeader';
 const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-<<<<<<< Updated upstream
       '-mx-6 mt-6 flex shrink-0 flex-col-reverse border-t bg-background px-6 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 sm:flex-row sm:justify-end sm:space-x-2',
-=======
-      '-mx-6 mt-6 flex shrink-0 flex-col-reverse border-t bg-background px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:flex-row sm:justify-end sm:space-x-2',
->>>>>>> Stashed changes
       className,
     )}
     {...props}

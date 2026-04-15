@@ -146,14 +146,10 @@ describe('POST /api/templates', () => {
     const body = await res.json();
     expect(body.content).toBe('# Memory\n');
     expect(
-<<<<<<< Updated upstream
       fs.readFileSync(
         path.join(tempDir, 'templates', 'clean-template', 'memories/MEMORY.md'),
         'utf-8',
       ),
-=======
-      fs.readFileSync(path.join(tempDir, 'templates', 'clean-template', 'memories/MEMORY.md'), 'utf-8'),
->>>>>>> Stashed changes
     ).toBe('# Memory\n');
   });
 

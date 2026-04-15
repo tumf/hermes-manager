@@ -15,7 +15,6 @@ vi.mock('sonner', () => ({
 }));
 
 vi.mock('@/src/components/code-editor', () => ({
-<<<<<<< Updated upstream
   CodeEditor: ({
     value,
     onChange,
@@ -25,9 +24,6 @@ vi.mock('@/src/components/code-editor', () => ({
     onChange: (value: string) => void;
     ariaLabel?: string;
   }) =>
-=======
-  CodeEditor: ({ value, onChange, ariaLabel }: { value: string; onChange: (value: string) => void; ariaLabel?: string }) =>
->>>>>>> Stashed changes
     React.createElement('textarea', {
       'aria-label': ariaLabel,
       value,
@@ -187,15 +183,11 @@ describe('PartialsPage', () => {
   it('shows editor status metadata in the dialog', async () => {
     global.fetch = createFetchMock();
 
-<<<<<<< Updated upstream
     render(
       <LocaleProvider initialLocale="en">
         <PartialsPage />
       </LocaleProvider>,
     );
-=======
-    render(<PartialsPage />);
->>>>>>> Stashed changes
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /New Partial/i })).toBeInTheDocument();
@@ -214,15 +206,11 @@ describe('PartialsPage', () => {
     const fetchMock = createFetchMock();
     global.fetch = fetchMock;
 
-<<<<<<< Updated upstream
     render(
       <LocaleProvider initialLocale="en">
         <PartialsPage />
       </LocaleProvider>,
     );
-=======
-    render(<PartialsPage />);
->>>>>>> Stashed changes
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /New Partial/i })).toBeInTheDocument();
@@ -242,13 +230,9 @@ describe('PartialsPage', () => {
 
     await waitFor(() => {
       const calls = fetchMock.mock.calls as [string, { method?: string; body?: string }?][];
-<<<<<<< Updated upstream
       const createCall = calls.find(
         ([url, init]) => url === '/api/partials' && init?.method === 'POST',
       );
-=======
-      const createCall = calls.find(([url, init]) => url === '/api/partials' && init?.method === 'POST');
->>>>>>> Stashed changes
       expect(createCall).toBeDefined();
     });
   });

@@ -244,7 +244,6 @@ export function AgentMemoryTab({ name }: AgentMemoryTabProps) {
         name={name}
         filePath={activeFilePath}
         label={activeFileLabel}
-<<<<<<< Updated upstream
         onSaveSuccess={
           selectedFile === 'SOUL' && partialModeEnabled ? handleSourceSaveSuccess : undefined
         }
@@ -253,9 +252,6 @@ export function AgentMemoryTab({ name }: AgentMemoryTabProps) {
             ? 'h-[calc(100dvh-12rem)] min-h-[40rem]'
             : undefined
         }
-=======
-        className={selectedFile === 'SOUL' && partialModeEnabled ? 'h-[calc(100dvh-12rem)] min-h-[40rem]' : undefined}
->>>>>>> Stashed changes
       />
 
       {selectedFile === 'SOUL' && partialModeEnabled && (
