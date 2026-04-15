@@ -433,6 +433,93 @@ describe('Agent detail page', () => {
     expect(screen.getByText(/hermes gateway restart/)).toBeInTheDocument();
   });
 
+  it('renders MCP tab and loads MCP fragment', async () => {
+    const mcpYaml = 'filesystem:\n  command: npx\n';
+    global.fetch = createFetchRouter(buildAgentDetailRoutes({ mcpContent: mcpYaml }));
+    window.history.replaceState(null, '', '/agents/alpha#mcp');
+
+    await act(async () => {
+      renderPage('alpha');
+    });
+
+    await waitFor(() => {
+      const editor = screen.getByRole('textbox', {
+        name: 'Edit MCP servers configuration',
+      }) as HTMLTextAreaElement;
+      expect(editor.value).toBe(mcpYaml);
+    });
+  });
+
+  it('saves MCP configuration via dedicated API', async () => {
+    const fetchMock = createFetchRouter(
+      buildAgentDetailRoutes({ mcpContent: 'old:\n  command: echo\n' }),
+    );
+    global.fetch = fetchMock;
+    window.history.replaceState(null, '', '/agents/alpha#mcp');
+
+    await act(async () => {
+      renderPage('alpha');
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('textbox', { name: 'Edit MCP servers configuration' }),
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Edit MCP servers configuration' }), {
+      target: { value: 'new:\n  command: test\n' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Save/i }));
+
+    await waitFor(() => {
+      const calls = fetchMock.mock.calls as [string, { method?: string; body?: string }?][];
+      const putCall = calls.find(
+        ([url, init]) => url === '/api/agents/alpha/mcp' && init?.method === 'PUT',
+      );
+      expect(putCall).toBeDefined();
+      const body = JSON.parse(putCall![1]?.body ?? '{}');
+      expect(body.content).toBe('new:\n  command: test\n');
+    });
+
+    expect(toast.success).toHaveBeenCalledWith('MCP configuration saved');
+  });
+
+  it('displays validation error when MCP save fails', async () => {
+    const fetchMock = createFetchRouter(
+      buildAgentDetailRoutes({
+        mcpContent: '',
+        onMcpPut: () => ({
+          ok: false,
+          json: async () => ({ error: 'Invalid YAML: unexpected end of stream' }),
+        }),
+      }),
+    );
+    global.fetch = fetchMock;
+    window.history.replaceState(null, '', '/agents/alpha#mcp');
+
+    await act(async () => {
+      renderPage('alpha');
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('textbox', { name: 'Edit MCP servers configuration' }),
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Edit MCP servers configuration' }), {
+      target: { value: 'bad: yaml: content:\n' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Save/i }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('Invalid YAML: unexpected end of stream');
+    });
+  });
+
   it('uses a growable min-height-safe layout for the chat tab', async () => {
     global.fetch = createFetchRouter(buildAgentDetailRoutes({ partialModeEnabled: false }));
     window.history.replaceState(null, '', '#chat');

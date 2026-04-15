@@ -9,6 +9,10 @@
 - [x] Verify the change with focused tests plus full project validation (`npm run test`, `npm run typecheck`, `npm run lint`, `npm run build`).
       Expected repository evidence: passing test output and no regression in existing config/template flows.
 
+## Acceptance #1 Failure Follow-up
+
+- [x] Restore MCP UI tests in `tests/ui/agent-detail-page.test.tsx` covering: tab render with MCP fragment loading, save via dedicated API, and validation error display. Restore corresponding fixture support (`mcpContent`, `onMcpPut`, MCP route mock) in `tests/helpers/agent-detail-fixtures.ts`.
+
 ## Future Work
 
 - Optional future UX for structured per-server forms, tool include/exclude chips, or connectivity diagnostics after the YAML-based workflow proves sufficient.

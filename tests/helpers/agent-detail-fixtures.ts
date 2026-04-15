@@ -15,6 +15,8 @@ export type AgentDetailFixtureOptions = {
   partialModeEnabled?: boolean;
   hermesVersion?: string | null;
   onFilePut?: (body: { agent: string; path: string; content: string }) => MockResponse | undefined;
+  mcpContent?: string;
+  onMcpPut?: (body: { content: string }) => MockResponse | undefined;
 };
 
 const legacyFileContents: Record<string, string> = {
@@ -75,6 +77,24 @@ export function buildAgentDetailRoutes(options: AgentDetailFixtureOptions = {}):
           apiServerPort: apiServerAvailable ? 19001 : null,
           partialModeEnabled,
         });
+      }
+      return undefined;
+    },
+    (url, init) => {
+      const method = init?.method ?? 'GET';
+      if (url === '/api/agents/alpha/mcp' && method === 'GET') {
+        return jsonOk({
+          content: options.mcpContent ?? '',
+          docsUrl: 'https://hermes-agent.nousresearch.com/docs/guides/use-mcp-with-hermes',
+        });
+      }
+      if (url === '/api/agents/alpha/mcp' && method === 'PUT') {
+        if (options.onMcpPut) {
+          const body = JSON.parse(init?.body ?? '{}') as { content: string };
+          const result = options.onMcpPut(body);
+          if (result !== undefined) return result;
+        }
+        return jsonOk({ ok: true });
       }
       return undefined;
     },
