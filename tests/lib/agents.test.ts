@@ -201,6 +201,54 @@ describe('updateAgentMeta', () => {
     expect(result!.apiServerPort).toBe(8645);
   });
 
+  it('refreshes dependent generated SOUL when updated agent is referenced by delegation', async () => {
+    const targetDir = path.join(tmpDir, 'runtime', 'agents', 'target-agent');
+    const plannerDir = path.join(tmpDir, 'runtime', 'agents', 'planner01');
+    const unrelatedDir = path.join(tmpDir, 'runtime', 'agents', 'unrelated01');
+
+    await fsp.mkdir(targetDir, { recursive: true });
+    await fsp.mkdir(plannerDir, { recursive: true });
+    await fsp.mkdir(unrelatedDir, { recursive: true });
+
+    await fsp.writeFile(path.join(targetDir, 'config.yaml'), 'enabled: true\n');
+    await fsp.writeFile(
+      path.join(targetDir, 'meta.json'),
+      JSON.stringify({ name: 'Old Target', description: 'old desc', tags: ['stale'] }),
+    );
+
+    await fsp.writeFile(path.join(plannerDir, 'config.yaml'), 'enabled: true\n');
+    await fsp.writeFile(path.join(plannerDir, 'SOUL.src.md'), '# Planner\n', 'utf-8');
+    await fsp.writeFile(path.join(plannerDir, 'SOUL.md'), '# Planner\n', 'utf-8');
+    await fsp.writeFile(
+      path.join(plannerDir, 'delegation.json'),
+      JSON.stringify({ allowedAgents: ['target-agent'], maxHop: 3 }),
+      'utf-8',
+    );
+
+    await fsp.writeFile(path.join(unrelatedDir, 'config.yaml'), 'enabled: true\n');
+    await fsp.writeFile(path.join(unrelatedDir, 'SOUL.src.md'), '# Unrelated\n', 'utf-8');
+    await fsp.writeFile(path.join(unrelatedDir, 'SOUL.md'), '# Unrelated\n', 'utf-8');
+    await fsp.writeFile(
+      path.join(unrelatedDir, 'delegation.json'),
+      JSON.stringify({ allowedAgents: ['someone-else'], maxHop: 3 }),
+      'utf-8',
+    );
+
+    const { updateAgentMeta } = await import('../../src/lib/agents');
+    const result = await updateAgentMeta('target-agent', {
+      name: 'Fresh Target',
+      description: 'fresh desc',
+      tags: ['fresh'],
+    });
+
+    expect(result).not.toBeNull();
+    const plannerSoul = await fsp.readFile(path.join(plannerDir, 'SOUL.md'), 'utf-8');
+    const unrelatedSoul = await fsp.readFile(path.join(unrelatedDir, 'SOUL.md'), 'utf-8');
+    expect(plannerSoul).toContain('Fresh Target');
+    expect(plannerSoul).toContain('fresh desc');
+    expect(unrelatedSoul).toBe('# Unrelated\n');
+  });
+
   it('returns null for nonexistent agent', async () => {
     await fsp.mkdir(path.join(tmpDir, 'runtime', 'agents'), { recursive: true });
     const { updateAgentMeta } = await import('../../src/lib/agents');

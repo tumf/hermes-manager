@@ -8,8 +8,10 @@ import {
   injectSubagentSoulBlock,
   MANAGED_DISPATCH_SCRIPT_NAME,
   MANAGED_DISPATCH_SKILL,
+  readDelegationPolicy,
   resolveTargetMeta,
 } from './delegation';
+import { getRuntimeAgentsRootPath } from './runtime-paths';
 import { assembleSoulSource } from './soul-assembly';
 import { stripZeroWidthSpace } from './text-sanitizer';
 
@@ -60,6 +62,47 @@ async function regenerateSoulWithDelegation(
   const tmpPath = `${soulPath}.tmp`;
   await fsp.writeFile(tmpPath, final, 'utf-8');
   await fsp.rename(tmpPath, soulPath);
+}
+
+export async function findAgentsDelegatingTo(targetAgentId: string): Promise<string[]> {
+  const agentsRoot = getRuntimeAgentsRootPath();
+  let entries: string[];
+  try {
+    entries = await fsp.readdir(agentsRoot);
+  } catch {
+    return [];
+  }
+
+  const dependents: string[] = [];
+  const emptyPolicy: DelegationPolicy = { allowedAgents: [], maxHop: 3 };
+  for (const agentId of entries) {
+    if (agentId === targetAgentId) continue;
+    const agentHome = path.join(agentsRoot, agentId);
+    const stat = await fsp.stat(agentHome).catch(() => null);
+    if (!stat?.isDirectory()) continue;
+
+    const policy = await readDelegationPolicy(agentHome).catch(() => emptyPolicy);
+    if (policy.allowedAgents.includes(targetAgentId)) {
+      dependents.push(agentId);
+    }
+  }
+
+  return dependents;
+}
+
+export async function refreshDependentSoulsForTarget(targetAgentId: string): Promise<string[]> {
+  const dependentAgentIds = await findAgentsDelegatingTo(targetAgentId);
+  const rebuilt: string[] = [];
+  const emptyPolicy: DelegationPolicy = { allowedAgents: [], maxHop: 3 };
+
+  for (const agentId of dependentAgentIds) {
+    const agentHome = getRuntimeAgentsRootPath(agentId);
+    const policy = await readDelegationPolicy(agentHome).catch(() => emptyPolicy);
+    await regenerateSoulWithDelegation(agentHome, policy);
+    rebuilt.push(agentId);
+  }
+
+  return rebuilt;
 }
 
 export async function syncDelegationForAgent(
