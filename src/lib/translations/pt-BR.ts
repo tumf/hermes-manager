@@ -54,7 +54,7 @@ export const ptBR: TranslationDictionary = {
       mcp: 'MCP',
       env: 'Env',
       skills: 'Habilidades',
-      delegation: 'Delegação',
+      delegation: 'Dispatch',
       cron: 'Cron',
       chat: 'Chat',
       logs: 'Logs',

@@ -54,7 +54,7 @@ export const ru: TranslationDictionary = {
       mcp: 'MCP',
       env: 'Переменные',
       skills: 'Навыки',
-      delegation: 'Делегирование',
+      delegation: 'Диспетчеризация',
       cron: 'Расписание',
       chat: 'Чат',
       logs: 'Логи',

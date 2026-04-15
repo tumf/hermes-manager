@@ -534,7 +534,7 @@ describe('Agent detail page', () => {
 
     await waitFor(() => {
       const editor = screen.getByRole('textbox', {
-        name: 'Edit MCP servers configuration',
+        name: 'Edit MCP servers YAML',
       }) as HTMLTextAreaElement;
       expect(editor.value).toBe(mcpYaml);
     });
@@ -552,12 +552,10 @@ describe('Agent detail page', () => {
     });
 
     await waitFor(() => {
-      expect(
-        screen.getByRole('textbox', { name: 'Edit MCP servers configuration' }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: 'Edit MCP servers YAML' })).toBeInTheDocument();
     });
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'Edit MCP servers configuration' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Edit MCP servers YAML' }), {
       target: { value: 'new:\n  command: test\n' },
     });
 
@@ -573,7 +571,7 @@ describe('Agent detail page', () => {
       expect(body.content).toBe('new:\n  command: test\n');
     });
 
-    expect(toast.success).toHaveBeenCalledWith('MCP configuration saved');
+    expect(toast.success).toHaveBeenCalledWith('MCP config saved');
   });
 
   it('displays validation error when MCP save fails', async () => {
@@ -594,12 +592,10 @@ describe('Agent detail page', () => {
     });
 
     await waitFor(() => {
-      expect(
-        screen.getByRole('textbox', { name: 'Edit MCP servers configuration' }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: 'Edit MCP servers YAML' })).toBeInTheDocument();
     });
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'Edit MCP servers configuration' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Edit MCP servers YAML' }), {
       target: { value: 'bad: yaml: content:\n' },
     });
 

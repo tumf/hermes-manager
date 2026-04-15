@@ -8,11 +8,7 @@ import { promisify } from 'node:util';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  findDependentAgentIds,
-  MANAGED_DISPATCH_SCRIPT_NAME,
-  MANAGED_DISPATCH_SKILL,
-} from '../../src/lib/delegation';
+import { MANAGED_DISPATCH_SCRIPT_NAME, MANAGED_DISPATCH_SKILL } from '../../src/lib/delegation';
 
 const execFileAsync = promisify(execFile);
 
@@ -26,7 +22,6 @@ vi.mock('../../src/lib/delegation', async (importOriginal) => {
     resolveTargetMeta: vi.fn(async (ids: string[]) =>
       ids.map((id) => ({ id, name: id, description: `desc for ${id}`, tags: ['test'] })),
     ),
-    findDependentAgentIds: vi.fn(async () => []),
   };
 });
 
@@ -233,35 +228,39 @@ describe('syncDelegationForAgent', () => {
 
 describe('refreshDependentSoulsForTarget', () => {
   it('rebuilds SOUL.md for each dependent agent', async () => {
-    const dep1Home = path.join(tmpDir, 'dep1');
-    const dep2Home = path.join(tmpDir, 'dep2');
+    const agentsRoot = path.join(tmpDir, 'runtime', 'agents');
+    const dep1Home = path.join(agentsRoot, 'dep1');
+    const dep2Home = path.join(agentsRoot, 'dep2');
+    const targetHome = path.join(agentsRoot, 'target01');
     fs.mkdirSync(dep1Home, { recursive: true });
     fs.mkdirSync(dep2Home, { recursive: true });
+    fs.mkdirSync(targetHome, { recursive: true });
 
     await fsp.writeFile(path.join(dep1Home, 'SOUL.src.md'), '# Dep1 Soul\n', 'utf-8');
     await fsp.writeFile(path.join(dep1Home, 'SOUL.md'), '# Dep1 Soul\n', 'utf-8');
     await fsp.writeFile(
-      path.join(dep1Home, 'delegation.json'),
+      path.join(dep1Home, 'dispatch.json'),
       JSON.stringify({ allowedAgents: ['target01'], maxHop: 3 }),
     );
 
     await fsp.writeFile(path.join(dep2Home, 'SOUL.src.md'), '# Dep2 Soul\n', 'utf-8');
     await fsp.writeFile(path.join(dep2Home, 'SOUL.md'), '# Dep2 Soul\n', 'utf-8');
     await fsp.writeFile(
-      path.join(dep2Home, 'delegation.json'),
+      path.join(dep2Home, 'dispatch.json'),
       JSON.stringify({ allowedAgents: ['target01'], maxHop: 3 }),
     );
 
-    vi.mocked(findDependentAgentIds).mockResolvedValueOnce(['dep1', 'dep2']);
+    vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
 
     const runtimePaths = await import('../../src/lib/runtime-paths');
     vi.spyOn(runtimePaths, 'getRuntimeAgentsRootPath').mockImplementation((...segments: string[]) =>
-      path.join(tmpDir, ...segments),
+      path.join(agentsRoot, ...segments),
     );
 
     const { refreshDependentSoulsForTarget } = await import('../../src/lib/delegation-sync');
-    await refreshDependentSoulsForTarget('target01');
+    const rebuilt = await refreshDependentSoulsForTarget('target01');
 
+    expect(rebuilt.sort()).toEqual(['dep1', 'dep2']);
     const soul1 = await fsp.readFile(path.join(dep1Home, 'SOUL.md'), 'utf-8');
     const soul2 = await fsp.readFile(path.join(dep2Home, 'SOUL.md'), 'utf-8');
     expect(soul1).toContain('HERMES_MANAGER_SUBAGENTS_V1_BEGIN');
@@ -271,9 +270,18 @@ describe('refreshDependentSoulsForTarget', () => {
   });
 
   it('does nothing when no dependents exist', async () => {
-    vi.mocked(findDependentAgentIds).mockResolvedValueOnce([]);
+    const agentsRoot = path.join(tmpDir, 'runtime', 'agents');
+    fs.mkdirSync(agentsRoot, { recursive: true });
+
+    vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
+
+    const runtimePaths = await import('../../src/lib/runtime-paths');
+    vi.spyOn(runtimePaths, 'getRuntimeAgentsRootPath').mockImplementation((...segments: string[]) =>
+      path.join(agentsRoot, ...segments),
+    );
 
     const { refreshDependentSoulsForTarget } = await import('../../src/lib/delegation-sync');
-    await refreshDependentSoulsForTarget('nonexistent');
+    const rebuilt = await refreshDependentSoulsForTarget('nonexistent');
+    expect(rebuilt).toEqual([]);
   });
 });

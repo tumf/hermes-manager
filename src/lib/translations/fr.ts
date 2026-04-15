@@ -54,7 +54,7 @@ export const fr: TranslationDictionary = {
       mcp: 'MCP',
       env: 'Env',
       skills: 'Compétences',
-      delegation: 'Délégation',
+      delegation: 'Dispatch',
       cron: 'Cron',
       chat: 'Chat',
       logs: 'Journaux',

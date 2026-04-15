@@ -5,7 +5,6 @@ import type { DelegationPolicy } from './delegation';
 import {
   buildManagedDispatchSkillContent,
   buildSubagentSoulBlock,
-  findDependentAgentIds,
   injectSubagentSoulBlock,
   MANAGED_DISPATCH_SCRIPT_NAME,
   MANAGED_DISPATCH_SKILL,
@@ -105,10 +104,11 @@ export async function syncDelegationForAgent(
   await regenerateSoulWithDelegation(agentHome, policy);
 }
 
-export async function refreshDependentSoulsForTarget(targetId: string): Promise<void> {
-  const dependentIds = await findDependentAgentIds(targetId);
+export async function refreshDependentSoulsForTarget(targetId: string): Promise<string[]> {
+  const dependentIds = await findAgentsDelegatingTo(targetId);
   for (const depId of dependentIds) {
     const depHome = getRuntimeAgentsRootPath(depId);
     await rebuildSoulForAgent(depHome);
   }
+  return dependentIds;
 }

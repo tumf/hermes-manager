@@ -54,7 +54,7 @@ export const ja: TranslationDictionary = {
       mcp: 'MCP',
       env: '環境変数',
       skills: 'スキル',
-      delegation: '委任',
+      delegation: 'ディスパッチ',
       cron: 'Cron',
       chat: 'チャット',
       logs: 'ログ',
