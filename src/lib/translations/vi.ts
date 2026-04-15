@@ -54,7 +54,7 @@ export const vi: TranslationDictionary = {
       mcp: 'MCP',
       env: 'Biến môi trường',
       skills: 'Kỹ năng',
-      delegation: 'Ủy quyền',
+      delegation: 'Dispatch',
       cron: 'Cron',
       chat: 'Trò chuyện',
       logs: 'Nhật ký',

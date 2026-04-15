@@ -54,7 +54,7 @@ export const ko: TranslationDictionary = {
       mcp: 'MCP',
       env: '환경변수',
       skills: '스킬',
-      delegation: '위임',
+      delegation: '디스패치',
       cron: '크론',
       chat: '채팅',
       logs: '로그',

@@ -22,22 +22,25 @@ export const DEFAULT_POLICY: DelegationPolicy = {
 };
 
 export async function readDelegationPolicy(agentHome: string): Promise<DelegationPolicy> {
-  const filePath = path.join(agentHome, 'delegation.json');
-  try {
-    const raw = await fsp.readFile(filePath, 'utf-8');
-    const parsed = DelegationPolicySchema.safeParse(JSON.parse(raw));
-    if (parsed.success) return parsed.data;
-    return { ...DEFAULT_POLICY };
-  } catch {
-    return { ...DEFAULT_POLICY };
+  const canonicalPath = path.join(agentHome, 'dispatch.json');
+  const legacyPath = path.join(agentHome, 'delegation.json');
+  for (const filePath of [canonicalPath, legacyPath]) {
+    try {
+      const raw = await fsp.readFile(filePath, 'utf-8');
+      const parsed = DelegationPolicySchema.safeParse(JSON.parse(raw));
+      if (parsed.success) return parsed.data;
+    } catch {
+      continue;
+    }
   }
+  return { ...DEFAULT_POLICY };
 }
 
 export async function writeDelegationPolicy(
   agentHome: string,
   policy: DelegationPolicy,
 ): Promise<void> {
-  const filePath = path.join(agentHome, 'delegation.json');
+  const filePath = path.join(agentHome, 'dispatch.json');
   const tmpPath = `${filePath}.tmp`;
   await fsp.writeFile(tmpPath, JSON.stringify(policy, null, 2), 'utf-8');
   await fsp.rename(tmpPath, filePath);
@@ -136,7 +139,9 @@ export function buildSubagentSoulBlock(policy: DelegationPolicy, targets: Subage
     .join('\n');
 
   return [
-    'Use listed subagents when they can handle part of the task more efficiently than doing everything yourself.',
+    'Prefer dispatching work to a listed managed subagent when one is a clear fit for the task slice, rather than defaulting to self-handling.',
+    'Built-in `delegate_task` is a separate mechanism; the managed dispatch path below is the preferred route for listed managed subagents.',
+    'A dispatched child that stalls, fails, or returns an incomplete result does NOT complete the task — the parent resumes ownership and delivers the final result.',
     '',
     SOUL_BLOCK_BEGIN,
     'subagents:',
@@ -179,22 +184,29 @@ export function buildManagedDispatchSkillContent(): string {
     'license: Proprietary',
     'metadata:',
     '  hermes:',
-    '    tags: [manager, delegation, subagent, dispatch]',
+    '    tags: [manager, dispatch, subagent]',
     '    managed: true',
     '---',
     '',
     '# Hermes Manager Subagent Dispatch',
     '',
-    'Use this skill when you need another managed agent to handle a focused sub-task.',
+    'Use this skill to dispatch focused sub-tasks to policy-approved managed subagents.',
     '',
     '## Rules',
     '',
-    '- Only delegate to agents listed in the machine-generated `subagents` block in your current `SOUL.md`.',
-    `- Use the bundled sibling script \`${MANAGED_DISPATCH_SCRIPT_NAME}\` for cross-agent delegation.`,
+    '- Only dispatch to agents listed in the machine-generated `subagents` block in your current `SOUL.md`.',
+    `- Use the bundled sibling script \`${MANAGED_DISPATCH_SCRIPT_NAME}\` for cross-agent dispatch.`,
     '- Never invoke another agent directly with raw `hermes chat`.',
-    '- Use listed subagents proactively when they can complete part of the work more efficiently than doing everything yourself.',
-    '- Do not delegate if no listed subagent is a clear fit for the task.',
-    '- Keep delegated requests narrow, explicit, and reviewable.',
+    '- Prefer dispatching to a listed managed subagent when one is a clear fit, rather than self-handling that slice of work.',
+    '- Do not dispatch if no listed subagent is a clear fit for the task.',
+    '- Keep dispatch requests narrow, explicit, and reviewable.',
+    '- Built-in `delegate_task` is a separate mechanism. This managed dispatch path is the preferred route for listed managed subagents.',
+    '',
+    '## Ownership after dispatch',
+    '',
+    '- A dispatched child that stalls, fails, or returns an incomplete result does NOT complete the task.',
+    '- The parent agent remains responsible: resume ownership and deliver the final result.',
+    '- Only treat the task as done when the child has clearly delivered a complete result.',
     '',
     '## Read from SOUL.md first',
     '',
@@ -210,11 +222,12 @@ export function buildManagedDispatchSkillContent(): string {
     '',
     '## Dispatch procedure',
     '',
-    '1. Check whether any listed subagent can handle part of the task more efficiently than doing all work yourself.',
+    '1. Check whether any listed managed subagent is a clear fit for a slice of the task.',
     '2. If yes, choose exactly one listed subagent that best matches that slice of work.',
     '3. Write a focused request with goal, context, constraints, and expected output.',
     `4. Pipe that request into the bundled sibling script \`${MANAGED_DISPATCH_SCRIPT_NAME} <target-agent-id>\`.`,
     '5. Never target an agent that is not listed in the generated `subagents.agents` block.',
+    '6. After dispatch, verify the child delivered a complete result. If not, resume ownership and finish the work yourself.',
     '',
     '## Dispatch API',
     '',
@@ -234,11 +247,12 @@ export function buildManagedDispatchSkillContent(): string {
     'Do not treat an open connection or keepalive frames as a failure.',
     'Do not use a short `curl --max-time` and assume timeout means dispatch failed.',
     '',
-    'If the current task already includes delegation metadata, preserve and extend it instead of resetting it.',
+    'If the current task already includes dispatch metadata, preserve and extend it instead of resetting it.',
     'Do not revisit an agent already present in `dispatchPath`.',
     'Do not exceed `rules.maxHop`.',
-    'Consider dispatch successful once the target agent has clearly started and is emitting progress or output.',
-    'Judge success from the stream content or downstream evidence, not from waiting for the HTTP connection to close quickly.',
+    'Consider dispatch started once the target agent has clearly begun and is emitting progress or output.',
+    'Judge delivery from the stream content or downstream evidence, not from waiting for the HTTP connection to close quickly.',
+    'A started dispatch is NOT a completed task — the parent must verify the child delivered a complete result before treating the task as done.',
     '',
     '## Message template',
     '',
@@ -262,12 +276,13 @@ export function buildManagedDispatchSkillContent(): string {
     '## Never do this',
     '',
     '- call raw `hermes chat` against another managed agent',
-    '- delegate to an unlisted agent',
+    '- dispatch to an unlisted agent',
     '- send a vague request like "look into this" without context',
     '- manually search for source agent id or dispatch script path instead of following this skill',
     '- ignore `dispatchPath` or `maxHop` constraints',
+    '- treat a started dispatch as a completed task without verifying the child delivered a complete result',
     '',
-    'This skill is manager-owned and auto-managed from delegation policy. Do not manually edit or remove it.',
+    'This skill is manager-owned and auto-managed from dispatch policy. Do not manually edit or remove it.',
   ].join('\n');
 }
 

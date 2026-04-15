@@ -41,7 +41,7 @@ export function DelegationTab({ name }: DelegationTabProps) {
     try {
       const res = await fetch(`/api/agents/${encodeURIComponent(name)}/delegation`);
       if (!res.ok) {
-        toast.error('Failed to load delegation settings');
+        toast.error('Failed to load dispatch settings');
         return;
       }
       const data = (await res.json()) as {
@@ -53,7 +53,7 @@ export function DelegationTab({ name }: DelegationTabProps) {
       setMaxHop(data.policy.maxHop);
       setSavedPolicy(data.policy);
     } catch {
-      toast.error('Failed to load delegation settings');
+      toast.error('Failed to load dispatch settings');
     } finally {
       setLoading(false);
     }
@@ -95,16 +95,16 @@ export function DelegationTab({ name }: DelegationTabProps) {
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        toast.error(data.error ?? 'Failed to save delegation policy');
+        toast.error(data.error ?? 'Failed to save dispatch policy');
         return;
       }
       const data = (await res.json()) as { policy: DelegationPolicy };
       setSavedPolicy(data.policy);
       setAllowedAgents(new Set(data.policy.allowedAgents));
       setMaxHop(data.policy.maxHop);
-      toast.success('Delegation policy saved');
+      toast.success('Dispatch policy saved');
     } catch {
-      toast.error('Failed to save delegation policy');
+      toast.error('Failed to save dispatch policy');
     } finally {
       setSaving(false);
     }
@@ -126,7 +126,7 @@ export function DelegationTab({ name }: DelegationTabProps) {
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-base">
               <Shield className="size-4" />
-              Subagent Delegation
+              Subagent Dispatch
             </CardTitle>
             <Button
               size="sm"
@@ -143,7 +143,7 @@ export function DelegationTab({ name }: DelegationTabProps) {
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            Configure which agents this agent can delegate tasks to via managed dispatch.
+            Configure which agents this agent can dispatch tasks to via managed dispatch.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -159,7 +159,7 @@ export function DelegationTab({ name }: DelegationTabProps) {
               className="w-24"
             />
             <p className="text-xs text-muted-foreground">
-              Maximum delegation chain depth before dispatch is blocked.
+              Maximum dispatch chain depth before further dispatch is blocked.
             </p>
           </div>
 
@@ -167,7 +167,7 @@ export function DelegationTab({ name }: DelegationTabProps) {
             <Label>Allowed subagents</Label>
             {availableAgents.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No other agents available. Create more agents to enable delegation.
+                No other agents available. Create more agents to enable dispatch.
               </p>
             ) : (
               <div className="space-y-2">
@@ -212,7 +212,7 @@ export function DelegationTab({ name }: DelegationTabProps) {
               <p className="text-xs font-medium">Managed dispatch skill</p>
               <p className="text-xs text-muted-foreground">
                 The <code className="rounded bg-muted px-1">hermes-manager-subagent-dispatch</code>{' '}
-                skill will be auto-equipped when delegation is enabled.
+                skill will be auto-equipped when dispatch is enabled.
               </p>
             </div>
           )}

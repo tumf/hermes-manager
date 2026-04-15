@@ -45,7 +45,7 @@ export const zhCN: TranslationDictionary = {
       mcp: 'MCP',
       env: '环境变量',
       skills: '技能',
-      delegation: '委派',
+      delegation: '调度',
       cron: 'Cron',
       chat: '聊天',
       logs: '日志',

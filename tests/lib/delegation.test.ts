@@ -51,9 +51,9 @@ describe('readDelegationPolicy', () => {
     expect(policy).toEqual(DEFAULT_POLICY);
   });
 
-  it('reads valid policy from file', async () => {
+  it('reads valid policy from canonical dispatch.json', async () => {
     await fsp.writeFile(
-      path.join(tmpDir, 'delegation.json'),
+      path.join(tmpDir, 'dispatch.json'),
       JSON.stringify({ allowedAgents: ['agent-a', 'agent-b'], maxHop: 5 }),
     );
     const policy = await readDelegationPolicy(tmpDir);
@@ -61,20 +61,44 @@ describe('readDelegationPolicy', () => {
     expect(policy.maxHop).toBe(5);
   });
 
+  it('falls back to legacy delegation.json when dispatch.json absent', async () => {
+    await fsp.writeFile(
+      path.join(tmpDir, 'delegation.json'),
+      JSON.stringify({ allowedAgents: ['legacy-agent'], maxHop: 2 }),
+    );
+    const policy = await readDelegationPolicy(tmpDir);
+    expect(policy.allowedAgents).toEqual(['legacy-agent']);
+    expect(policy.maxHop).toBe(2);
+  });
+
+  it('prefers dispatch.json over legacy delegation.json', async () => {
+    await fsp.writeFile(
+      path.join(tmpDir, 'dispatch.json'),
+      JSON.stringify({ allowedAgents: ['canonical'], maxHop: 4 }),
+    );
+    await fsp.writeFile(
+      path.join(tmpDir, 'delegation.json'),
+      JSON.stringify({ allowedAgents: ['legacy'], maxHop: 2 }),
+    );
+    const policy = await readDelegationPolicy(tmpDir);
+    expect(policy.allowedAgents).toEqual(['canonical']);
+    expect(policy.maxHop).toBe(4);
+  });
+
   it('returns default for invalid JSON', async () => {
-    await fsp.writeFile(path.join(tmpDir, 'delegation.json'), 'not json');
+    await fsp.writeFile(path.join(tmpDir, 'dispatch.json'), 'not json');
     const policy = await readDelegationPolicy(tmpDir);
     expect(policy).toEqual(DEFAULT_POLICY);
   });
 });
 
 describe('writeDelegationPolicy', () => {
-  it('writes policy file atomically', async () => {
+  it('writes policy to canonical dispatch.json atomically', async () => {
     const policy = { allowedAgents: ['target-01'], maxHop: 2 };
     await writeDelegationPolicy(tmpDir, policy);
-    const raw = await fsp.readFile(path.join(tmpDir, 'delegation.json'), 'utf-8');
+    const raw = await fsp.readFile(path.join(tmpDir, 'dispatch.json'), 'utf-8');
     expect(JSON.parse(raw)).toEqual(policy);
-    const tmpExists = fs.existsSync(path.join(tmpDir, 'delegation.json.tmp'));
+    const tmpExists = fs.existsSync(path.join(tmpDir, 'dispatch.json.tmp'));
     expect(tmpExists).toBe(false);
   });
 });
@@ -130,7 +154,13 @@ describe('buildSubagentSoulBlock', () => {
     expect(block).toContain('HERMES_MANAGER_SUBAGENTS_V1_BEGIN');
     expect(block).toContain('HERMES_MANAGER_SUBAGENTS_V1_END');
     expect(block).toContain(
-      'Use listed subagents when they can handle part of the task more efficiently than doing everything yourself.',
+      'Prefer dispatching work to a listed managed subagent when one is a clear fit',
+    );
+    expect(block).toContain(
+      'Built-in `delegate_task` is a separate mechanism',
+    );
+    expect(block).toContain(
+      'parent resumes ownership and delivers the final result',
     );
     expect(block).toContain('dispatchSkill: hermes-manager-subagent-dispatch');
     expect(block).toContain('maxHop: 3');
