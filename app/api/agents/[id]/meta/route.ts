@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { updateAgentMeta } from '@/src/lib/agents';
+import { refreshDependentSoulsForTarget } from '@/src/lib/delegation-sync';
 import { UpdateAgentMetaSchema } from '@/src/lib/validators/agents';
 
 interface RouteContext {
@@ -35,6 +36,8 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   if (!updated) {
     return NextResponse.json({ error: 'agent not found' }, { status: 404 });
   }
+
+  await refreshDependentSoulsForTarget(id);
 
   return NextResponse.json(updated);
 }

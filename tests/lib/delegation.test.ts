@@ -6,10 +6,26 @@ import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+const mockRuntimePaths = vi.hoisted(() => ({
+  agentsRoot: '',
+}));
+
+vi.mock('../../src/lib/runtime-paths', async (importOriginal) => {
+  const actual = (await importOriginal()) as Record<string, unknown>;
+  return {
+    ...actual,
+    getRuntimeAgentsRootPath: (...segments: string[]) =>
+      mockRuntimePaths.agentsRoot
+        ? path.join(mockRuntimePaths.agentsRoot, ...segments)
+        : (actual.getRuntimeAgentsRootPath as (...s: string[]) => string)(...segments),
+  };
+});
+
 import {
   buildSubagentSoulBlock,
   DEFAULT_POLICY,
   detectCycle,
+  findDependentAgentIds,
   injectSubagentSoulBlock,
   readDelegationPolicy,
   stripSubagentSoulBlock,
@@ -230,5 +246,66 @@ describe('validateDispatch', () => {
     });
     expect(result.valid).toBe(false);
     expect(result.error).toContain('maxHop');
+  });
+});
+
+describe('findDependentAgentIds', () => {
+  let agentsRoot: string;
+
+  beforeEach(() => {
+    agentsRoot = path.join(tmpDir, 'runtime', 'agents');
+    fs.mkdirSync(agentsRoot, { recursive: true });
+    mockRuntimePaths.agentsRoot = agentsRoot;
+  });
+
+  afterEach(() => {
+    mockRuntimePaths.agentsRoot = '';
+  });
+
+  it('returns agents whose allowedAgents contains the target', async () => {
+    const plannerHome = path.join(agentsRoot, 'planner01');
+    const researchHome = path.join(agentsRoot, 'research01');
+    const unrelatedHome = path.join(agentsRoot, 'unrelated01');
+    fs.mkdirSync(plannerHome, { recursive: true });
+    fs.mkdirSync(researchHome, { recursive: true });
+    fs.mkdirSync(unrelatedHome, { recursive: true });
+
+    await fsp.writeFile(
+      path.join(plannerHome, 'delegation.json'),
+      JSON.stringify({ allowedAgents: ['research01'], maxHop: 3 }),
+    );
+    await fsp.writeFile(
+      path.join(researchHome, 'delegation.json'),
+      JSON.stringify({ allowedAgents: [], maxHop: 3 }),
+    );
+
+    const result = await findDependentAgentIds('research01');
+    expect(result).toEqual(['planner01']);
+  });
+
+  it('returns empty array when no agents depend on target', async () => {
+    const agentHome = path.join(agentsRoot, 'solo01');
+    fs.mkdirSync(agentHome, { recursive: true });
+    await fsp.writeFile(
+      path.join(agentHome, 'delegation.json'),
+      JSON.stringify({ allowedAgents: ['other01'], maxHop: 3 }),
+    );
+
+    const result = await findDependentAgentIds('research01');
+    expect(result).toEqual([]);
+  });
+
+  it('returns multiple dependents', async () => {
+    for (const id of ['a', 'b', 'c']) {
+      const home = path.join(agentsRoot, id);
+      fs.mkdirSync(home, { recursive: true });
+      await fsp.writeFile(
+        path.join(home, 'delegation.json'),
+        JSON.stringify({ allowedAgents: ['target01'], maxHop: 3 }),
+      );
+    }
+
+    const result = await findDependentAgentIds('target01');
+    expect(result.sort()).toEqual(['a', 'b', 'c']);
   });
 });

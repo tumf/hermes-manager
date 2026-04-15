@@ -5,12 +5,14 @@ import type { DelegationPolicy } from './delegation';
 import {
   buildManagedDispatchSkillContent,
   buildSubagentSoulBlock,
+  findDependentAgentIds,
   injectSubagentSoulBlock,
   MANAGED_DISPATCH_SCRIPT_NAME,
   MANAGED_DISPATCH_SKILL,
   resolveTargetMeta,
 } from './delegation';
-import { assembleSoulSource } from './soul-assembly';
+import { getRuntimeAgentsRootPath } from './runtime-paths';
+import { assembleSoulSource, rebuildSoulForAgent } from './soul-assembly';
 import { stripZeroWidthSpace } from './text-sanitizer';
 
 async function ensureManagedSkill(agentHome: string): Promise<void> {
@@ -74,4 +76,12 @@ export async function syncDelegationForAgent(
   }
 
   await regenerateSoulWithDelegation(agentHome, policy);
+}
+
+export async function refreshDependentSoulsForTarget(targetId: string): Promise<void> {
+  const dependentIds = await findDependentAgentIds(targetId);
+  for (const depId of dependentIds) {
+    const depHome = getRuntimeAgentsRootPath(depId);
+    await rebuildSoulForAgent(depHome);
+  }
 }
