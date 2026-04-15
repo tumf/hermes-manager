@@ -46,6 +46,82 @@ afterEach(() => {
   fs.rmSync(tmpDir, { recursive: true, force: true });
 });
 
+describe('delegation-sync helpers', () => {
+  it('finds only agents delegating to the target', async () => {
+    const targetId = 'target-a';
+    const agentsRoot = path.join(tmpDir, 'runtime', 'agents');
+    const plannerHome = path.join(agentsRoot, 'planner');
+    const unrelatedHome = path.join(agentsRoot, 'unrelated');
+    const targetHome = path.join(agentsRoot, targetId);
+
+    fs.mkdirSync(plannerHome, { recursive: true });
+    fs.mkdirSync(unrelatedHome, { recursive: true });
+    fs.mkdirSync(targetHome, { recursive: true });
+
+    await fsp.writeFile(
+      path.join(plannerHome, 'delegation.json'),
+      JSON.stringify({ allowedAgents: [targetId], maxHop: 3 }),
+      'utf-8',
+    );
+    await fsp.writeFile(
+      path.join(unrelatedHome, 'delegation.json'),
+      JSON.stringify({ allowedAgents: ['someone-else'], maxHop: 3 }),
+      'utf-8',
+    );
+
+    vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
+
+    const { findAgentsDelegatingTo } = await import('../../src/lib/delegation-sync');
+    const dependents = await findAgentsDelegatingTo(targetId);
+
+    expect(dependents).toEqual(['planner']);
+  });
+
+  it('refreshes SOUL.md for dependent agents only', async () => {
+    const targetId = 'target-a';
+    const agentsRoot = path.join(tmpDir, 'runtime', 'agents');
+    const plannerHome = path.join(agentsRoot, 'planner');
+    const unrelatedHome = path.join(agentsRoot, 'unrelated');
+    const targetHome = path.join(agentsRoot, targetId);
+
+    fs.mkdirSync(plannerHome, { recursive: true });
+    fs.mkdirSync(unrelatedHome, { recursive: true });
+    fs.mkdirSync(targetHome, { recursive: true });
+
+    await fsp.writeFile(path.join(plannerHome, 'SOUL.src.md'), '# Planner\n', 'utf-8');
+    await fsp.writeFile(path.join(plannerHome, 'SOUL.md'), '# Planner\n', 'utf-8');
+    await fsp.writeFile(path.join(unrelatedHome, 'SOUL.src.md'), '# Unrelated\n', 'utf-8');
+    await fsp.writeFile(path.join(unrelatedHome, 'SOUL.md'), '# Unrelated\n', 'utf-8');
+    await fsp.writeFile(
+      path.join(plannerHome, 'delegation.json'),
+      JSON.stringify({ allowedAgents: [targetId], maxHop: 3 }),
+      'utf-8',
+    );
+    await fsp.writeFile(
+      path.join(unrelatedHome, 'delegation.json'),
+      JSON.stringify({ allowedAgents: ['someone-else'], maxHop: 3 }),
+      'utf-8',
+    );
+    await fsp.writeFile(
+      path.join(targetHome, 'meta.json'),
+      JSON.stringify({ name: 'Target A', description: 'updated desc', tags: ['fresh'] }),
+      'utf-8',
+    );
+
+    vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
+
+    const { refreshDependentSoulsForTarget } = await import('../../src/lib/delegation-sync');
+    const rebuilt = await refreshDependentSoulsForTarget(targetId);
+
+    expect(rebuilt).toEqual(['planner']);
+    const plannerSoul = await fsp.readFile(path.join(plannerHome, 'SOUL.md'), 'utf-8');
+    const unrelatedSoul = await fsp.readFile(path.join(unrelatedHome, 'SOUL.md'), 'utf-8');
+    expect(plannerSoul).toContain('target-a');
+    expect(plannerSoul).toContain('desc for target-a');
+    expect(unrelatedSoul).toBe('# Unrelated\n');
+  });
+});
+
 describe('syncDelegationForAgent', () => {
   it('equips managed skill when allowedAgents non-empty', async () => {
     await fsp.writeFile(path.join(agentHome, 'SOUL.src.md'), '# Soul\n', 'utf-8');

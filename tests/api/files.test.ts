@@ -146,6 +146,21 @@ describe('PUT /api/files', () => {
     mockState.sourceWritePayload = null;
   });
 
+  it('accepts config.yaml containing mcp_servers mapping', async () => {
+    const req = makeReq('http://localhost/api/files', {
+      method: 'PUT',
+      body: JSON.stringify({
+        agent: 'alpha',
+        path: 'config.yaml',
+        content: ['name: alpha', 'mcp_servers:', '  github:', '    command: npx'].join('\n'),
+      }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const res = await PUT(req);
+    expect(res.status).toBe(200);
+  });
+
   it('writes SOUL.md in legacy mode', async () => {
     const req = makeReq('http://localhost/api/files', {
       method: 'PUT',

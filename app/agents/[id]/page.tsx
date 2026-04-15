@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { AgentEnvTab } from '@/src/components/agent-env-tab';
 import { FileEditor } from '@/src/components/agent-file-editor';
 import { AgentLogViewer } from '@/src/components/agent-log-viewer';
+import { AgentMcpTab } from '@/src/components/agent-mcp-tab';
 import { AgentMemoryTab } from '@/src/components/agent-memory-tab';
 import { AgentMetadataCard } from '@/src/components/agent-metadata-card';
 import { AgentStatusHeader } from '@/src/components/agent-status-header';
@@ -154,6 +155,10 @@ export default function AgentPage({ params }: AgentPageProps) {
             <Settings className="size-3.5" />
             <span className="hidden sm:inline">{t.agentDetail.tabs.config}</span>
           </TabsTrigger>
+          <TabsTrigger value="mcp" className="gap-1.5">
+            <Settings className="size-3.5" />
+            <span className="hidden sm:inline">{t.agentDetail.tabs.mcp}</span>
+          </TabsTrigger>
           <TabsTrigger value="env" className="gap-1.5">
             <Settings className="size-3.5" />
             <span className="hidden sm:inline">{t.agentDetail.tabs.env}</span>
@@ -197,6 +202,10 @@ export default function AgentPage({ params }: AgentPageProps) {
 
         <TabsContent value="config">
           <FileEditor name={name} filePath="config.yaml" label="config.yaml" />
+        </TabsContent>
+
+        <TabsContent value="mcp">
+          <AgentMcpTab name={name} />
         </TabsContent>
 
         <TabsContent value="env">
