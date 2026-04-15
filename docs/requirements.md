@@ -94,7 +94,7 @@
 
 ## 11. API 高レベル一覧
 
-- /api/agents, /api/agents/{id}/delegation, /api/agents/{id}/dispatch, /api/launchd, /api/files, /api/partials, /api/env, /api/env/resolved, /api/globals, /api/skills/\*, /api/logs, /api/logs/stream, /api/cron, /api/cron/action, /api/cron/output, /api/templates
+- /api/agents, /api/agents/{id}/delegation, /api/agents/{id}/dispatch, /api/agents/{id}/mcp, /api/launchd, /api/files, /api/partials, /api/env, /api/env/resolved, /api/globals, /api/skills/\*, /api/logs, /api/logs/stream, /api/cron, /api/cron/action, /api/cron/output, /api/templates
 
 ## 12. UI 概要
 
@@ -102,5 +102,5 @@
 - /globals グローバル変数
 - /templates テンプレート管理（fileType 別グループ、追加/編集/削除）
 - /partials 共有 partial 管理（一覧・作成・編集・削除・usedBy 表示）
-- /agents/[id] Metadata / Memory / Config / Env / Skills / Cron / Chat / Logs タブ（Memory タブは partial mode 有効化、SOUL.src.md 編集、assembled SOUL.md 確認、Save as Template ボタン付き）
+- /agents/[id] Metadata / Memory / Config / MCP / Env / Skills / Cron / Chat / Logs タブ（Memory タブは partial mode 有効化、SOUL.src.md 編集、assembled SOUL.md 確認、Save as Template ボタン付き。MCP タブは mcp_servers 専用 YAML editor と upstream docs リンクを提供）
 - 全ページ共通: Language Switcher による多言語 UI 切替（10 言語対応）

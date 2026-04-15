@@ -6,6 +6,7 @@ import {
   FileText,
   MessageCircle,
   Network,
+  Plug,
   ScrollText,
   Settings,
 } from 'lucide-react';
@@ -156,7 +157,7 @@ export default function AgentPage({ params }: AgentPageProps) {
             <span className="hidden sm:inline">{t.agentDetail.tabs.config}</span>
           </TabsTrigger>
           <TabsTrigger value="mcp" className="gap-1.5">
-            <Settings className="size-3.5" />
+            <Plug className="size-3.5" />
             <span className="hidden sm:inline">{t.agentDetail.tabs.mcp}</span>
           </TabsTrigger>
           <TabsTrigger value="env" className="gap-1.5">
