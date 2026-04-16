@@ -29,7 +29,8 @@ export async function GET() {
     description: a.description,
     tags: a.tags,
     memoryRssBytes: a.memoryRssBytes,
-    hermesVersion: a.hermesVersion,
+    apiServerAvailable: a.apiServerAvailable,
+    apiServerPort: a.apiServerPort,
   }));
   return NextResponse.json(rows);
 }

@@ -1,3 +1,4 @@
+import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import os from 'node:os';
@@ -59,6 +60,11 @@ describe('listAgents', () => {
     expect(agents[0].tags).toEqual([]);
     expect(agents[0].memoryRssBytes).toBeNull();
     expect(agents[0].hermesVersion).toBeNull();
+
+    const execFileMock = vi.mocked(execFile);
+    const commands = execFileMock.mock.calls.map(([command]) => command);
+    expect(commands).toContain('launchctl');
+    expect(commands).not.toContain('hermes');
   });
 
   it('reads metadata from meta.json when present', async () => {

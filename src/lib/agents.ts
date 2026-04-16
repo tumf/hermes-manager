@@ -35,7 +35,9 @@ export async function listAgents(): Promise<Agent[]> {
       continue;
     }
 
-    const processInfo = await resolveAgentProcessInfo(name, agentHome);
+    const processInfo = await resolveAgentProcessInfo(name, agentHome, {
+      includeHermesVersion: false,
+    });
     agents.push(buildAgentView({ agentId: name, agentHome, stat, processInfo }));
   }
 

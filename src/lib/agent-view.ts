@@ -32,6 +32,14 @@ export const PROCESS_INFO_PLACEHOLDER: AgentProcessInfo = {
   hermesVersion: null,
 };
 
+export interface ResolveAgentProcessInfoOptions {
+  includeHermesVersion?: boolean;
+}
+
+const DEFAULT_RESOLVE_AGENT_PROCESS_INFO_OPTIONS: Required<ResolveAgentProcessInfoOptions> = {
+  includeHermesVersion: true,
+};
+
 export function getAgentLabel(agentId: string): string {
   return `ai.hermes.gateway.${agentId}`;
 }
@@ -104,11 +112,17 @@ async function resolveHermesVersion(agentHome: string): Promise<string | null> {
 export async function resolveAgentProcessInfo(
   agentId: string,
   agentHome: string,
+  options: ResolveAgentProcessInfoOptions = DEFAULT_RESOLVE_AGENT_PROCESS_INFO_OPTIONS,
 ): Promise<AgentProcessInfo> {
-  console.info('[agents] resolving process info', { agentId, agentHome });
+  const { includeHermesVersion } = {
+    ...DEFAULT_RESOLVE_AGENT_PROCESS_INFO_OPTIONS,
+    ...options,
+  };
+
+  console.info('[agents] resolving process info', { agentId, agentHome, includeHermesVersion });
   const pid = await resolveAgentPid(agentId);
   const memoryRssBytes = pid !== null ? await resolveMemoryRssBytes(pid) : null;
-  const hermesVersion = await resolveHermesVersion(agentHome);
+  const hermesVersion = includeHermesVersion ? await resolveHermesVersion(agentHome) : null;
 
   console.info('[agents] resolved process info', {
     agentId,

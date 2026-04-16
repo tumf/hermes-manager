@@ -75,6 +75,7 @@ export function buildAgentDetailRoutes(options: AgentDetailFixtureOptions = {}):
           name: 'alpha',
           description: 'test agent',
           tags: ['test'],
+          hermesVersion,
           apiServerStatus,
           apiServerAvailable,
           apiServerPort: apiServerAvailable ? 19001 : null,

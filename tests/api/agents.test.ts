@@ -173,7 +173,9 @@ describe('GET /api/agents', () => {
     expect(body).toHaveLength(1);
     expect(body[0].agentId).toBe('abc1234');
     expect(body[0].memoryRssBytes).toBeNull();
-    expect(body[0].hermesVersion).toBeNull();
+    expect(body[0].apiServerAvailable).toBe(false);
+    expect(body[0].apiServerPort).toBeNull();
+    expect(body[0].hermesVersion).toBeUndefined();
   });
 });
 

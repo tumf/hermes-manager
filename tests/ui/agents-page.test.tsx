@@ -62,7 +62,35 @@ function mockFetch(overrides: Record<string, unknown> = {}) {
 
         // GET /api/agents
         if (url === '/api/agents' && method === 'GET') {
-          return { ok: true, json: async () => mockAgents };
+          return {
+            ok: true,
+            json: async () =>
+              mockAgents.map((agent) => {
+                const nextAgent = {
+                  ...agent,
+                  apiServerAvailable: false,
+                  apiServerPort: null,
+                };
+                delete nextAgent.hermesVersion;
+                return nextAgent;
+              }),
+          };
+        }
+
+        if ((url as string).startsWith('/api/agents/') && method === 'GET') {
+          const agentId = (url as string).split('/').pop() ?? '';
+          const agent = mockAgents.find((item) => item.agentId === agentId);
+          if (!agent) {
+            return { ok: false, json: async () => ({ error: 'not found' }) };
+          }
+          return {
+            ok: true,
+            json: async () => ({
+              ...agent,
+              apiServerAvailable: false,
+              apiServerPort: null,
+            }),
+          };
         }
 
         // POST /api/launchd (status)

@@ -37,10 +37,9 @@ export function useAgentMeta(agentId: string): UseAgentMetaResult {
 
   const fetchMeta = useCallback(async () => {
     try {
-      const res = await fetch('/api/agents');
+      const res = await fetch(`/api/agents/${encodeURIComponent(agentId)}`);
       if (!res.ok) return;
-      const agents = (await res.json()) as Array<{
-        agentId: string;
+      const current = (await res.json()) as {
         name?: string;
         description?: string;
         tags?: string[];
@@ -48,8 +47,7 @@ export function useAgentMeta(agentId: string): UseAgentMetaResult {
         hermesVersion?: string | null;
         apiServerAvailable?: boolean;
         apiServerPort?: number | null;
-      }>;
-      const current = agents.find((agent) => agent.agentId === agentId);
+      };
       const nextMeta: AgentMeta = {
         name: current?.name ?? '',
         description: current?.description ?? '',
