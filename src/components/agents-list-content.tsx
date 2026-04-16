@@ -9,6 +9,7 @@ import { Skeleton } from '@/src/components/ui/skeleton';
 
 interface AgentsListContentProps {
   loading: boolean;
+  statusLoading?: boolean;
   agents: AgentWithStatus[];
   busyMap: Record<string, ActionType>;
   onAction: (agent: AgentWithStatus, action: ActionType) => Promise<void>;
@@ -18,6 +19,7 @@ interface AgentsListContentProps {
 
 export function AgentsListContent({
   loading,
+  statusLoading = false,
   agents,
   busyMap,
   onAction,
@@ -63,6 +65,7 @@ export function AgentsListContent({
             key={agent.id}
             agent={agent}
             busy={busyMap[agent.agentId] ?? null}
+            statusLoading={statusLoading}
             variant="mobile"
             onAction={onAction}
             onDelete={onDelete}
@@ -89,6 +92,7 @@ export function AgentsListContent({
                 key={agent.id}
                 agent={agent}
                 busy={busyMap[agent.agentId] ?? null}
+                statusLoading={statusLoading}
                 variant="table-row"
                 onAction={onAction}
                 onDelete={onDelete}

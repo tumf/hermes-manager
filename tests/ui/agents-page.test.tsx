@@ -66,13 +66,12 @@ function mockFetch(overrides: Record<string, unknown> = {}) {
             ok: true,
             json: async () =>
               mockAgents.map((agent) => {
-                const nextAgent = {
-                  ...agent,
+                const { hermesVersion: _hermesVersion, ...rest } = agent;
+                return {
+                  ...rest,
                   apiServerAvailable: false,
                   apiServerPort: null,
                 };
-                delete nextAgent.hermesVersion;
-                return nextAgent;
               }),
           };
         }
@@ -93,12 +92,30 @@ function mockFetch(overrides: Record<string, unknown> = {}) {
           };
         }
 
-        // POST /api/launchd (status)
+        // POST /api/launchd/statuses (batch status)
+        if (url === '/api/launchd/statuses' && method === 'POST') {
+          if (overrides.batchStatusFail) {
+            return { ok: false, json: async () => ({ error: 'boom' }) };
+          }
+          const body = JSON.parse(init?.body as string);
+          const requested = Array.isArray(body.agents) ? (body.agents as string[]) : [];
+          return {
+            ok: true,
+            json: async () => ({
+              statuses: requested.map((agentId) => ({
+                agent: agentId,
+                running: agentId === 'alpha11',
+                pid: agentId === 'alpha11' ? 42 : null,
+                code: 0,
+                manager: 'launchd',
+              })),
+            }),
+          };
+        }
+
+        // POST /api/launchd (per-agent actions only)
         if (url === '/api/launchd' && method === 'POST') {
           const body = JSON.parse(init?.body as string);
-          if (body.action === 'status') {
-            return { ok: true, json: async () => ({ running: body.agent === 'alpha11' }) };
-          }
           if (body.action === 'start' && overrides.launchdStartFail) {
             return {
               ok: false,
@@ -330,6 +347,189 @@ describe('AgentsPage', () => {
     });
 
     expect(screen.getAllByRole('button', { name: /more actions/i }).length).toBeGreaterThan(0);
+  });
+
+  it('issues a single batch status call after /api/agents', async () => {
+    const fetchMock = mockFetch();
+    global.fetch = fetchMock;
+
+    render(
+      <LocaleProvider initialLocale="en">
+        <Home />
+      </LocaleProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Alpha Bot').length).toBeGreaterThan(0);
+    });
+
+    const calls = fetchMock.mock.calls as [string, { method?: string; body?: string }?][];
+    const batchCalls = calls.filter(
+      ([url, init]) => url === '/api/launchd/statuses' && init?.method === 'POST',
+    );
+    expect(batchCalls).toHaveLength(1);
+
+    const legacyStatusCalls = calls.filter(([url, init]) => {
+      if (url !== '/api/launchd' || init?.method !== 'POST') return false;
+      try {
+        return JSON.parse(init.body as string).action === 'status';
+      } catch {
+        return false;
+      }
+    });
+    expect(legacyStatusCalls).toHaveLength(0);
+  });
+
+  it('renders agents list before the batch status fetch resolves', async () => {
+    type StatusResolver = (value: unknown) => void;
+    const statusDeferred: { resolve: StatusResolver | null } = { resolve: null };
+
+    global.fetch = vi.fn().mockImplementation(async (url: string, init?: { method?: string; body?: string }) => {
+      const method = init?.method ?? 'GET';
+
+      if (url === '/api/agents' && method === 'GET') {
+        return {
+          ok: true,
+          json: async () =>
+            mockAgents.map((agent) => ({
+              ...agent,
+              apiServerAvailable: false,
+              apiServerPort: null,
+            })),
+        };
+      }
+
+      if (url === '/api/launchd/statuses' && method === 'POST') {
+        const body = JSON.parse(init?.body as string);
+        const requested = body.agents as string[];
+        return new Promise((resolve) => {
+          statusDeferred.resolve = () =>
+            resolve({
+              ok: true,
+              json: async () => ({
+                statuses: requested.map((agentId) => ({
+                  agent: agentId,
+                  running: agentId === 'alpha11',
+                  pid: null,
+                  code: 0,
+                  manager: 'launchd',
+                })),
+              }),
+            });
+        });
+      }
+
+      if ((url as string).startsWith('/api/templates') && method === 'GET') {
+        return { ok: true, json: async () => [] };
+      }
+
+      return { ok: true, json: async () => ({}) };
+    });
+
+    render(
+      <LocaleProvider initialLocale="en">
+        <Home />
+      </LocaleProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Alpha Bot').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('beta222').length).toBeGreaterThan(0);
+    });
+
+    expect(screen.getAllByText(/checking/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText('Running')).not.toBeInTheDocument();
+
+    statusDeferred.resolve?.(null);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Running').length).toBeGreaterThan(0);
+    });
+  });
+
+  it('keeps the agents list rendered when batch status fetch fails', async () => {
+    global.fetch = mockFetch({ batchStatusFail: true });
+
+    render(
+      <LocaleProvider initialLocale="en">
+        <Home />
+      </LocaleProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Alpha Bot').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('beta222').length).toBeGreaterThan(0);
+    });
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/unknown/i).length).toBeGreaterThan(0);
+    });
+
+    expect(screen.queryByText('Running')).not.toBeInTheDocument();
+  });
+
+  it('keeps the list rendered when some agents fail their status entry', async () => {
+    global.fetch = vi.fn().mockImplementation(async (url: string, init?: { method?: string; body?: string }) => {
+      const method = init?.method ?? 'GET';
+      if (url === '/api/agents' && method === 'GET') {
+        return {
+          ok: true,
+          json: async () =>
+            mockAgents.map((agent) => ({
+              ...agent,
+              apiServerAvailable: false,
+              apiServerPort: null,
+            })),
+        };
+      }
+      if (url === '/api/launchd/statuses' && method === 'POST') {
+        const body = JSON.parse(init?.body as string);
+        const requested = body.agents as string[];
+        return {
+          ok: true,
+          json: async () => ({
+            statuses: requested.map((agentId) =>
+              agentId === 'beta222'
+                ? {
+                    agent: agentId,
+                    running: null,
+                    pid: null,
+                    code: null,
+                    manager: null,
+                    error: 'Agent "beta222" not found',
+                  }
+                : {
+                    agent: agentId,
+                    running: true,
+                    pid: 7,
+                    code: 0,
+                    manager: 'launchd',
+                  },
+            ),
+          }),
+        };
+      }
+      if ((url as string).startsWith('/api/templates') && method === 'GET') {
+        return { ok: true, json: async () => [] };
+      }
+      return { ok: true, json: async () => ({}) };
+    });
+
+    render(
+      <LocaleProvider initialLocale="en">
+        <Home />
+      </LocaleProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Alpha Bot').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('beta222').length).toBeGreaterThan(0);
+    });
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Running').length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/unknown/i).length).toBeGreaterThan(0);
+    });
   });
 
   it('Add Agent dialog calls POST /api/agents and refreshes', async () => {
