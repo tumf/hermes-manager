@@ -279,12 +279,9 @@ describe('Agent detail page', () => {
     editor.setSelectionRange(cursor, cursor);
     fireEvent.click(screen.getByRole('button', { name: 'directory-structure' }));
 
-    expect(editor.value).toContain(
-      '# Soul source\n\n{{partial:directory-structure}}{{partial:directory-structure}}\n',
-    );
-    expect(editor.value).not.toContain(
-      '\n{{partial:directory-structure}}\n{{partial:directory-structure}}',
-    );
+    expect(editor.value).toBe('# Soul source\n\n{{partial:directory-structure}}REPLACE_ME\n');
+    expect(editor.value).not.toContain('# Soul source\n\n\n{{partial:');
+    expect(editor.value).not.toContain('}}\n\nREPLACE_ME');
     expect(toast.success).toHaveBeenCalledWith('Inserted partial: directory-structure');
   });
 
@@ -300,7 +297,7 @@ describe('Agent detail page', () => {
       name: 'Edit SOUL.src.md',
     })) as HTMLTextAreaElement;
 
-    const selectedSnippet = '{{partial:directory-structure}}';
+    const selectedSnippet = 'REPLACE_ME';
     const start = editor.value.indexOf(selectedSnippet);
     expect(start).toBeGreaterThanOrEqual(0);
     const end = start + selectedSnippet.length;
@@ -310,6 +307,76 @@ describe('Agent detail page', () => {
 
     expect(editor.value).toBe('# Soul source\n\n{{partial:directory-structure}}\n');
     expect(toast.success).toHaveBeenCalledWith('Inserted partial: directory-structure');
+  });
+
+  it('hides shared partials already inserted in SOUL.src.md from the candidate list', async () => {
+    global.fetch = createFetchRouter(
+      buildAgentDetailRoutes({
+        partialModeEnabled: true,
+        soulSrcContent: '# Soul source\n\n{{partial:directory-structure}}\n',
+      }),
+    );
+    window.history.replaceState(null, '', '#memory');
+
+    await act(async () => {
+      renderPage('alpha');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'security-rules' })).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole('button', { name: 'directory-structure' })).not.toBeInTheDocument();
+  });
+
+  it('removes a partial from the candidate list immediately after it is inserted', async () => {
+    global.fetch = createFetchRouter(buildAgentDetailRoutes({ partialModeEnabled: true }));
+    window.history.replaceState(null, '', '#memory');
+
+    await act(async () => {
+      renderPage('alpha');
+    });
+
+    const editor = (await screen.findByRole('textbox', {
+      name: 'Edit SOUL.src.md',
+    })) as HTMLTextAreaElement;
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'directory-structure' })).toBeInTheDocument();
+    });
+
+    const cursor = '# Soul source\n\n'.length;
+    editor.setSelectionRange(cursor, cursor);
+    fireEvent.click(screen.getByRole('button', { name: 'directory-structure' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'directory-structure' })).not.toBeInTheDocument();
+    });
+
+    expect(screen.getByRole('button', { name: 'security-rules' })).toBeInTheDocument();
+  });
+
+  it('shows empty-state message when every shared partial is already inserted', async () => {
+    global.fetch = createFetchRouter(
+      buildAgentDetailRoutes({
+        partialModeEnabled: true,
+        soulSrcContent:
+          '# Soul source\n\n{{partial:directory-structure}}\n{{partial:security-rules}}\n',
+      }),
+    );
+    window.history.replaceState(null, '', '#memory');
+
+    await act(async () => {
+      renderPage('alpha');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('textbox', { name: 'Edit SOUL.src.md' })).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole('button', { name: 'directory-structure' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'security-rules' })).not.toBeInTheDocument();
+    expect(screen.getByText('No partials available.')).toBeInTheDocument();
   });
 
   it('keeps stable memory tab labels when switching between files', async () => {

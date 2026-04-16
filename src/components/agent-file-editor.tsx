@@ -41,6 +41,7 @@ interface FileEditorProps {
   hideTemplateButton?: boolean;
   previewOnly?: boolean;
   onSaveSuccess?: () => void;
+  onContentChange?: (value: string) => void;
   className?: string;
 }
 
@@ -54,6 +55,7 @@ export const FileEditor = forwardRef<FileEditorHandle, FileEditorProps>(function
     hideTemplateButton = false,
     previewOnly = false,
     onSaveSuccess,
+    onContentChange,
     className,
   },
   ref,
@@ -116,6 +118,7 @@ export const FileEditor = forwardRef<FileEditorHandle, FileEditorProps>(function
           const text = typeof data === 'string' ? data : (data.content ?? '');
           setContent(text);
           originalRef.current = text;
+          onContentChange?.(text);
         }
       } catch {
         // noop
@@ -124,7 +127,7 @@ export const FileEditor = forwardRef<FileEditorHandle, FileEditorProps>(function
       }
     }
     void load();
-  }, [name, filePath]);
+  }, [name, filePath, onContentChange]);
 
   useEffect(() => {
     if (previewOnly) return;
@@ -144,6 +147,7 @@ export const FileEditor = forwardRef<FileEditorHandle, FileEditorProps>(function
   function handleChange(val: string) {
     setContent(val);
     setDirty(val !== originalRef.current);
+    onContentChange?.(val);
   }
 
   async function saveAsTemplate() {
