@@ -64,8 +64,7 @@ export default function AgentPage({ params }: AgentPageProps) {
     <div
       className={cn(
         'space-y-6',
-        activeTab === 'chat' &&
-          'flex min-h-[calc(100dvh-6rem)] flex-col space-y-4 overflow-hidden md:min-h-[calc(100dvh-4rem)]',
+        activeTab === 'chat' && 'flex min-h-0 flex-1 flex-col space-y-4 overflow-hidden',
       )}
     >
       <div>
@@ -136,7 +135,10 @@ export default function AgentPage({ params }: AgentPageProps) {
       </div>
 
       <Tabs
-        className={cn(activeTab === 'chat' && 'flex min-h-0 flex-1 flex-col')}
+        className={cn(
+          'min-h-0',
+          activeTab === 'chat' && 'flex min-h-0 flex-1 flex-col overflow-hidden',
+        )}
         value={activeTab}
         onValueChange={(v) => {
           setActiveTab(v);
@@ -225,7 +227,7 @@ export default function AgentPage({ params }: AgentPageProps) {
           <CronTab name={name} />
         </TabsContent>
 
-        <TabsContent value="chat" className="mt-1 min-h-0 flex-1">
+        <TabsContent value="chat" className="mt-1 min-h-0 flex-1 overflow-hidden">
           <ChatTab name={name} />
         </TabsContent>
 

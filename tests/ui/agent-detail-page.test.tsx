@@ -546,7 +546,7 @@ describe('Agent detail page', () => {
     );
   });
 
-  it('shows auto-allocation guidance when api_server is disabled', async () => {
+  it('keeps the chat tab in a flex overflow-hidden container so the composer can stay pinned', async () => {
     global.fetch = createFetchRouter(
       buildAgentDetailRoutes({ apiServerStatus: 'disabled', partialModeEnabled: false }),
     );
@@ -561,6 +561,12 @@ describe('Agent detail page', () => {
         screen.getByText('To use Chat, you need to enable the api_server platform for this agent.'),
       ).toBeInTheDocument();
     });
+
+    const tabsRoot = screen.getByRole('tablist').parentElement;
+    expect(tabsRoot).toHaveClass('min-h-0', 'flex-1', 'overflow-hidden');
+
+    const chatTabPanel = screen.getByRole('tabpanel');
+    expect(chatTabPanel).toHaveClass('min-h-0', 'flex-1', 'overflow-hidden');
 
     expect(
       screen.getAllByText(
