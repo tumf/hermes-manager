@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process';
 import path from 'node:path';
 
+import * as yaml from 'js-yaml';
 import { NextRequest, NextResponse } from 'next/server';
 
 import {
@@ -12,8 +13,30 @@ import {
   listAgents,
 } from '@/src/lib/agents';
 import { generateAgentId } from '@/src/lib/id';
+import { getMcpTemplate, McpTemplateError, parseMcpTemplateContent } from '@/src/lib/mcp-templates';
 import { resolveTemplateContent } from '@/src/lib/templates';
 import { CreateAgentSchema } from '@/src/lib/validators/agents';
+
+function mergeMcpTemplateIntoConfigYaml(configYaml: string, mcpTemplateName: string): string {
+  const template = getMcpTemplate(mcpTemplateName);
+  if (!template) {
+    throw new McpTemplateError(`MCP template "${mcpTemplateName}" not found`, 404);
+  }
+  const mcpServers = parseMcpTemplateContent(template.content);
+
+  let existingConfig: Record<string, unknown> = {};
+  try {
+    const parsed = yaml.load(configYaml);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      existingConfig = parsed as Record<string, unknown>;
+    }
+  } catch {
+    existingConfig = {};
+  }
+
+  existingConfig.mcp_servers = mcpServers;
+  return yaml.dump(existingConfig, { lineWidth: -1 });
+}
 
 const MAX_ID_RETRIES = 5;
 
@@ -39,6 +62,7 @@ export async function POST(request: NextRequest) {
   let templateNames:
     | { memoryMd?: string; userMd?: string; soulMd?: string; configYaml?: string }
     | undefined;
+  let mcpTemplateName: string | undefined;
   let meta: { name?: string; description?: string; tags?: string[] } | undefined;
   if (request) {
     try {
@@ -47,6 +71,9 @@ export async function POST(request: NextRequest) {
       if (result.success) {
         if (result.data?.templates) {
           templateNames = result.data.templates;
+        }
+        if (result.data?.mcpTemplate) {
+          mcpTemplateName = result.data.mcpTemplate;
         }
         if (result.data?.meta) {
           meta = result.data.meta;
@@ -80,11 +107,18 @@ export async function POST(request: NextRequest) {
   );
   const userMdContent = resolveTemplateContent('memories/USER.md', agentId, templateNames?.userMd);
   const soulSrcMdContent = resolveTemplateContent('SOUL.md', agentId, templateNames?.soulMd);
-  const configYamlContent = resolveTemplateContent(
-    'config.yaml',
-    agentId,
-    templateNames?.configYaml,
-  );
+  let configYamlContent = resolveTemplateContent('config.yaml', agentId, templateNames?.configYaml);
+
+  if (mcpTemplateName) {
+    try {
+      configYamlContent = mergeMcpTemplateIntoConfigYaml(configYamlContent, mcpTemplateName);
+    } catch (error) {
+      if (error instanceof McpTemplateError) {
+        return NextResponse.json({ error: error.message }, { status: error.status });
+      }
+      throw error;
+    }
+  }
 
   let apiServerPort: number;
   try {

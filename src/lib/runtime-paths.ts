@@ -29,6 +29,10 @@ export function getRuntimeTemplatesRootPath(...segments: string[]): string {
   return getRuntimeRootPath('templates', ...segments);
 }
 
+export function getRuntimeMcpTemplatesRootPath(...segments: string[]): string {
+  return getRuntimeRootPath('mcp-templates', ...segments);
+}
+
 export function getRuntimePartialsRootPath(...segments: string[]): string {
   return getRuntimeRootPath('partials', ...segments);
 }
@@ -82,6 +86,7 @@ export function ensureRuntimeDirectories(): void {
   fs.mkdirSync(getRuntimeGlobalsRootPath(), { recursive: true });
   fs.mkdirSync(getRuntimeLogsRootPath(), { recursive: true });
   fs.mkdirSync(getRuntimeTemplatesRootPath(), { recursive: true });
+  fs.mkdirSync(getRuntimeMcpTemplatesRootPath(), { recursive: true });
   fs.mkdirSync(getRuntimePartialsRootPath(), { recursive: true });
   ensureDefaultTemplates();
 }

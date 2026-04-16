@@ -14,6 +14,11 @@
     {
       "files": ["scripts/**/*.js"],
       "env": { "node": true }
+    },
+    {
+      "files": ["tests/**/*.{ts,tsx}"],
+      "env": { "browser": true, "node": true, "es2020": true },
+      "rules": { "no-undef": "off" }
     }
   ]
 }

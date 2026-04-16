@@ -105,6 +105,16 @@ vi.mock('@/src/lib/templates', () => ({
   }),
 }));
 
+// --- mock src/lib/mcp-templates ---
+vi.mock('@/src/lib/mcp-templates', async () => {
+  const actual =
+    await vi.importActual<typeof import('@/src/lib/mcp-templates')>('@/src/lib/mcp-templates');
+  return {
+    ...actual,
+    getMcpTemplate: vi.fn(),
+  };
+});
+
 // --- mock src/lib/id ---
 vi.mock('../../src/lib/id', () => ({
   generateAgentId: vi.fn(() => 'abc1234'),
@@ -244,6 +254,64 @@ describe('POST /api/agents', () => {
 
     const res = await POST(req);
     expect(res.status).toBe(201);
+  });
+
+  it('merges selected MCP template into new agent config.yaml', async () => {
+    const mcpTemplatesLib = await import('@/src/lib/mcp-templates');
+    const agentsLib = await import('@/src/lib/agents');
+    vi.mocked(mcpTemplatesLib.getMcpTemplate).mockReturnValueOnce({
+      name: 'github-default',
+      content: 'github:\n  command: npx\n',
+    });
+
+    const req = makeReq('http://localhost/api/agents', {
+      method: 'POST',
+      body: JSON.stringify({ mcpTemplate: 'github-default' }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(201);
+
+    const call = vi.mocked(agentsLib.createAgent).mock.calls[0];
+    const files = call[1] as { configYaml: string };
+    expect(files.configYaml).toContain('mcp_servers');
+    expect(files.configYaml).toContain('github');
+    expect(files.configYaml).toContain('command');
+    expect(files.configYaml).toContain('npx');
+    expect(files.configYaml).toContain(`name: abc1234`);
+  });
+
+  it('returns 404 when selected MCP template is not found', async () => {
+    const mcpTemplatesLib = await import('@/src/lib/mcp-templates');
+    vi.mocked(mcpTemplatesLib.getMcpTemplate).mockReturnValueOnce(null);
+
+    const req = makeReq('http://localhost/api/agents', {
+      method: 'POST',
+      body: JSON.stringify({ mcpTemplate: 'missing' }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(404);
+  });
+
+  it('leaves config.yaml untouched when no MCP template selected', async () => {
+    const agentsLib = await import('@/src/lib/agents');
+
+    const req = makeReq('http://localhost/api/agents', {
+      method: 'POST',
+      body: JSON.stringify({}),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(201);
+
+    const call = vi.mocked(agentsLib.createAgent).mock.calls[0];
+    const files = call[1] as { configYaml: string };
+    expect(files.configYaml).not.toContain('mcp_servers');
+    expect(files.configYaml).toBe('name: abc1234\n');
   });
 });
 
