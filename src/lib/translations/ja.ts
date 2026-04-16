@@ -13,6 +13,8 @@ export const ja: TranslationDictionary = {
     closeMenu: 'メニューを閉じる',
     toggleTheme: 'テーマ切替',
     languageSwitcher: '言語切替',
+    collapseSidebar: 'サイドバーを閉じる',
+    expandSidebar: 'サイドバーを開く',
   },
   agentsList: {
     title: 'エージェント',
@@ -42,6 +44,10 @@ export const ja: TranslationDictionary = {
     failedToDelete: (agentId) => `"${agentId}" の削除に失敗しました`,
     failedToCopy: 'コピーに失敗しました',
     copiedAgent: (fromId, toId) => `"${fromId}" → "${toId}" にコピーしました`,
+    filterByTags: 'タグで絞り込み',
+    clearFilters: 'フィルタ解除',
+    noMatchingTagsTitle: '該当するエージェントがありません',
+    noMatchingTagsSubtitle: '選択中のタグに一致するエージェントはありません。',
   },
   agentDetail: {
     backToAgents: 'エージェント',

@@ -13,6 +13,8 @@ export const ko: TranslationDictionary = {
     closeMenu: '메뉴 닫기',
     toggleTheme: '테마 전환',
     languageSwitcher: '언어',
+    collapseSidebar: '사이드바 접기',
+    expandSidebar: '사이드바 펼치기',
   },
   agentsList: {
     title: '에이전트',
@@ -42,6 +44,10 @@ export const ko: TranslationDictionary = {
     failedToDelete: (agentId) => `"${agentId}" 삭제에 실패했습니다`,
     failedToCopy: '복사에 실패했습니다',
     copiedAgent: (fromId, toId) => `"${fromId}" \u2192 "${toId}" 복사 완료`,
+    filterByTags: '태그로 필터',
+    clearFilters: '필터 해제',
+    noMatchingTagsTitle: '일치하는 에이전트가 없습니다',
+    noMatchingTagsSubtitle: '선택한 태그와 일치하는 에이전트가 없습니다.',
   },
   agentDetail: {
     backToAgents: '에이전트',

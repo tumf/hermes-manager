@@ -49,6 +49,7 @@ beforeAll(() => {
   }
 });
 
+import { AgentsListContent } from '@/src/components/agents-list-content';
 import { LocaleProvider } from '@/src/components/locale-provider';
 
 const toastMocks = vi.hoisted(() => ({
@@ -90,6 +91,19 @@ const mockAgents = [
     name: '',
     description: '',
     tags: [],
+    memoryRssBytes: null,
+    hermesVersion: null,
+  },
+  {
+    id: 3,
+    agentId: 'gamma33',
+    home: '/tmp/gamma33',
+    label: 'ai.hermes.gateway.gamma33',
+    enabled: false,
+    createdAt: 0,
+    name: 'Gamma Bot',
+    description: 'gamma desc',
+    tags: ['staging'],
     memoryRssBytes: null,
     hermesVersion: null,
   },
@@ -690,5 +704,126 @@ describe('AgentsPage', () => {
       const parsed = JSON.parse(addCall?.[1]?.body as string);
       expect(parsed.mcpTemplate).toBeUndefined();
     });
+  });
+
+  it('filters the agents list to the selected tag', async () => {
+    global.fetch = mockFetch();
+
+    render(
+      <LocaleProvider initialLocale="en">
+        <Home />
+      </LocaleProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Alpha Bot').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Gamma Bot').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('beta222').length).toBeGreaterThan(0);
+    });
+
+    const prodChip = screen.getByRole('button', { name: 'prod', pressed: false });
+    fireEvent.click(prodChip);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'prod', pressed: true })).toBeInTheDocument();
+      expect(screen.queryByText('Gamma Bot')).not.toBeInTheDocument();
+      expect(screen.queryByText('beta222')).not.toBeInTheDocument();
+    });
+
+    expect(screen.getAllByText('Alpha Bot').length).toBeGreaterThan(0);
+  });
+
+  it('uses OR matching when multiple tags are selected', async () => {
+    global.fetch = mockFetch();
+
+    render(
+      <LocaleProvider initialLocale="en">
+        <Home />
+      </LocaleProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Alpha Bot').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Gamma Bot').length).toBeGreaterThan(0);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'prod', pressed: false }));
+    await waitFor(() => {
+      expect(screen.queryByText('Gamma Bot')).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'staging', pressed: false }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'prod', pressed: true })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'staging', pressed: true })).toBeInTheDocument();
+      expect(screen.getAllByText('Alpha Bot').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Gamma Bot').length).toBeGreaterThan(0);
+    });
+
+    expect(screen.queryByText('beta222')).not.toBeInTheDocument();
+  });
+
+  it('restores the full list when filters are cleared', async () => {
+    global.fetch = mockFetch();
+
+    render(
+      <LocaleProvider initialLocale="en">
+        <Home />
+      </LocaleProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Alpha Bot').length).toBeGreaterThan(0);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'staging', pressed: false }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Alpha Bot')).not.toBeInTheDocument();
+      expect(screen.queryByText('beta222')).not.toBeInTheDocument();
+      expect(screen.getAllByText('Gamma Bot').length).toBeGreaterThan(0);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /clear filters/i }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Alpha Bot').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Gamma Bot').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('beta222').length).toBeGreaterThan(0);
+      expect(screen.getByRole('button', { name: 'staging', pressed: false })).toBeInTheDocument();
+    });
+  });
+
+  it('shows empty state and recovery action when the filtered list is empty', async () => {
+    const onClearTags = vi.fn();
+    const onToggleTag = vi.fn();
+
+    render(
+      <LocaleProvider initialLocale="en">
+        <AgentsListContent
+          loading={false}
+          agents={[]}
+          totalAgentCount={2}
+          availableTags={['prod']}
+          selectedTags={['prod']}
+          onToggleTag={onToggleTag}
+          onClearTags={onClearTags}
+          busyMap={{}}
+          onAction={async () => {}}
+          onDelete={async () => {}}
+          onCopy={async () => {}}
+        />
+      </LocaleProvider>,
+    );
+
+    expect(screen.getByText('No matching agents')).toBeInTheDocument();
+    expect(screen.getByText('No agents match the selected tags.')).toBeInTheDocument();
+
+    const clearButtons = screen.getAllByRole('button', { name: /clear filters/i });
+    expect(clearButtons.length).toBeGreaterThan(0);
+    fireEvent.click(clearButtons[clearButtons.length - 1]);
+
+    expect(onClearTags).toHaveBeenCalled();
   });
 });

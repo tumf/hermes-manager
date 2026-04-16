@@ -11,6 +11,8 @@ export interface TranslationDictionary {
     closeMenu: string;
     toggleTheme: string;
     languageSwitcher: string;
+    collapseSidebar: string;
+    expandSidebar: string;
   };
   agentsList: {
     title: string;
@@ -33,6 +35,10 @@ export interface TranslationDictionary {
     failedToDelete: (agentId: string) => string;
     failedToCopy: string;
     copiedAgent: (fromId: string, toId: string) => string;
+    filterByTags: string;
+    clearFilters: string;
+    noMatchingTagsTitle: string;
+    noMatchingTagsSubtitle: string;
   };
   agentDetail: {
     backToAgents: string;

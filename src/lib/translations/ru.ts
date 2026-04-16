@@ -13,6 +13,8 @@ export const ru: TranslationDictionary = {
     closeMenu: 'Закрыть меню',
     toggleTheme: 'Переключить тему',
     languageSwitcher: 'Язык',
+    collapseSidebar: 'Свернуть боковую панель',
+    expandSidebar: 'Развернуть боковую панель',
   },
   agentsList: {
     title: 'Агенты',
@@ -42,6 +44,10 @@ export const ru: TranslationDictionary = {
     failedToDelete: (agentId) => `Не удалось удалить "${agentId}"`,
     failedToCopy: 'Не удалось скопировать',
     copiedAgent: (fromId, toId) => `Скопировано "${fromId}" \u2192 "${toId}"`,
+    filterByTags: 'Фильтр по тегам',
+    clearFilters: 'Сбросить фильтры',
+    noMatchingTagsTitle: 'Нет подходящих агентов',
+    noMatchingTagsSubtitle: 'Нет агентов, соответствующих выбранным тегам.',
   },
   agentDetail: {
     backToAgents: 'Агенты',

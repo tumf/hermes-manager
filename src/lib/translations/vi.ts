@@ -13,6 +13,8 @@ export const vi: TranslationDictionary = {
     closeMenu: 'Đóng menu',
     toggleTheme: 'Chuyển đổi giao diện',
     languageSwitcher: 'Ngôn ngữ',
+    collapseSidebar: 'Thu gọn thanh bên',
+    expandSidebar: 'Mở rộng thanh bên',
   },
   agentsList: {
     title: 'Tác nhân',
@@ -42,6 +44,10 @@ export const vi: TranslationDictionary = {
     failedToDelete: (agentId) => `Không thể xoá "${agentId}"`,
     failedToCopy: 'Không thể sao chép',
     copiedAgent: (fromId, toId) => `Đã sao chép "${fromId}" \u2192 "${toId}"`,
+    filterByTags: 'Lọc theo thẻ',
+    clearFilters: 'Xoá bộ lọc',
+    noMatchingTagsTitle: 'Không có tác nhân phù hợp',
+    noMatchingTagsSubtitle: 'Không có tác nhân nào khớp với các thẻ đã chọn.',
   },
   agentDetail: {
     backToAgents: 'Tác nhân',

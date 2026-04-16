@@ -8,6 +8,8 @@ export const zhCN: TranslationDictionary = {
     closeMenu: '关闭菜单',
     toggleTheme: '切换主题',
     languageSwitcher: '语言',
+    collapseSidebar: '收起侧边栏',
+    expandSidebar: '展开侧边栏',
   },
   agentsList: {
     title: '代理',
@@ -33,6 +35,10 @@ export const zhCN: TranslationDictionary = {
     failedToDelete: (id) => `删除 "${id}" 失败`,
     failedToCopy: '复制失败',
     copiedAgent: (from, to) => `已复制 "${from}" \u2192 "${to}"`,
+    filterByTags: '按标签筛选',
+    clearFilters: '清除筛选',
+    noMatchingTagsTitle: '没有匹配的代理',
+    noMatchingTagsSubtitle: '没有代理匹配所选标签。',
   },
   agentDetail: {
     backToAgents: '代理',

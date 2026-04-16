@@ -1,5 +1,5 @@
 import { Plus, Sparkles } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { FileEditor, type FileEditorHandle } from '@/src/components/agent-file-editor';
@@ -34,6 +34,18 @@ interface PartialEntry {
   usedBy: string[];
 }
 
+const PARTIAL_REFERENCE_PATTERN = /\{\{partial:([a-zA-Z0-9_-]+)\}\}/g;
+
+function collectPartialReferences(source: string): Set<string> {
+  const refs = new Set<string>();
+  for (const match of source.matchAll(PARTIAL_REFERENCE_PATTERN)) {
+    if (match[1]) {
+      refs.add(match[1]);
+    }
+  }
+  return refs;
+}
+
 export function AgentMemoryTab({ name }: AgentMemoryTabProps) {
   const { t } = useLocale();
   const [selectedFile, setSelectedFile] = useState<MemoryFile>(MEMORY_FILES[0]);
@@ -43,9 +55,19 @@ export function AgentMemoryTab({ name }: AgentMemoryTabProps) {
   const [enablingPartials, setEnablingPartials] = useState(false);
   const [partials, setPartials] = useState<PartialEntry[]>([]);
   const [loadingPartials, setLoadingPartials] = useState(false);
+  const [soulSourceContent, setSoulSourceContent] = useState('');
 
   const [assembledVersion, setAssembledVersion] = useState(0);
   const editorRef = useRef<FileEditorHandle>(null);
+
+  const insertedPartialNames = useMemo(
+    () => collectPartialReferences(soulSourceContent),
+    [soulSourceContent],
+  );
+  const availablePartials = useMemo(
+    () => partials.filter((partial) => !insertedPartialNames.has(partial.name)),
+    [partials, insertedPartialNames],
+  );
 
   const soulFilePath = partialModeEnabled ? 'SOUL.src.md' : 'SOUL.md';
   const soulLabel = partialModeEnabled ? 'SOUL.src.md' : 'SOUL.md';
@@ -218,10 +240,10 @@ export function AgentMemoryTab({ name }: AgentMemoryTabProps) {
             </Button>
           </div>
           <div className="flex flex-wrap gap-2">
-            {partials.length === 0 ? (
+            {availablePartials.length === 0 ? (
               <p className="text-xs text-muted-foreground">{t.memory.noPartials}</p>
             ) : (
-              partials.map((partial) => (
+              availablePartials.map((partial) => (
                 <Button
                   key={partial.name}
                   size="sm"
@@ -246,6 +268,9 @@ export function AgentMemoryTab({ name }: AgentMemoryTabProps) {
         label={activeFileLabel}
         onSaveSuccess={
           selectedFile === 'SOUL' && partialModeEnabled ? handleSourceSaveSuccess : undefined
+        }
+        onContentChange={
+          selectedFile === 'SOUL' && partialModeEnabled ? setSoulSourceContent : undefined
         }
         className={
           selectedFile === 'SOUL' && partialModeEnabled

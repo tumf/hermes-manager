@@ -13,6 +13,8 @@ export const de: TranslationDictionary = {
     closeMenu: 'Menü schließen',
     toggleTheme: 'Design umschalten',
     languageSwitcher: 'Sprache',
+    collapseSidebar: 'Seitenleiste einklappen',
+    expandSidebar: 'Seitenleiste ausklappen',
   },
   agentsList: {
     title: 'Agenten',
@@ -42,6 +44,10 @@ export const de: TranslationDictionary = {
     failedToDelete: (agentId) => `"${agentId}" konnte nicht gelöscht werden`,
     failedToCopy: 'Kopieren fehlgeschlagen',
     copiedAgent: (fromId, toId) => `"${fromId}" nach "${toId}" kopiert`,
+    filterByTags: 'Nach Tags filtern',
+    clearFilters: 'Filter zurücksetzen',
+    noMatchingTagsTitle: 'Keine passenden Agenten',
+    noMatchingTagsSubtitle: 'Keine Agenten entsprechen den ausgewählten Tags.',
   },
   agentDetail: {
     backToAgents: 'Agenten',
