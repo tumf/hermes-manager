@@ -65,10 +65,20 @@ describe('AppShell', () => {
     const root = container.firstElementChild;
     const aside = container.querySelector('aside');
     const main = container.querySelector('main');
+    const mainInner = main?.firstElementChild;
 
     expect(root).toHaveClass('h-dvh', 'overflow-hidden');
     expect(aside).toHaveClass('md:sticky', 'md:top-0', 'md:h-dvh');
-    expect(main).toHaveClass('overflow-y-auto');
+    expect(main).toHaveClass('flex', 'min-h-0', 'flex-1', 'flex-col', 'overflow-hidden');
+    expect(mainInner).toHaveClass(
+      'flex',
+      'h-full',
+      'min-h-0',
+      'flex-1',
+      'flex-col',
+      'w-full',
+      'overflow-y-auto',
+    );
     expect(screen.getByRole('link', { name: 'Globals' })).toHaveClass('bg-accent');
   });
 
