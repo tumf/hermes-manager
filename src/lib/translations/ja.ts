@@ -42,6 +42,10 @@ export const ja: TranslationDictionary = {
     failedToDelete: (agentId) => `"${agentId}" の削除に失敗しました`,
     failedToCopy: 'コピーに失敗しました',
     copiedAgent: (fromId, toId) => `"${fromId}" → "${toId}" にコピーしました`,
+    filterByTags: 'タグで絞り込み',
+    clearFilters: 'フィルタ解除',
+    noMatchingTagsTitle: '該当するエージェントがありません',
+    noMatchingTagsSubtitle: '選択中のタグに一致するエージェントはありません。',
   },
   agentDetail: {
     backToAgents: 'エージェント',
