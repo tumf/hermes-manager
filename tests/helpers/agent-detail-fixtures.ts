@@ -9,12 +9,20 @@ export type ApiServerStatus =
   | 'connected'
   | 'error';
 
+export type PartialFixtureEntry = {
+  name: string;
+  content: string;
+  usedBy: string[];
+};
+
 export type AgentDetailFixtureOptions = {
   apiServerStatus?: ApiServerStatus;
   launchdStartError?: string;
   partialModeEnabled?: boolean;
   hermesVersion?: string | null;
   mcpContent?: string;
+  soulSrcContent?: string;
+  partialsList?: PartialFixtureEntry[];
   onFilePut?: (body: { agent: string; path: string; content: string }) => MockResponse | undefined;
   onMcpPut?: (body: { content: string }) => MockResponse | undefined;
 };
@@ -32,9 +40,14 @@ const partialFileContents: Record<string, string> = {
   'memories/MEMORY.md': '# Memory file\n',
   'memories/USER.md': '# User file\n',
   'SOUL.md': '# Assembled Soul\n\n## Shared rules\n',
-  'SOUL.src.md': '# Soul source\n\n{{partial:directory-structure}}\n',
+  'SOUL.src.md': '# Soul source\n\nREPLACE_ME\n',
   'config.yaml': 'name: alpha\n',
 };
+
+const defaultPartialsList: PartialFixtureEntry[] = [
+  { name: 'directory-structure', content: '## Shared rules', usedBy: [] },
+  { name: 'security-rules', content: '## Security rules', usedBy: [] },
+];
 
 export function buildAgentDetailRoutes(options: AgentDetailFixtureOptions = {}): FetchRoute[] {
   const apiServerStatus = options.apiServerStatus ?? 'connected';
@@ -49,6 +62,10 @@ export function buildAgentDetailRoutes(options: AgentDetailFixtureOptions = {}):
   const fileContents: Record<string, string> = {
     ...(partialModeEnabled ? partialFileContents : legacyFileContents),
   };
+  if (options.soulSrcContent !== undefined) {
+    fileContents['SOUL.src.md'] = options.soulSrcContent;
+  }
+  const partialsList = options.partialsList ?? defaultPartialsList;
   let mcpContent = options.mcpContent ?? defaultMcpContent;
 
   return [
@@ -195,13 +212,7 @@ export function buildAgentDetailRoutes(options: AgentDetailFixtureOptions = {}):
     (url, init) => {
       const method = init?.method ?? 'GET';
       if (url === '/api/partials' && method === 'GET') {
-        return jsonOk([
-          {
-            name: 'directory-structure',
-            content: '## Shared rules',
-            usedBy: partialModeEnabled ? ['alpha'] : [],
-          },
-        ]);
+        return jsonOk(partialsList);
       }
       return undefined;
     },
