@@ -8,43 +8,69 @@ import { type ActionType, type Agent, type AgentWithStatus } from '@/src/compone
 import { AgentsListContent } from '@/src/components/agents-list-content';
 import { useLocale } from '@/src/components/locale-provider';
 
+interface BatchStatusEntry {
+  agent: string;
+  running: boolean | null;
+  error?: string;
+}
+
 export default function Home() {
   const { t } = useLocale();
   const [agents, setAgents] = useState<AgentWithStatus[]>([]);
   const [templates, setTemplates] = useState<TemplateEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [statusLoading, setStatusLoading] = useState(false);
   const [busyMap, setBusyMap] = useState<Record<string, ActionType>>({});
+
+  const hydrateStatuses = useCallback(async (agentIds: string[]) => {
+    if (agentIds.length === 0) {
+      return;
+    }
+    setStatusLoading(true);
+    try {
+      const res = await fetch('/api/launchd/statuses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agents: agentIds }),
+      });
+      if (!res.ok) {
+        return;
+      }
+      const data = (await res.json()) as { statuses?: BatchStatusEntry[] };
+      const statuses = data.statuses ?? [];
+      const statusMap = new Map<string, BatchStatusEntry>();
+      for (const entry of statuses) {
+        statusMap.set(entry.agent, entry);
+      }
+      setAgents((prev) =>
+        prev.map((agent) => {
+          const entry = statusMap.get(agent.agentId);
+          if (!entry) {
+            return agent;
+          }
+          return { ...agent, running: entry.running };
+        }),
+      );
+    } catch {
+      // leave agents with previous (or undefined) running state
+    } finally {
+      setStatusLoading(false);
+    }
+  }, []);
 
   const fetchAgents = useCallback(async () => {
     try {
       const res = await fetch('/api/agents');
       if (!res.ok) throw new Error('failed to fetch agents');
       const data: Agent[] = await res.json();
-      const withStatus = await Promise.all(
-        data.map(async (agent) => {
-          try {
-            const statusRes = await fetch('/api/launchd', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ agent: agent.agentId, action: 'status' }),
-            });
-            if (statusRes.ok) {
-              const status = await statusRes.json();
-              return { ...agent, running: Boolean(status.running) };
-            }
-          } catch {
-            // non-critical: show stopped
-          }
-          return { ...agent, running: false };
-        }),
-      );
-      setAgents(withStatus);
+      setAgents(data.map((agent) => ({ ...agent, running: undefined })));
+      void hydrateStatuses(data.map((agent) => agent.agentId));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t.agentsList.failedToLoad);
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, [hydrateStatuses, t]);
 
   const fetchTemplates = useCallback(async () => {
     try {
@@ -139,6 +165,7 @@ export default function Home() {
 
       <AgentsListContent
         loading={loading}
+        statusLoading={statusLoading}
         agents={agents}
         busyMap={busyMap}
         onAction={handleStartStop}

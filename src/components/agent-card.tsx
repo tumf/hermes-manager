@@ -67,7 +67,7 @@ export interface Agent {
 }
 
 export interface AgentWithStatus extends Agent {
-  running?: boolean;
+  running?: boolean | null;
 }
 
 export type ActionType = 'start' | 'stop' | 'restart';
@@ -75,13 +75,22 @@ export type ActionType = 'start' | 'stop' | 'restart';
 interface AgentCardProps {
   agent: AgentWithStatus;
   busy: ActionType | null;
+  statusLoading?: boolean;
   variant: 'mobile' | 'table-row';
   onAction: (agent: AgentWithStatus, action: ActionType) => Promise<void>;
   onDelete: (agentId: string) => Promise<void>;
   onCopy: (fromId: string) => Promise<void>;
 }
 
-export function AgentCard({ agent, busy, variant, onAction, onDelete, onCopy }: AgentCardProps) {
+export function AgentCard({
+  agent,
+  busy,
+  statusLoading = false,
+  variant,
+  onAction,
+  onDelete,
+  onCopy,
+}: AgentCardProps) {
   if (variant === 'table-row') {
     return (
       <tr className="border-b transition-colors hover:bg-muted/30">
@@ -93,7 +102,7 @@ export function AgentCard({ agent, busy, variant, onAction, onDelete, onCopy }: 
           <AgentTags agent={agent} table />
         </td>
         <td className="px-4 py-3">
-          <AgentStatusBadge running={agent.running} busy={busy} />
+          <AgentStatusBadge running={agent.running} busy={busy} statusLoading={statusLoading} />
         </td>
         <td className="px-4 py-3 text-muted-foreground">{formatMemory(agent.memoryRssBytes)}</td>
         <td className="px-4 py-3">
@@ -124,7 +133,7 @@ export function AgentCard({ agent, busy, variant, onAction, onDelete, onCopy }: 
             </div>
           </div>
         </div>
-        <AgentStatusBadge running={agent.running} busy={busy} />
+        <AgentStatusBadge running={agent.running} busy={busy} statusLoading={statusLoading} />
       </CardHeader>
       <CardFooter className="flex-wrap gap-2">
         <AgentActionButtons agent={agent} busy={busy} onAction={onAction} />
@@ -231,26 +240,52 @@ function AgentActionsMenu({
   );
 }
 
-function AgentStatusBadge({ running, busy }: { running?: boolean; busy: ActionType | null }) {
+function AgentStatusBadge({
+  running,
+  busy,
+  statusLoading = false,
+}: {
+  running?: boolean | null;
+  busy: ActionType | null;
+  statusLoading?: boolean;
+}) {
   const transitioning = busy !== null;
+  const isChecking = !transitioning && statusLoading && running === undefined;
+  const isUnknown = !transitioning && !statusLoading && (running === undefined || running === null);
+
+  const variant =
+    transitioning || isChecking || isUnknown ? 'outline' : running ? 'success' : 'muted';
+
+  const label = transitioning
+    ? busy === 'start'
+      ? 'Starting…'
+      : busy === 'stop'
+        ? 'Stopping…'
+        : 'Restarting…'
+    : isChecking
+      ? 'Checking…'
+      : isUnknown
+        ? 'Unknown'
+        : running
+          ? 'Running'
+          : 'Stopped';
+
   return (
-    <Badge variant={transitioning ? 'outline' : running ? 'success' : 'muted'}>
-      {transitioning ? (
+    <Badge variant={variant}>
+      {transitioning || isChecking ? (
         <Loader2 className="mr-1.5 size-3 animate-spin" />
       ) : (
         <span
-          className={`mr-1.5 inline-block size-1.5 rounded-full ${running ? 'bg-green-600 dark:bg-green-400' : 'bg-muted-foreground/50'}`}
+          className={`mr-1.5 inline-block size-1.5 rounded-full ${
+            running
+              ? 'bg-green-600 dark:bg-green-400'
+              : isUnknown
+                ? 'bg-muted-foreground/30'
+                : 'bg-muted-foreground/50'
+          }`}
         />
       )}
-      {busy === 'start'
-        ? 'Starting…'
-        : busy === 'stop'
-          ? 'Stopping…'
-          : busy === 'restart'
-            ? 'Restarting…'
-            : running
-              ? 'Running'
-              : 'Stopped'}
+      {label}
     </Badge>
   );
 }

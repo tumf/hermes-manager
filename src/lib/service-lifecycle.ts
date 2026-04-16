@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
-import { allocateApiServerPort, readAgentMeta, updateAgentMeta } from '@/src/lib/agents';
+import { allocateApiServerPort, getAgent, readAgentMeta, updateAgentMeta } from '@/src/lib/agents';
 import type { ExecResult } from '@/src/lib/launchd';
 import type { ServiceAdapter } from '@/src/lib/service-manager';
 import { getServiceAdapter } from '@/src/lib/service-manager';
@@ -185,6 +185,72 @@ export async function ensureAgentApiServerPort(agentName: string): Promise<numbe
 
   const refreshedMeta = await readAgentMeta(agentName);
   return typeof refreshedMeta?.apiServerPort === 'number' ? refreshedMeta.apiServerPort : null;
+}
+
+export interface BatchStatusEntry {
+  agent: string;
+  running: boolean | null;
+  pid: number | null;
+  code: number | null;
+  manager: string | null;
+  error?: string;
+}
+
+export async function resolveAgentStatuses(agentNames: string[]): Promise<BatchStatusEntry[]> {
+  const unique = Array.from(new Set(agentNames));
+  return Promise.all(
+    unique.map(async (agentName): Promise<BatchStatusEntry> => {
+      const agentRow = await getAgent(agentName);
+      if (!agentRow) {
+        return {
+          agent: agentName,
+          running: null,
+          pid: null,
+          code: null,
+          manager: null,
+          error: `Agent "${agentName}" not found`,
+        };
+      }
+
+      try {
+        const result = await executeServiceAction({
+          agentName,
+          home: agentRow.home,
+          label: agentRow.label,
+          apiServerPort: agentRow.apiServerPort,
+          action: 'status',
+        });
+
+        if (result.action !== 'status') {
+          return {
+            agent: agentName,
+            running: null,
+            pid: null,
+            code: null,
+            manager: null,
+            error: 'Unexpected action result',
+          };
+        }
+
+        return {
+          agent: agentName,
+          running: result.running,
+          pid: result.pid,
+          code: result.code,
+          manager: result.manager,
+        };
+      } catch (err) {
+        return {
+          agent: agentName,
+          running: null,
+          pid: null,
+          code: null,
+          manager: null,
+          error: err instanceof Error ? err.message : 'Failed to resolve status',
+        };
+      }
+    }),
+  );
 }
 
 export async function executeServiceAction(
