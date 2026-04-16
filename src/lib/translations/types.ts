@@ -33,6 +33,10 @@ export interface TranslationDictionary {
     failedToDelete: (agentId: string) => string;
     failedToCopy: string;
     copiedAgent: (fromId: string, toId: string) => string;
+    filterByTags: string;
+    clearFilters: string;
+    noMatchingTagsTitle: string;
+    noMatchingTagsSubtitle: string;
   };
   agentDetail: {
     backToAgents: string;

@@ -42,6 +42,10 @@ export const ptBR: TranslationDictionary = {
     failedToDelete: (agentId) => `Falha ao excluir "${agentId}"`,
     failedToCopy: 'Falha ao copiar',
     copiedAgent: (fromId, toId) => `Copiado "${fromId}" \u2192 "${toId}"`,
+    filterByTags: 'Filtrar por tags',
+    clearFilters: 'Limpar filtros',
+    noMatchingTagsTitle: 'Nenhum agente correspondente',
+    noMatchingTagsSubtitle: 'Nenhum agente corresponde às tags selecionadas.',
   },
   agentDetail: {
     backToAgents: 'Agentes',

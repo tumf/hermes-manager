@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { AddAgentDialog, type TemplateEntry } from '@/src/components/add-agent-dialog';
@@ -21,6 +21,33 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [statusLoading, setStatusLoading] = useState(false);
   const [busyMap, setBusyMap] = useState<Record<string, ActionType>>({});
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+
+  const availableTags = useMemo(() => {
+    const set = new Set<string>();
+    for (const agent of agents) {
+      for (const tag of agent.tags ?? []) {
+        if (tag) set.add(tag);
+      }
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [agents]);
+
+  const filteredAgents = useMemo(() => {
+    if (selectedTags.length === 0) return agents;
+    const selected = new Set(selectedTags);
+    return agents.filter((agent) => (agent.tags ?? []).some((tag) => selected.has(tag)));
+  }, [agents, selectedTags]);
+
+  const toggleTag = useCallback((tag: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(tag) ? prev.filter((item) => item !== tag) : [...prev, tag],
+    );
+  }, []);
+
+  const clearTags = useCallback(() => {
+    setSelectedTags([]);
+  }, []);
 
   const hydrateStatuses = useCallback(async (agentIds: string[]) => {
     if (agentIds.length === 0) {
@@ -166,7 +193,12 @@ export default function Home() {
       <AgentsListContent
         loading={loading}
         statusLoading={statusLoading}
-        agents={agents}
+        agents={filteredAgents}
+        totalAgentCount={agents.length}
+        availableTags={availableTags}
+        selectedTags={selectedTags}
+        onToggleTag={toggleTag}
+        onClearTags={clearTags}
         busyMap={busyMap}
         onAction={handleStartStop}
         onDelete={handleDelete}

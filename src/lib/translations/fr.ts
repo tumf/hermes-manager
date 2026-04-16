@@ -42,6 +42,10 @@ export const fr: TranslationDictionary = {
     failedToDelete: (agentId) => `Échec de la suppression de « ${agentId} »`,
     failedToCopy: 'Échec de la copie',
     copiedAgent: (fromId, toId) => `« ${fromId} » copié vers « ${toId} »`,
+    filterByTags: 'Filtrer par tags',
+    clearFilters: 'Effacer les filtres',
+    noMatchingTagsTitle: 'Aucun agent correspondant',
+    noMatchingTagsSubtitle: 'Aucun agent ne correspond aux tags sélectionnés.',
   },
   agentDetail: {
     backToAgents: 'Agents',

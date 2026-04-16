@@ -33,6 +33,10 @@ export const zhCN: TranslationDictionary = {
     failedToDelete: (id) => `删除 "${id}" 失败`,
     failedToCopy: '复制失败',
     copiedAgent: (from, to) => `已复制 "${from}" \u2192 "${to}"`,
+    filterByTags: '按标签筛选',
+    clearFilters: '清除筛选',
+    noMatchingTagsTitle: '没有匹配的代理',
+    noMatchingTagsSubtitle: '没有代理匹配所选标签。',
   },
   agentDetail: {
     backToAgents: '代理',
