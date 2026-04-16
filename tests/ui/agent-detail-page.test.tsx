@@ -156,21 +156,18 @@ describe('Agent detail page', () => {
     });
   });
 
-  it('shows MCP tab and loads only MCP fragment', async () => {
-    global.fetch = createFetchRouter(
-      buildAgentDetailRoutes({
-        mcpContent: ['github:', '  command: npx', '  args:', '    - -y'].join('\n'),
-      }),
-    );
-    window.history.replaceState(null, '', '#mcp');
+  it('shows Config tab and loads config.yaml editor without MCP tab', async () => {
+    global.fetch = createFetchRouter(buildAgentDetailRoutes());
+    window.history.replaceState(null, '', '/agents/alpha#config');
 
     await act(async () => {
       renderPage('alpha');
     });
 
     await waitFor(() => {
-      expect(screen.getByRole('tab', { name: 'MCP' })).toBeInTheDocument();
-      expect(screen.getByRole('textbox', { name: 'Edit MCP servers YAML' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Config' })).toBeInTheDocument();
+      expect(screen.queryByRole('tab', { name: 'MCP' })).not.toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: 'Edit config.yaml' })).toBeInTheDocument();
     });
 
     const calls = (global.fetch as ReturnType<typeof createFetchRouter>).mock.calls as [
@@ -179,183 +176,10 @@ describe('Agent detail page', () => {
     ][];
     expect(
       calls.some(
-        ([url, init]) => url === '/api/agents/alpha/mcp' && (init?.method ?? 'GET') === 'GET',
+        ([url, init]) =>
+          url === '/api/files?agent=alpha&path=config.yaml' && (init?.method ?? 'GET') === 'GET',
       ),
     ).toBe(true);
-    expect(screen.queryByDisplayValue(/name: alpha/)).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Hermes MCP Guide' })).toHaveAttribute(
-      'href',
-      'https://hermes-agent.nousresearch.com/docs/guides/use-mcp-with-hermes',
-    );
-  });
-
-  it('saves MCP fragment through dedicated API', async () => {
-    const fetchMock = createFetchRouter(
-      buildAgentDetailRoutes({ mcpContent: 'github:\n  command: npx' }),
-    );
-    global.fetch = fetchMock;
-    window.history.replaceState(null, '', '#mcp');
-
-    await act(async () => {
-      renderPage('alpha');
-    });
-
-    const editor = (await screen.findByRole('textbox', {
-      name: 'Edit MCP servers YAML',
-    })) as HTMLTextAreaElement;
-    fireEvent.change(editor, {
-      target: { value: 'github:\n  command: uvx\n  args:\n    - mcp-server-git' },
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-
-    await waitFor(() => {
-      const calls = fetchMock.mock.calls as [string, { method?: string; body?: string }?][];
-      const putCall = calls.find(
-        ([url, init]) => url === '/api/agents/alpha/mcp' && init?.method === 'PUT',
-      );
-      expect(putCall).toBeDefined();
-      expect(JSON.parse(putCall?.[1]?.body ?? '{}')).toEqual({
-        content: 'github:\n  command: uvx\n  args:\n    - mcp-server-git',
-      });
-    });
-
-    expect(toast.success).toHaveBeenCalledWith('MCP config saved');
-  });
-
-  it('shows MCP save error from API response', async () => {
-    global.fetch = createFetchRouter(
-      buildAgentDetailRoutes({
-        onMcpPut: () => ({ ok: false, json: async () => ({ error: 'Invalid YAML: broken' }) }),
-      }),
-    );
-    window.history.replaceState(null, '', '#mcp');
-
-    await act(async () => {
-      renderPage('alpha');
-    });
-
-    const editor = (await screen.findByRole('textbox', {
-      name: 'Edit MCP servers YAML',
-    })) as HTMLTextAreaElement;
-    fireEvent.change(editor, { target: { value: 'broken' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('Invalid YAML: broken');
-    });
-  });
-
-  it('MCP tab applies a saved template into the editor', async () => {
-    global.fetch = createFetchRouter(
-      buildAgentDetailRoutes({
-        mcpContent: '',
-        mcpTemplates: [{ name: 'github-default', content: 'github:\n  command: npx\n' }],
-      }),
-    );
-    window.history.replaceState(null, '', '#mcp');
-
-    await act(async () => {
-      renderPage('alpha');
-    });
-
-    const editor = (await screen.findByRole('textbox', {
-      name: 'Edit MCP servers YAML',
-    })) as HTMLTextAreaElement;
-    expect(editor.value).toBe('');
-
-    const combo = await screen.findByRole('combobox', { name: /mcp templates/i });
-    fireEvent.keyDown(combo, { key: 'Enter' });
-    await waitFor(() => {
-      expect(screen.getByRole('option', { name: 'github-default' })).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByRole('option', { name: 'github-default' }));
-
-    fireEvent.click(screen.getByRole('button', { name: /^apply$/i }));
-
-    await waitFor(() => {
-      expect(editor.value).toBe('github:\n  command: npx\n');
-    });
-    expect(toast.success).toHaveBeenCalledWith('Applied MCP template "github-default"');
-  });
-
-  it('MCP tab can save current fragment as a named template', async () => {
-    const postBodies: { name: string; content: string }[] = [];
-    const fetchMock = createFetchRouter(
-      buildAgentDetailRoutes({
-        mcpContent: 'github:\n  command: npx\n',
-        mcpTemplates: [],
-        onMcpTemplatePost: (body) => {
-          postBodies.push(body);
-          return { ok: true, json: async () => ({ name: body.name, content: body.content }) };
-        },
-      }),
-    );
-    global.fetch = fetchMock;
-    window.history.replaceState(null, '', '#mcp');
-
-    await act(async () => {
-      renderPage('alpha');
-    });
-
-    await screen.findByRole('textbox', { name: 'Edit MCP servers YAML' });
-    fireEvent.click(screen.getByRole('button', { name: /save as template/i }));
-
-    const nameInput = (await screen.findByLabelText(/template name/i)) as HTMLInputElement;
-    fireEvent.change(nameInput, { target: { value: 'github-default' } });
-
-    const dialogSave = screen
-      .getAllByRole('button', { name: /^save$/i })
-      .find((button) => button.getAttribute('type') === 'submit');
-    expect(dialogSave).toBeDefined();
-    if (dialogSave) fireEvent.click(dialogSave);
-
-    await waitFor(() => {
-      expect(postBodies).toHaveLength(1);
-      expect(postBodies[0]).toEqual({
-        name: 'github-default',
-        content: 'github:\n  command: npx\n',
-      });
-    });
-    expect(toast.success).toHaveBeenCalledWith('Saved MCP template "github-default"');
-  });
-
-  it('MCP tab can delete a saved template', async () => {
-    const deletedNames: string[] = [];
-    const fetchMock = createFetchRouter(
-      buildAgentDetailRoutes({
-        mcpContent: '',
-        mcpTemplates: [{ name: 'github-default', content: 'github:\n  command: npx\n' }],
-        onMcpTemplateDelete: (name) => {
-          deletedNames.push(name);
-          return { ok: true, json: async () => ({ ok: true }) };
-        },
-      }),
-    );
-    global.fetch = fetchMock;
-    window.history.replaceState(null, '', '#mcp');
-
-    await act(async () => {
-      renderPage('alpha');
-    });
-
-    const combo = await screen.findByRole('combobox', { name: /mcp templates/i });
-    fireEvent.keyDown(combo, { key: 'Enter' });
-    await waitFor(() => {
-      expect(screen.getByRole('option', { name: 'github-default' })).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByRole('option', { name: 'github-default' }));
-
-    fireEvent.click(screen.getByRole('button', { name: /delete template/i }));
-
-    const confirmButtons = await screen.findAllByRole('button', { name: /delete template/i });
-    const confirm = confirmButtons[confirmButtons.length - 1];
-    fireEvent.click(confirm);
-
-    await waitFor(() => {
-      expect(deletedNames).toEqual(['github-default']);
-    });
-    expect(toast.success).toHaveBeenCalledWith('Deleted MCP template "github-default"');
   });
 
   it('shows legacy SOUL editor by default', async () => {
@@ -753,86 +577,18 @@ describe('Agent detail page', () => {
     expect(screen.getByText(/hermes gateway restart/)).toBeInTheDocument();
   });
 
-  it('renders MCP tab and loads MCP fragment', async () => {
-    const mcpYaml = 'filesystem:\n  command: npx\n';
-    global.fetch = createFetchRouter(buildAgentDetailRoutes({ mcpContent: mcpYaml }));
-    window.history.replaceState(null, '', '/agents/alpha#mcp');
+  it('keeps Config as the only MCP editing path', async () => {
+    global.fetch = createFetchRouter(buildAgentDetailRoutes());
+    window.history.replaceState(null, '', '/agents/alpha#config');
 
     await act(async () => {
       renderPage('alpha');
     });
 
     await waitFor(() => {
-      const editor = screen.getByRole('textbox', {
-        name: 'Edit MCP servers YAML',
-      }) as HTMLTextAreaElement;
-      expect(editor.value).toBe(mcpYaml);
-    });
-  });
-
-  it('saves MCP configuration via dedicated API', async () => {
-    const fetchMock = createFetchRouter(
-      buildAgentDetailRoutes({ mcpContent: 'old:\n  command: echo\n' }),
-    );
-    global.fetch = fetchMock;
-    window.history.replaceState(null, '', '/agents/alpha#mcp');
-
-    await act(async () => {
-      renderPage('alpha');
-    });
-
-    await waitFor(() => {
-      expect(screen.getByRole('textbox', { name: 'Edit MCP servers YAML' })).toBeInTheDocument();
-    });
-
-    fireEvent.change(screen.getByRole('textbox', { name: 'Edit MCP servers YAML' }), {
-      target: { value: 'new:\n  command: test\n' },
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
-
-    await waitFor(() => {
-      const calls = fetchMock.mock.calls as [string, { method?: string; body?: string }?][];
-      const putCall = calls.find(
-        ([url, init]) => url === '/api/agents/alpha/mcp' && init?.method === 'PUT',
-      );
-      expect(putCall).toBeDefined();
-      const body = JSON.parse(putCall![1]?.body ?? '{}');
-      expect(body.content).toBe('new:\n  command: test\n');
-    });
-
-    expect(toast.success).toHaveBeenCalledWith('MCP config saved');
-  });
-
-  it('displays validation error when MCP save fails', async () => {
-    const fetchMock = createFetchRouter(
-      buildAgentDetailRoutes({
-        mcpContent: '',
-        onMcpPut: () => ({
-          ok: false,
-          json: async () => ({ error: 'Invalid YAML: unexpected end of stream' }),
-        }),
-      }),
-    );
-    global.fetch = fetchMock;
-    window.history.replaceState(null, '', '/agents/alpha#mcp');
-
-    await act(async () => {
-      renderPage('alpha');
-    });
-
-    await waitFor(() => {
-      expect(screen.getByRole('textbox', { name: 'Edit MCP servers YAML' })).toBeInTheDocument();
-    });
-
-    fireEvent.change(screen.getByRole('textbox', { name: 'Edit MCP servers YAML' }), {
-      target: { value: 'bad: yaml: content:\n' },
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
-
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('Invalid YAML: unexpected end of stream');
+      expect(screen.getByRole('tab', { name: 'Config' })).toBeInTheDocument();
+      expect(screen.queryByRole('tab', { name: 'MCP' })).not.toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: 'Edit config.yaml' })).toBeInTheDocument();
     });
   });
 

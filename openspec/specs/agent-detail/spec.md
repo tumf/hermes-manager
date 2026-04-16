@@ -57,50 +57,21 @@ Agent 詳細ページは、対象 agent の識別情報とあわせて Hermes �
 
 ## Requirements
 
-### Requirement: Agent detail exposes a dedicated MCP configuration workflow
+### Requirement: Agent detail uses Config as the canonical runtime configuration surface
 
-Agent detail pages SHALL provide a dedicated MCP configuration workflow for each managed agent, separate from the raw `config.yaml` editor, so operators can review and update `mcp_servers` safely.
+Agent detail pages SHALL expose runtime configuration through the `Config` tab’s `config.yaml` editor and SHALL NOT provide a separate MCP-only editing tab.
 
-#### Scenario: MCP tab is visible in agent detail
+#### Scenario: MCP tab is not shown in agent detail
 
 **Given** an operator opens an agent detail page
 **When** the detail tabs render
-**Then** an `MCP` tab is shown alongside the existing management tabs
+**Then** an `MCP` tab is not shown alongside the management tabs
+**And** a `Config` tab is shown
 
-#### Scenario: MCP tab loads only mcp_servers fragment
+#### Scenario: Config tab is the MCP editing path
 
 **Given** agent `alpha` has `mcp_servers` configured in `config.yaml`
-**When** the operator opens the `MCP` tab
-**Then** the editor loads only the serialized `mcp_servers` fragment
-**And** it does not expose unrelated `config.yaml` sections in that editor
-
-#### Scenario: MCP tab provides upstream docs link
-
-**Given** the operator opens the `MCP` tab
-**When** the help text is displayed
-**Then** the UI includes a direct link to the Hermes MCP usage guide
-**And** the link opens the upstream documentation URL
-
-### Requirement: Agent detail exposes a dedicated MCP configuration workflow
-
-Agent detail pages SHALL provide a dedicated MCP configuration workflow for each managed agent, separate from the raw `config.yaml` editor, so operators can review, update, and reuse `mcp_servers` safely.
-
-#### Scenario: MCP tab applies a saved template into the editor
-
-**Given** saved MCP template `github-default` exists
-**And** an operator opens agent `alpha`'s `MCP` tab
-**When** the operator applies template `github-default`
-**Then** the MCP editor is populated with that template's serialized `mcp_servers` fragment
-**And** unrelated `config.yaml` sections are not exposed in the MCP editor
-
-#### Scenario: MCP tab can save current fragment as template
-
-**Given** an operator has valid MCP YAML in agent `alpha`'s `MCP` editor
-**When** the operator saves it as template `github-default`
-**Then** a reusable MCP template named `github-default` is created
-
-#### Scenario: MCP tab can delete a saved template
-
-**Given** saved MCP template `github-default` exists
-**When** the operator deletes template `github-default` from the `MCP` tab workflow
-**Then** that template is removed from the MCP template store
+**When** the operator opens the `Config` tab
+**Then** the editor loads `config.yaml`
+**And** the operator can review and edit `mcp_servers` within that file alongside other runtime config keys
+**And** no separate MCP-only editor surface is presented

@@ -46,15 +46,13 @@
 
 - FR-1 Agents API: GET/POST/DELETE/copy と `PUT /api/agents/{id}/meta`（id 自動生成 `[0-9a-z]{7}`、標準ファイル作成、DB 登録、POST はボディ不要。新規作成と copy は必ず 8642〜8699 の未使用 `apiServerPort` を agent metadata に保持する。`PUT /api/agents/{id}/meta` は name/description/tags 更新時に既存 `apiServerPort` を保持し、当該 agent を `allowedAgents` に含む利用側 agent の generated `SOUL.md` も再 assemble する）
 - FR-2 Service API: install/uninstall/start/stop/restart/status（child_process.execFile、stdout/err/code返却。エンドポイントは `/api/launchd` を互換パスとして維持。macOS では launchctl + plist、Linux では systemctl --user + systemd unit を使用。install/start/restart 時に `apiServerPort` 未設定の legacy/misconfigured agent は未使用ポートを補完保存してからサービス定義を再生成する）。fleet UI 向けには `POST /api/launchd/statuses` を追加し、複数 agent の running/pid/code/manager を 1 リクエストで返せる batch status endpoint を提供する。
-- FR-3 Files API: SOUL.md / SOUL.src.md / memories/MEMORY.md / memories/USER.md / config.yaml の read/put（YAML 構文検証、原子書き込み、partial mode では SOUL.src.md 保存時に SOUL.md を再生成）
-- FR-3b MCP API: `GET/PUT /api/agents/{id}/mcp` により `config.yaml` の `mcp_servers` フラグメントを read/write できる。PUT は YAML mapping/object のみ受け付け、空文字保存時は `mcp_servers` を削除し、他の config keys は保持する
-- FR-3c MCP Templates API: `GET/POST/PUT/DELETE /api/mcp-templates` により再利用可能な `mcp_servers` フラグメント（named MCP template）を CRUD できる。保存時は YAML mapping/object のみ受け付け、非 object YAML は 422 を返す。テンプレート名は既存テンプレートと同じ `[a-zA-Z0-9_-]+` ルールを適用し、filesystem traversal を防止する。エージェント作成時は `mcpTemplate` をオプションで指定でき、指定時は scaffolding 後に `config.yaml` の `mcp_servers` へ merge する。MCP タブは template 一覧取得・apply・save as template・delete に対応し、apply 時は editor 値のみ更新し、保存は既存の MCP 保存フローで行う（`mcp_servers` 以外の config keys は保持する）
+- FR-3 Files API: SOUL.md / SOUL.src.md / memories/MEMORY.md / memories/USER.md / config.yaml の read/put（YAML 構文検証、原子書き込み、partial mode では SOUL.src.md 保存時に SOUL.md を再生成。MCP サーバ設定を含む Hermes runtime config も `config.yaml` 全体編集で管理する）
 - FR-4 Env API: agent .env CRUD、resolved（global+agent マージ）、各変数に `visibility`（plain/secure）を保持し secure は管理表示でマスク
 - FR-5 Globals API: CRUD、`visibility`（plain/secure）を保持、secure は管理表示でマスクしつつ runtime/globals/.env は実値で再生成
 - FR-6 Skills API: skills tree 取得（~/.agents/skills、階層構造、SKILL.md 検出）、コピー管理（相対パス保持で `{HERMES_HOME}/skills` にディレクトリをコピー/削除、既存コピー検出）
 - FR-7 Logs API: 読み取り（tail）、SSE で追尾
 - FR-8 Cron API: jobs.json CRUD、pause/resume/run action、output ファイル閲覧（GET/POST/PUT/DELETE、原子書き込み）
-- FR-9 UI: Agents 一覧（起動/停止/状態表示/追加/削除/コピー。process-level 情報として Memory を表示し、Hermes バージョンは表示しない。一覧本体の描画は service status の取得に依存せず、`POST /api/launchd/statuses` による非同期 batch hydrate で status を反映し、取得中は loading 表示、取得失敗は Unknown fallback を出す。metadata tags を使ったクライアント側タグ絞り込み UI を提供し、役割 / 環境単位でインベントリを絞れるようにする。絞り込みは OR 条件、0 件時は復旧導線を表示する）、詳細タブ UI（Metadata/Memory/Config/MCP/Env/Skills/Delegation/Cron/Logs/Chat。ヘッダー情報エリアに Hermes バージョンを表示し、未取得時は `--` を表示）。MCP タブは `mcp_servers` 専用 YAML editor と upstream MCP ガイドへのリンクを提供し、`config.yaml` 全体編集とは分離する。Chat / Logs / Cron / Skills / Env / MCP は agent 運用と診断を支援する範囲で提供し、単一 agent 向け総合 dashboard の feature parity は要件としない。Chat タブはセッション一覧の上に検索ボックスを配置し、`state.db` の FTS5 インデックスを使用した per-agent メッセージ全文検索を提供する（`GET /api/agents/{id}/sessions/search?q=...`）。検索結果からセッションを開き、該当メッセージのコンテキストを確認できる。Globals UI
+- FR-9 UI: Agents 一覧（起動/停止/状態表示/追加/削除/コピー。process-level 情報として Memory を表示し、Hermes バージョンは表示しない。一覧本体の描画は service status の取得に依存せず、`POST /api/launchd/statuses` による非同期 batch hydrate で status を反映し、取得中は loading 表示、取得失敗は Unknown fallback を出す。metadata tags を使ったクライアント側タグ絞り込み UI を提供し、役割 / 環境単位でインベントリを絞れるようにする。絞り込みは OR 条件、0 件時は復旧導線を表示する）、詳細タブ UI（Metadata/Memory/Config/Env/Skills/Delegation/Cron/Logs/Chat。ヘッダー情報エリアに Hermes バージョンを表示し、未取得時は `--` を表示）。MCP サーバ設定は Config タブの `config.yaml` 編集で扱う。Chat / Logs / Cron / Skills / Env / Config は agent 運用と診断を支援する範囲で提供し、単一 agent 向け総合 dashboard の feature parity は要件としない。Chat タブはセッション一覧の上に検索ボックスを配置し、`state.db` の FTS5 インデックスを使用した per-agent メッセージ全文検索を提供する（`GET /api/agents/{id}/sessions/search?q=...`）。検索結果からセッションを開き、該当メッセージのコンテキストを確認できる。Globals UI
 - FR-10 Templates API: テンプレート CRUD（GET/POST/PUT/DELETE）、fileType + name で UNIQUE 制約。エージェント作成時のテンプレート選択、default テンプレートへのフォールバック、既存ファイルからの Save as Template
 - FR-11 Partials API: 共有 partial CRUD（`/api/partials`）、`runtime/partials/{name}.md` 保存、`usedBy` 逆引き、利用中削除の 409 拒否、partial 更新時の参照 agent `SOUL.md` 再生成
 - FR-12 Memory UI partial mode: agent ごとの partial mode 有効化（`SOUL.md`→`SOUL.src.md`）、partial 挿入、assembled `SOUL.md` の read-only 確認
@@ -96,13 +94,13 @@
 
 ## 11. API 高レベル一覧
 
-- /api/agents, /api/agents/{id}/delegation, /api/agents/{id}/dispatch, /api/agents/{id}/mcp, /api/launchd, /api/launchd/statuses, /api/files, /api/partials, /api/env, /api/env/resolved, /api/globals, /api/skills/\*, /api/logs, /api/logs/stream, /api/cron, /api/cron/action, /api/cron/output, /api/templates, /api/mcp-templates
+- /api/agents, /api/agents/{id}/delegation, /api/agents/{id}/dispatch, /api/launchd, /api/launchd/statuses, /api/files, /api/partials, /api/env, /api/env/resolved, /api/globals, /api/skills/\*, /api/logs, /api/logs/stream, /api/cron, /api/cron/action, /api/cron/output, /api/templates
 
 ## 12. UI 概要
 
-- / Agents 一覧（Add Agent ダイアログにテンプレート選択と MCP template 選択を含む）
+- / Agents 一覧（Add Agent ダイアログに app-managed file のテンプレート選択を含む）
 - /globals グローバル変数
 - /templates テンプレート管理（fileType 別グループ、追加/編集/削除）
 - /partials 共有 partial 管理（一覧・作成・編集・削除・usedBy 表示）
-- /agents/[id] Metadata / Memory / Config / MCP / Env / Skills / Cron / Chat / Logs タブ（Memory タブは partial mode 有効化、SOUL.src.md 編集、assembled SOUL.md 確認、Save as Template ボタン付き。MCP タブは mcp_servers 専用 YAML editor と upstream docs リンク、および MCP template 一覧・apply・save as template・delete アクションを提供）
+- /agents/[id] Metadata / Memory / Config / Env / Skills / Cron / Chat / Logs タブ（Memory タブは partial mode 有効化、SOUL.src.md 編集、assembled SOUL.md 確認、Save as Template ボタン付き。MCP サーバ設定は Config タブの `config.yaml` 編集で扱う）
 - 全ページ共通: Language Switcher による多言語 UI 切替（10 言語対応）

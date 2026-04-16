@@ -48,7 +48,6 @@ export interface TranslationDictionary {
       metadata: string;
       memory: string;
       config: string;
-      mcp: string;
       env: string;
       skills: string;
       delegation: string;
@@ -56,38 +55,6 @@ export interface TranslationDictionary {
       chat: string;
       logs: string;
     };
-  };
-  mcp: {
-    title: string;
-    description: string;
-    helper: string;
-    docsLink: string;
-    fragmentLabel: string;
-    editorAriaLabel: string;
-    unsaved: string;
-    save: string;
-    saving: string;
-    saved: string;
-    failedToLoad: string;
-    failedToSave: string;
-    templatesSection: string;
-    noTemplate: string;
-    applyTemplate: string;
-    saveAsTemplate: string;
-    deleteTemplate: string;
-    templateNameLabel: string;
-    templateNamePlaceholder: string;
-    saveTemplateDialogTitle: string;
-    saveTemplateDialogDescription: string;
-    confirmDeleteTemplate: (name: string) => string;
-    templateApplied: (name: string) => string;
-    templateSaved: (name: string) => string;
-    templateDeleted: (name: string) => string;
-    failedLoadTemplates: string;
-    failedApplyTemplate: string;
-    failedSaveTemplate: string;
-    failedDeleteTemplate: string;
-    cancel: string;
   };
   agentStatus: {
     starting: string;
@@ -118,8 +85,6 @@ export interface TranslationDictionary {
       userMdTemplate: string;
       soulMdTemplate: string;
       configYamlTemplate: string;
-      mcpTemplate: string;
-      mcpTemplateNone: string;
     };
     unsavedChanges: {
       title: string;

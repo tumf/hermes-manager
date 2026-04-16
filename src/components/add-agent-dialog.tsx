@@ -30,25 +30,13 @@ export interface TemplateEntry {
   files: string[];
 }
 
-export interface McpTemplateEntry {
-  name: string;
-}
-
-const NO_MCP_TEMPLATE_VALUE = '__none__';
-
 interface AddAgentDialogProps {
   templates: TemplateEntry[];
-  mcpTemplates?: McpTemplateEntry[];
   onOpen: () => void;
   onCreated: () => Promise<void>;
 }
 
-export function AddAgentDialog({
-  templates,
-  mcpTemplates = [],
-  onOpen,
-  onCreated,
-}: AddAgentDialogProps) {
+export function AddAgentDialog({ templates, onOpen, onCreated }: AddAgentDialogProps) {
   const { t } = useLocale();
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
@@ -56,7 +44,6 @@ export function AddAgentDialog({
   const [templateUserMd, setTemplateUserMd] = useState('default');
   const [templateSoulMd, setTemplateSoulMd] = useState('default');
   const [templateConfigYaml, setTemplateConfigYaml] = useState('default');
-  const [selectedMcpTemplate, setSelectedMcpTemplate] = useState<string>(NO_MCP_TEMPLATE_VALUE);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [tags, setTags] = useState('');
@@ -83,7 +70,6 @@ export function AddAgentDialog({
     setTemplateUserMd('default');
     setTemplateSoulMd('default');
     setTemplateConfigYaml('default');
-    setSelectedMcpTemplate(NO_MCP_TEMPLATE_VALUE);
     setName('');
     setDescription('');
     setTags('');
@@ -100,9 +86,6 @@ export function AddAgentDialog({
 
       const body: Record<string, unknown> = {};
       if (Object.keys(selectedTemplates).length > 0) body.templates = selectedTemplates;
-      if (selectedMcpTemplate !== NO_MCP_TEMPLATE_VALUE) {
-        body.mcpTemplate = selectedMcpTemplate;
-      }
 
       const parsedTags = tags
         .split(',')
@@ -211,14 +194,6 @@ export function AddAgentDialog({
               onValueChange={setTemplateConfigYaml}
               templates={configYamlTemplates}
             />
-            <McpTemplateSelect
-              label={t.dialogs.addAgent.mcpTemplate}
-              noneLabel={t.dialogs.addAgent.mcpTemplateNone}
-              id="tpl-mcp"
-              value={selectedMcpTemplate}
-              onValueChange={setSelectedMcpTemplate}
-              templates={mcpTemplates}
-            />
           </div>
           <DialogFooter className="mt-6">
             <DialogClose asChild>
@@ -295,43 +270,6 @@ function TemplateSelect({
                 {template.name}
               </SelectItem>
             ))}
-        </SelectContent>
-      </Select>
-    </div>
-  );
-}
-
-function McpTemplateSelect({
-  label,
-  noneLabel,
-  id,
-  value,
-  onValueChange,
-  templates,
-}: {
-  label: string;
-  noneLabel: string;
-  id: string;
-  value: string;
-  onValueChange: (value: string) => void;
-  templates: McpTemplateEntry[];
-}) {
-  return (
-    <div>
-      <label htmlFor={id} className="mb-1.5 block text-sm font-medium">
-        {label}
-      </label>
-      <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger id={id}>
-          <SelectValue placeholder={noneLabel} />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={NO_MCP_TEMPLATE_VALUE}>{noneLabel}</SelectItem>
-          {templates.map((template) => (
-            <SelectItem key={template.name} value={template.name}>
-              {template.name}
-            </SelectItem>
-          ))}
         </SelectContent>
       </Select>
     </div>

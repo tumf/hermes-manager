@@ -20,15 +20,9 @@ export type AgentDetailFixtureOptions = {
   launchdStartError?: string;
   partialModeEnabled?: boolean;
   hermesVersion?: string | null;
-  mcpContent?: string;
-  mcpTemplates?: { name: string; content?: string }[];
   soulSrcContent?: string;
   partialsList?: PartialFixtureEntry[];
   onFilePut?: (body: { agent: string; path: string; content: string }) => MockResponse | undefined;
-  onMcpPut?: (body: { content: string }) => MockResponse | undefined;
-  onMcpTemplatePost?: (body: { name: string; content: string }) => MockResponse | undefined;
-  onMcpTemplatePut?: (body: { name: string; content: string }) => MockResponse | undefined;
-  onMcpTemplateDelete?: (name: string) => MockResponse | undefined;
 };
 
 const legacyFileContents: Record<string, string> = {
@@ -37,8 +31,6 @@ const legacyFileContents: Record<string, string> = {
   'SOUL.md': '# Soul file\n',
   'config.yaml': 'name: alpha\n',
 };
-
-const defaultMcpContent = ['github:', '  command: npx', '  args:', '    - -y'].join('\n');
 
 const partialFileContents: Record<string, string> = {
   'memories/MEMORY.md': '# Memory file\n',
@@ -70,8 +62,6 @@ export function buildAgentDetailRoutes(options: AgentDetailFixtureOptions = {}):
     fileContents['SOUL.src.md'] = options.soulSrcContent;
   }
   const partialsList = options.partialsList ?? defaultPartialsList;
-  let mcpContent = options.mcpContent ?? defaultMcpContent;
-
   return [
     (url, init) => {
       const method = init?.method ?? 'GET';
@@ -102,61 +92,6 @@ export function buildAgentDetailRoutes(options: AgentDetailFixtureOptions = {}):
           apiServerPort: apiServerAvailable ? 19001 : null,
           partialModeEnabled,
         });
-      }
-      return undefined;
-    },
-    (url, init) => {
-      const method = init?.method ?? 'GET';
-      if (url === '/api/agents/alpha/mcp' && method === 'GET') {
-        return jsonOk({
-          content: options.mcpContent ?? '',
-          docsUrl: 'https://hermes-agent.nousresearch.com/docs/guides/use-mcp-with-hermes',
-        });
-      }
-      if (url === '/api/agents/alpha/mcp' && method === 'PUT') {
-        if (options.onMcpPut) {
-          const body = JSON.parse(init?.body ?? '{}') as { content: string };
-          const result = options.onMcpPut(body);
-          if (result !== undefined) return result;
-        }
-        return jsonOk({ ok: true });
-      }
-      if (url === '/api/mcp-templates' && method === 'GET') {
-        return jsonOk((options.mcpTemplates ?? []).map((entry) => ({ name: entry.name })));
-      }
-      if (url.startsWith('/api/mcp-templates?') && method === 'GET') {
-        const query = new URLSearchParams(url.split('?')[1] ?? '');
-        const name = query.get('name') ?? '';
-        const found = (options.mcpTemplates ?? []).find((entry) => entry.name === name);
-        if (!found) {
-          return { ok: false, status: 404, json: async () => ({ error: 'not found' }) };
-        }
-        return jsonOk({ name, content: found.content ?? '' });
-      }
-      if (url === '/api/mcp-templates' && method === 'POST') {
-        if (options.onMcpTemplatePost) {
-          const body = JSON.parse(init?.body ?? '{}') as { name: string; content: string };
-          const result = options.onMcpTemplatePost(body);
-          if (result !== undefined) return result;
-        }
-        return jsonOk({ ok: true });
-      }
-      if (url === '/api/mcp-templates' && method === 'PUT') {
-        if (options.onMcpTemplatePut) {
-          const body = JSON.parse(init?.body ?? '{}') as { name: string; content: string };
-          const result = options.onMcpTemplatePut(body);
-          if (result !== undefined) return result;
-        }
-        return jsonOk({ ok: true });
-      }
-      if (url.startsWith('/api/mcp-templates?') && method === 'DELETE') {
-        const query = new URLSearchParams(url.split('?')[1] ?? '');
-        const name = query.get('name') ?? '';
-        if (options.onMcpTemplateDelete) {
-          const result = options.onMcpTemplateDelete(name);
-          if (result !== undefined) return result;
-        }
-        return jsonOk({ ok: true });
       }
       return undefined;
     },
@@ -195,25 +130,6 @@ export function buildAgentDetailRoutes(options: AgentDetailFixtureOptions = {}):
         if (body.path === 'SOUL.src.md') {
           fileContents['SOUL.md'] = `# Assembled from source\n\n${body.content}`;
         }
-        return jsonOk({ ok: true });
-      }
-      return undefined;
-    },
-    (url, init) => {
-      const method = init?.method ?? 'GET';
-      if (url === '/api/agents/alpha/mcp' && method === 'GET') {
-        return jsonOk({
-          content: mcpContent,
-          docsUrl: 'https://hermes-agent.nousresearch.com/docs/guides/use-mcp-with-hermes',
-        });
-      }
-      if (url === '/api/agents/alpha/mcp' && method === 'PUT') {
-        const body = JSON.parse(init?.body ?? '{}') as { content: string };
-        if (options.onMcpPut) {
-          const result = options.onMcpPut(body);
-          if (result !== undefined) return result;
-        }
-        mcpContent = body.content;
         return jsonOk({ ok: true });
       }
       return undefined;

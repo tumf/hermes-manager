@@ -241,5 +241,5 @@ Retained browser-driven tests MUST prefer waiting on observable application stat
 
 **Given** Hermes Manager が agent detail で MCP 設定を提供する
 **When** 開発者が `docs/requirements.md` と `docs/design.md` を確認する
-**Then** `mcp_servers` を管理する dedicated workflow と関連 API が記載されている
+**Then** MCP サーバ設定を `config.yaml` 編集で扱う運用が記載されている
 **And** `config.yaml` が canonical storage であることが明記されている
