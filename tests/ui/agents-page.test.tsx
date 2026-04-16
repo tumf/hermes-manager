@@ -1,8 +1,53 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import '@testing-library/jest-dom';
+
+beforeAll(() => {
+  global.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+  Element.prototype.scrollIntoView = vi.fn();
+  if (typeof (globalThis as { PointerEvent?: unknown }).PointerEvent === 'undefined') {
+    (globalThis as { PointerEvent: unknown }).PointerEvent = class PointerEvent extends MouseEvent {
+      pointerId: number;
+      width: number;
+      height: number;
+      pressure: number;
+      tangentialPressure: number;
+      tiltX: number;
+      tiltY: number;
+      twist: number;
+      pointerType: string;
+      isPrimary: boolean;
+      constructor(type: string, init?: PointerEventInit) {
+        super(type, init);
+        this.pointerId = init?.pointerId ?? 0;
+        this.width = init?.width ?? 0;
+        this.height = init?.height ?? 0;
+        this.pressure = init?.pressure ?? 0;
+        this.tangentialPressure = init?.tangentialPressure ?? 0;
+        this.tiltX = init?.tiltX ?? 0;
+        this.tiltY = init?.tiltY ?? 0;
+        this.twist = init?.twist ?? 0;
+        this.pointerType = init?.pointerType ?? '';
+        this.isPrimary = init?.isPrimary ?? false;
+      }
+    };
+  }
+  if (!Element.prototype.hasPointerCapture) {
+    Element.prototype.hasPointerCapture = () => false;
+  }
+  if (!Element.prototype.setPointerCapture) {
+    Element.prototype.setPointerCapture = () => {};
+  }
+  if (!Element.prototype.releasePointerCapture) {
+    Element.prototype.releasePointerCapture = () => {};
+  }
+});
 
 import { LocaleProvider } from '@/src/components/locale-provider';
 
@@ -167,6 +212,12 @@ function mockFetch(overrides: Record<string, unknown> = {}) {
         // GET /api/templates
         if ((url as string).startsWith('/api/templates') && method === 'GET') {
           return { ok: true, json: async () => [] };
+        }
+
+        // GET /api/mcp-templates
+        if ((url as string).startsWith('/api/mcp-templates') && method === 'GET') {
+          const mcpTemplates = overrides.mcpTemplates ?? [];
+          return { ok: true, json: async () => mcpTemplates };
         }
 
         return { ok: true, json: async () => ({}) };
@@ -564,6 +615,80 @@ describe('AgentsPage', () => {
       const calls = fetchMock.mock.calls as [string, { method?: string; body?: string }?][];
       const addCall = calls.find(([url, init]) => url === '/api/agents' && init?.method === 'POST');
       expect(addCall).toBeDefined();
+    });
+  });
+
+  it('Add Agent dialog shows MCP template selector and submits chosen template', async () => {
+    const fetchMock = mockFetch({
+      mcpTemplates: [{ name: 'github-default' }, { name: 'filesystem-default' }],
+    });
+    global.fetch = fetchMock;
+
+    render(
+      <LocaleProvider initialLocale="en">
+        <Home />
+      </LocaleProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /add agent/i })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('button', { name: /add agent/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('combobox', { name: /mcp template/i })).toBeInTheDocument();
+    });
+
+    // Select MCP template via keyboard navigation (Radix Select is keyboard-accessible)
+    const mcpCombo = screen.getByRole('combobox', { name: /mcp template/i });
+    fireEvent.keyDown(mcpCombo, { key: 'Enter' });
+
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: 'github-default' })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('option', { name: 'github-default' }));
+
+    fireEvent.click(screen.getByRole('button', { name: /create/i }));
+
+    await waitFor(() => {
+      const calls = fetchMock.mock.calls as [string, { method?: string; body?: string }?][];
+      const addCall = calls.find(([url, init]) => url === '/api/agents' && init?.method === 'POST');
+      expect(addCall).toBeDefined();
+      const parsed = JSON.parse(addCall?.[1]?.body as string);
+      expect(parsed.mcpTemplate).toBe('github-default');
+    });
+  });
+
+  it('Add Agent dialog omits mcpTemplate when none selected', async () => {
+    const fetchMock = mockFetch({
+      mcpTemplates: [{ name: 'github-default' }],
+    });
+    global.fetch = fetchMock;
+
+    render(
+      <LocaleProvider initialLocale="en">
+        <Home />
+      </LocaleProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /add agent/i })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('button', { name: /add agent/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /create/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /create/i }));
+
+    await waitFor(() => {
+      const calls = fetchMock.mock.calls as [string, { method?: string; body?: string }?][];
+      const addCall = calls.find(([url, init]) => url === '/api/agents' && init?.method === 'POST');
+      expect(addCall).toBeDefined();
+      const parsed = JSON.parse(addCall?.[1]?.body as string);
+      expect(parsed.mcpTemplate).toBeUndefined();
     });
   });
 });

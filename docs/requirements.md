@@ -48,6 +48,7 @@
 - FR-2 Service API: install/uninstall/start/stop/restart/status（child_process.execFile、stdout/err/code返却。エンドポイントは `/api/launchd` を互換パスとして維持。macOS では launchctl + plist、Linux では systemctl --user + systemd unit を使用。install/start/restart 時に `apiServerPort` 未設定の legacy/misconfigured agent は未使用ポートを補完保存してからサービス定義を再生成する）。fleet UI 向けには `POST /api/launchd/statuses` を追加し、複数 agent の running/pid/code/manager を 1 リクエストで返せる batch status endpoint を提供する。
 - FR-3 Files API: SOUL.md / SOUL.src.md / memories/MEMORY.md / memories/USER.md / config.yaml の read/put（YAML 構文検証、原子書き込み、partial mode では SOUL.src.md 保存時に SOUL.md を再生成）
 - FR-3b MCP API: `GET/PUT /api/agents/{id}/mcp` により `config.yaml` の `mcp_servers` フラグメントを read/write できる。PUT は YAML mapping/object のみ受け付け、空文字保存時は `mcp_servers` を削除し、他の config keys は保持する
+- FR-3c MCP Templates API: `GET/POST/PUT/DELETE /api/mcp-templates` により再利用可能な `mcp_servers` フラグメント（named MCP template）を CRUD できる。保存時は YAML mapping/object のみ受け付け、非 object YAML は 422 を返す。テンプレート名は既存テンプレートと同じ `[a-zA-Z0-9_-]+` ルールを適用し、filesystem traversal を防止する。エージェント作成時は `mcpTemplate` をオプションで指定でき、指定時は scaffolding 後に `config.yaml` の `mcp_servers` へ merge する。MCP タブは template 一覧取得・apply・save as template・delete に対応し、apply 時は editor 値のみ更新し、保存は既存の MCP 保存フローで行う（`mcp_servers` 以外の config keys は保持する）
 - FR-4 Env API: agent .env CRUD、resolved（global+agent マージ）、各変数に `visibility`（plain/secure）を保持し secure は管理表示でマスク
 - FR-5 Globals API: CRUD、`visibility`（plain/secure）を保持、secure は管理表示でマスクしつつ runtime/globals/.env は実値で再生成
 - FR-6 Skills API: skills tree 取得（~/.agents/skills、階層構造、SKILL.md 検出）、コピー管理（相対パス保持で `{HERMES_HOME}/skills` にディレクトリをコピー/削除、既存コピー検出）
@@ -94,13 +95,13 @@
 
 ## 11. API 高レベル一覧
 
-- /api/agents, /api/agents/{id}/delegation, /api/agents/{id}/dispatch, /api/agents/{id}/mcp, /api/launchd, /api/launchd/statuses, /api/files, /api/partials, /api/env, /api/env/resolved, /api/globals, /api/skills/\*, /api/logs, /api/logs/stream, /api/cron, /api/cron/action, /api/cron/output, /api/templates
+- /api/agents, /api/agents/{id}/delegation, /api/agents/{id}/dispatch, /api/agents/{id}/mcp, /api/launchd, /api/launchd/statuses, /api/files, /api/partials, /api/env, /api/env/resolved, /api/globals, /api/skills/\*, /api/logs, /api/logs/stream, /api/cron, /api/cron/action, /api/cron/output, /api/templates, /api/mcp-templates
 
 ## 12. UI 概要
 
-- / Agents 一覧（Add Agent ダイアログにテンプレート選択を含む）
+- / Agents 一覧（Add Agent ダイアログにテンプレート選択と MCP template 選択を含む）
 - /globals グローバル変数
 - /templates テンプレート管理（fileType 別グループ、追加/編集/削除）
 - /partials 共有 partial 管理（一覧・作成・編集・削除・usedBy 表示）
-- /agents/[id] Metadata / Memory / Config / MCP / Env / Skills / Cron / Chat / Logs タブ（Memory タブは partial mode 有効化、SOUL.src.md 編集、assembled SOUL.md 確認、Save as Template ボタン付き。MCP タブは mcp_servers 専用 YAML editor と upstream docs リンクを提供）
+- /agents/[id] Metadata / Memory / Config / MCP / Env / Skills / Cron / Chat / Logs タブ（Memory タブは partial mode 有効化、SOUL.src.md 編集、assembled SOUL.md 確認、Save as Template ボタン付き。MCP タブは mcp_servers 専用 YAML editor と upstream docs リンク、および MCP template 一覧・apply・save as template・delete アクションを提供）
 - 全ページ共通: Language Switcher による多言語 UI 切替（10 言語対応）

@@ -1,9 +1,54 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React, { Suspense } from 'react';
 import { toast } from 'sonner';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import '@testing-library/jest-dom';
+
+beforeAll(() => {
+  global.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+  Element.prototype.scrollIntoView = vi.fn();
+  if (typeof (globalThis as { PointerEvent?: unknown }).PointerEvent === 'undefined') {
+    (globalThis as { PointerEvent: unknown }).PointerEvent = class PointerEvent extends MouseEvent {
+      pointerId: number;
+      width: number;
+      height: number;
+      pressure: number;
+      tangentialPressure: number;
+      tiltX: number;
+      tiltY: number;
+      twist: number;
+      pointerType: string;
+      isPrimary: boolean;
+      constructor(type: string, init?: PointerEventInit) {
+        super(type, init);
+        this.pointerId = init?.pointerId ?? 0;
+        this.width = init?.width ?? 0;
+        this.height = init?.height ?? 0;
+        this.pressure = init?.pressure ?? 0;
+        this.tangentialPressure = init?.tangentialPressure ?? 0;
+        this.tiltX = init?.tiltX ?? 0;
+        this.tiltY = init?.tiltY ?? 0;
+        this.twist = init?.twist ?? 0;
+        this.pointerType = init?.pointerType ?? '';
+        this.isPrimary = init?.isPrimary ?? false;
+      }
+    };
+  }
+  if (!Element.prototype.hasPointerCapture) {
+    Element.prototype.hasPointerCapture = () => false;
+  }
+  if (!Element.prototype.setPointerCapture) {
+    Element.prototype.setPointerCapture = () => {};
+  }
+  if (!Element.prototype.releasePointerCapture) {
+    Element.prototype.releasePointerCapture = () => {};
+  }
+});
 
 import { buildAgentDetailRoutes } from '../helpers/agent-detail-fixtures';
 import { createFetchRouter } from '../helpers/fetch-router';
@@ -199,6 +244,120 @@ describe('Agent detail page', () => {
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith('Invalid YAML: broken');
     });
+  });
+
+  it('MCP tab applies a saved template into the editor', async () => {
+    global.fetch = createFetchRouter(
+      buildAgentDetailRoutes({
+        mcpContent: '',
+        mcpTemplates: [
+          { name: 'github-default', content: 'github:\n  command: npx\n' },
+        ],
+      }),
+    );
+    window.history.replaceState(null, '', '#mcp');
+
+    await act(async () => {
+      renderPage('alpha');
+    });
+
+    const editor = (await screen.findByRole('textbox', {
+      name: 'Edit MCP servers YAML',
+    })) as HTMLTextAreaElement;
+    expect(editor.value).toBe('');
+
+    const combo = await screen.findByRole('combobox', { name: /mcp templates/i });
+    fireEvent.keyDown(combo, { key: 'Enter' });
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: 'github-default' })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('option', { name: 'github-default' }));
+
+    fireEvent.click(screen.getByRole('button', { name: /^apply$/i }));
+
+    await waitFor(() => {
+      expect(editor.value).toBe('github:\n  command: npx\n');
+    });
+    expect(toast.success).toHaveBeenCalledWith('Applied MCP template "github-default"');
+  });
+
+  it('MCP tab can save current fragment as a named template', async () => {
+    const postBodies: { name: string; content: string }[] = [];
+    const fetchMock = createFetchRouter(
+      buildAgentDetailRoutes({
+        mcpContent: 'github:\n  command: npx\n',
+        mcpTemplates: [],
+        onMcpTemplatePost: (body) => {
+          postBodies.push(body);
+          return { ok: true, json: async () => ({ name: body.name, content: body.content }) };
+        },
+      }),
+    );
+    global.fetch = fetchMock;
+    window.history.replaceState(null, '', '#mcp');
+
+    await act(async () => {
+      renderPage('alpha');
+    });
+
+    await screen.findByRole('textbox', { name: 'Edit MCP servers YAML' });
+    fireEvent.click(screen.getByRole('button', { name: /save as template/i }));
+
+    const nameInput = (await screen.findByLabelText(/template name/i)) as HTMLInputElement;
+    fireEvent.change(nameInput, { target: { value: 'github-default' } });
+
+    const dialogSave = screen
+      .getAllByRole('button', { name: /^save$/i })
+      .find((button) => button.getAttribute('type') === 'submit');
+    expect(dialogSave).toBeDefined();
+    if (dialogSave) fireEvent.click(dialogSave);
+
+    await waitFor(() => {
+      expect(postBodies).toHaveLength(1);
+      expect(postBodies[0]).toEqual({
+        name: 'github-default',
+        content: 'github:\n  command: npx\n',
+      });
+    });
+    expect(toast.success).toHaveBeenCalledWith('Saved MCP template "github-default"');
+  });
+
+  it('MCP tab can delete a saved template', async () => {
+    const deletedNames: string[] = [];
+    const fetchMock = createFetchRouter(
+      buildAgentDetailRoutes({
+        mcpContent: '',
+        mcpTemplates: [{ name: 'github-default', content: 'github:\n  command: npx\n' }],
+        onMcpTemplateDelete: (name) => {
+          deletedNames.push(name);
+          return { ok: true, json: async () => ({ ok: true }) };
+        },
+      }),
+    );
+    global.fetch = fetchMock;
+    window.history.replaceState(null, '', '#mcp');
+
+    await act(async () => {
+      renderPage('alpha');
+    });
+
+    const combo = await screen.findByRole('combobox', { name: /mcp templates/i });
+    fireEvent.keyDown(combo, { key: 'Enter' });
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: 'github-default' })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('option', { name: 'github-default' }));
+
+    fireEvent.click(screen.getByRole('button', { name: /delete template/i }));
+
+    const confirmButtons = await screen.findAllByRole('button', { name: /delete template/i });
+    const confirm = confirmButtons[confirmButtons.length - 1];
+    fireEvent.click(confirm);
+
+    await waitFor(() => {
+      expect(deletedNames).toEqual(['github-default']);
+    });
+    expect(toast.success).toHaveBeenCalledWith('Deleted MCP template "github-default"');
   });
 
   it('shows legacy SOUL editor by default', async () => {
@@ -423,7 +582,7 @@ describe('Agent detail page', () => {
     });
 
     // Save
-    fireEvent.click(screen.getByRole('button', { name: /Save/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
 
     // After save, the assembled preview should remount with updated content
     await waitFor(() => {
@@ -467,7 +626,7 @@ describe('Agent detail page', () => {
     });
 
     // Attempt save
-    fireEvent.click(screen.getByRole('button', { name: /Save/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith('Failed to save SOUL.src.md');
@@ -559,7 +718,7 @@ describe('Agent detail page', () => {
       target: { value: 'new:\n  command: test\n' },
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /Save/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
 
     await waitFor(() => {
       const calls = fetchMock.mock.calls as [string, { method?: string; body?: string }?][];
@@ -599,7 +758,7 @@ describe('Agent detail page', () => {
       target: { value: 'bad: yaml: content:\n' },
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /Save/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith('Invalid YAML: unexpected end of stream');

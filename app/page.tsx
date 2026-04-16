@@ -3,7 +3,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
-import { AddAgentDialog, type TemplateEntry } from '@/src/components/add-agent-dialog';
+import {
+  AddAgentDialog,
+  type McpTemplateEntry,
+  type TemplateEntry,
+} from '@/src/components/add-agent-dialog';
 import { type ActionType, type Agent, type AgentWithStatus } from '@/src/components/agent-card';
 import { AgentsListContent } from '@/src/components/agents-list-content';
 import { useLocale } from '@/src/components/locale-provider';
@@ -18,6 +22,7 @@ export default function Home() {
   const { t } = useLocale();
   const [agents, setAgents] = useState<AgentWithStatus[]>([]);
   const [templates, setTemplates] = useState<TemplateEntry[]>([]);
+  const [mcpTemplates, setMcpTemplates] = useState<McpTemplateEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusLoading, setStatusLoading] = useState(false);
   const [busyMap, setBusyMap] = useState<Record<string, ActionType>>({});
@@ -81,10 +86,20 @@ export default function Home() {
     }
   }, []);
 
+  const fetchMcpTemplates = useCallback(async () => {
+    try {
+      const res = await fetch('/api/mcp-templates');
+      if (res.ok) setMcpTemplates(await res.json());
+    } catch {
+      // non-critical: add dialog still works without MCP template options
+    }
+  }, []);
+
   useEffect(() => {
     void fetchAgents();
     void fetchTemplates();
-  }, [fetchAgents, fetchTemplates]);
+    void fetchMcpTemplates();
+  }, [fetchAgents, fetchTemplates, fetchMcpTemplates]);
 
   async function handleStartStop(agent: AgentWithStatus, action: ActionType) {
     setBusyMap((prev) => ({ ...prev, [agent.agentId]: action }));
@@ -159,7 +174,11 @@ export default function Home() {
 
       <AddAgentDialog
         templates={templates}
-        onOpen={() => void fetchTemplates()}
+        mcpTemplates={mcpTemplates}
+        onOpen={() => {
+          void fetchTemplates();
+          void fetchMcpTemplates();
+        }}
         onCreated={fetchAgents}
       />
 

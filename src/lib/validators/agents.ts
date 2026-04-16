@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 const agentIdRegex = /^[a-zA-Z0-9_-]+$/;
+const mcpTemplateNameRegex = /^[a-zA-Z0-9_-]+$/;
 
 const AgentMetaSchema = z.object({
   name: z.string().max(120).optional(),
@@ -21,6 +22,13 @@ export const CreateAgentSchema = z
         soulMd: z.string().optional(),
         configYaml: z.string().optional(),
       })
+      .optional(),
+    mcpTemplate: z
+      .string()
+      .regex(
+        mcpTemplateNameRegex,
+        'MCP template name must only contain alphanumeric, underscore, or hyphen characters',
+      )
       .optional(),
     meta: AgentMetaSchema.optional(),
   })
