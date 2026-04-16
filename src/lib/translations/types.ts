@@ -11,6 +11,8 @@ export interface TranslationDictionary {
     closeMenu: string;
     toggleTheme: string;
     languageSwitcher: string;
+    collapseSidebar: string;
+    expandSidebar: string;
   };
   agentsList: {
     title: string;

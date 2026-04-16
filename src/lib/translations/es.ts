@@ -13,6 +13,8 @@ export const es: TranslationDictionary = {
     closeMenu: 'Cerrar menú',
     toggleTheme: 'Cambiar tema',
     languageSwitcher: 'Idioma',
+    collapseSidebar: 'Contraer barra lateral',
+    expandSidebar: 'Expandir barra lateral',
   },
   agentsList: {
     title: 'Agentes',

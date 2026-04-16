@@ -59,6 +59,7 @@
 - FR-12 Memory UI partial mode: agent ごとの partial mode 有効化（`SOUL.md`→`SOUL.src.md`）、partial 挿入、assembled `SOUL.md` の read-only 確認
 - FR-14 Dispatch API: per-agent managed dispatch policy CRUD（`GET/PUT /api/agents/{id}/delegation`）。canonical storage は `dispatch.json`、`dispatch.json` 不在時は legacy `delegation.json` を読み取りフォールバック。allowedAgents/maxHop を保存し、cycle 検出で reject。policy 保存時に managed dispatch skill を自動 equip/unequip し、`SOUL.md` に machine-generated subagent YAML block を再生成。生成 guidance は dispatch-first wording を使用し、built-in `delegate_task` を別機構として扱い、listed managed subagent が明確に適合する場合は dispatch を優先し、child が完了しない場合の parent 再 ownership セマンティクスを明記。`POST /api/agents/{id}/dispatch` で source agent policy を検証後 target agent api_server に proxy dispatch
 - FR-13 UI ローカライゼーション: `ja`, `en`, `zh-CN`, `es`, `pt-BR`, `vi`, `ko`, `ru`, `fr`, `de` の 10 言語をサポート。共有 app shell にLanguage Switcherを配置し、選択した locale を localStorage に永続化。`document.documentElement.lang` を有効 locale に同期。翻訳キー未定義時はデフォルト locale にフォールバック。operator 生成コンテンツ（SOUL.md、メモリ、ログ、チャット転写等）は翻訳対象外
+- FR-15 App Shell ergonomics: デスクトップの左サイドバーは viewport 内に固定され、右メイン領域だけが独立スクロールする。サイドバーは icon-only rail へ折りたため、折りたたみ状態は localStorage に永続化される。モバイルでは既存の Sheet ベースメニューを維持する
 
 ## 6. 非機能要件（NFR）
 

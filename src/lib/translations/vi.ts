@@ -13,6 +13,8 @@ export const vi: TranslationDictionary = {
     closeMenu: 'Đóng menu',
     toggleTheme: 'Chuyển đổi giao diện',
     languageSwitcher: 'Ngôn ngữ',
+    collapseSidebar: 'Thu gọn thanh bên',
+    expandSidebar: 'Mở rộng thanh bên',
   },
   agentsList: {
     title: 'Tác nhân',

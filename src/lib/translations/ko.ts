@@ -13,6 +13,8 @@ export const ko: TranslationDictionary = {
     closeMenu: '메뉴 닫기',
     toggleTheme: '테마 전환',
     languageSwitcher: '언어',
+    collapseSidebar: '사이드바 접기',
+    expandSidebar: '사이드바 펼치기',
   },
   agentsList: {
     title: '에이전트',

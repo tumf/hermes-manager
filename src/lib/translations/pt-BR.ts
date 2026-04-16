@@ -13,6 +13,8 @@ export const ptBR: TranslationDictionary = {
     closeMenu: 'Fechar menu',
     toggleTheme: 'Alternar tema',
     languageSwitcher: 'Idioma',
+    collapseSidebar: 'Recolher barra lateral',
+    expandSidebar: 'Expandir barra lateral',
   },
   agentsList: {
     title: 'Agentes',

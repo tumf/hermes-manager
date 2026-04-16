@@ -8,6 +8,8 @@ export const zhCN: TranslationDictionary = {
     closeMenu: '关闭菜单',
     toggleTheme: '切换主题',
     languageSwitcher: '语言',
+    collapseSidebar: '收起侧边栏',
+    expandSidebar: '展开侧边栏',
   },
   agentsList: {
     title: '代理',

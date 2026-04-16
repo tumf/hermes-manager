@@ -13,6 +13,8 @@ export const ru: TranslationDictionary = {
     closeMenu: 'Закрыть меню',
     toggleTheme: 'Переключить тему',
     languageSwitcher: 'Язык',
+    collapseSidebar: 'Свернуть боковую панель',
+    expandSidebar: 'Развернуть боковую панель',
   },
   agentsList: {
     title: 'Агенты',

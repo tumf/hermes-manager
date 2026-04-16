@@ -13,6 +13,8 @@ export const ja: TranslationDictionary = {
     closeMenu: 'メニューを閉じる',
     toggleTheme: 'テーマ切替',
     languageSwitcher: '言語切替',
+    collapseSidebar: 'サイドバーを閉じる',
+    expandSidebar: 'サイドバーを開く',
   },
   agentsList: {
     title: 'エージェント',
