@@ -8,6 +8,7 @@ import { getRuntimeAgentsRootPath } from './runtime-paths';
 
 export const MANAGED_DISPATCH_SKILL = 'hermes-manager-subagent-dispatch';
 export const MANAGED_DISPATCH_SCRIPT_NAME = 'dispatch-subagent.sh';
+export const MANAGED_DISPATCH_SCRIPT_RELATIVE_PATH = `scripts/${MANAGED_DISPATCH_SCRIPT_NAME}`;
 
 export const DelegationPolicySchema = z.object({
   allowedAgents: z.array(z.string().min(1)).default([]),
@@ -195,7 +196,8 @@ export function buildManagedDispatchSkillContent(): string {
     '## Rules',
     '',
     '- Only dispatch to agents listed in the machine-generated `subagents` block in your current `SOUL.md`.',
-    `- Use the bundled sibling script \`${MANAGED_DISPATCH_SCRIPT_NAME}\` for cross-agent dispatch.`,
+    `- Use the bundled script installed at \`$HERMES_HOME/skills/${MANAGED_DISPATCH_SKILL}/${MANAGED_DISPATCH_SCRIPT_RELATIVE_PATH}\` for cross-agent dispatch.`,
+    '- Do not assume the current working directory is the managed skill directory.',
     '- Never invoke another agent directly with raw `hermes chat`.',
     '- Prefer dispatching to a listed managed subagent when one is a clear fit, rather than self-handling that slice of work.',
     '- Do not dispatch if no listed subagent is a clear fit for the task.',
@@ -225,20 +227,22 @@ export function buildManagedDispatchSkillContent(): string {
     '1. Check whether any listed managed subagent is a clear fit for a slice of the task.',
     '2. If yes, choose exactly one listed subagent that best matches that slice of work.',
     '3. Write a focused request with goal, context, constraints, and expected output.',
-    `4. Pipe that request into the bundled sibling script \`${MANAGED_DISPATCH_SCRIPT_NAME} <target-agent-id>\`.`,
+    `4. Pipe that request into the bundled script path \`"$HERMES_HOME/skills/${MANAGED_DISPATCH_SKILL}/${MANAGED_DISPATCH_SCRIPT_RELATIVE_PATH}" <target-agent-id>\`.`,
     '5. Never target an agent that is not listed in the generated `subagents.agents` block.',
     '6. After dispatch, verify the child delivered a complete result. If not, resume ownership and finish the work yourself.',
     '',
     '## Dispatch API',
     '',
-    `Use the bundled sibling script \`${MANAGED_DISPATCH_SCRIPT_NAME}\` for dispatches.`,
+    `Use the bundled script at \`$HERMES_HOME/skills/${MANAGED_DISPATCH_SKILL}/${MANAGED_DISPATCH_SCRIPT_RELATIVE_PATH}\` for dispatches.`,
     'It derives the source agent id from `HERMES_HOME` and uses `HERMES_MANAGER_BASE_URL` when provided, otherwise `http://127.0.0.1:18470`.',
     '',
     'Example:',
     '',
     '```bash',
-    `printf "Goal: <single delegated objective>" | ./${MANAGED_DISPATCH_SCRIPT_NAME} <target-agent-id>`,
+    `printf "Goal: <single delegated objective>" | "$HERMES_HOME/skills/${MANAGED_DISPATCH_SKILL}/${MANAGED_DISPATCH_SCRIPT_RELATIVE_PATH}" <target-agent-id>`,
     '```',
+    '',
+    'Do not assume the current working directory is the managed skill directory.',
     '',
     'Use the script instead of manually constructing curl payloads yourself.',
     '',

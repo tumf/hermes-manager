@@ -7,6 +7,7 @@ import {
   buildSubagentSoulBlock,
   injectSubagentSoulBlock,
   MANAGED_DISPATCH_SCRIPT_NAME,
+  MANAGED_DISPATCH_SCRIPT_RELATIVE_PATH,
   MANAGED_DISPATCH_SKILL,
   readDelegationPolicy,
   resolveTargetMeta,
@@ -18,9 +19,10 @@ import { stripZeroWidthSpace } from './text-sanitizer';
 async function ensureManagedSkill(agentHome: string): Promise<void> {
   const skillDir = path.join(agentHome, 'skills', MANAGED_DISPATCH_SKILL);
   const skillMdPath = path.join(skillDir, 'SKILL.md');
-  const bundledScriptPath = path.join(skillDir, MANAGED_DISPATCH_SCRIPT_NAME);
+  const scriptsDir = path.join(skillDir, 'scripts');
+  const bundledScriptPath = path.join(skillDir, MANAGED_DISPATCH_SCRIPT_RELATIVE_PATH);
   const sourceScriptPath = path.join(process.cwd(), 'scripts', MANAGED_DISPATCH_SCRIPT_NAME);
-  await fsp.mkdir(skillDir, { recursive: true });
+  await fsp.mkdir(scriptsDir, { recursive: true });
   await fsp.writeFile(skillMdPath, buildManagedDispatchSkillContent(), 'utf-8');
   await fsp.copyFile(sourceScriptPath, bundledScriptPath);
   await fsp.chmod(bundledScriptPath, 0o755);

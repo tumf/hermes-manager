@@ -8,7 +8,10 @@ import { promisify } from 'node:util';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { MANAGED_DISPATCH_SCRIPT_NAME, MANAGED_DISPATCH_SKILL } from '../../src/lib/delegation';
+import {
+  MANAGED_DISPATCH_SCRIPT_RELATIVE_PATH,
+  MANAGED_DISPATCH_SKILL,
+} from '../../src/lib/delegation';
 
 const execFileAsync = promisify(execFile);
 
@@ -135,7 +138,7 @@ describe('syncDelegationForAgent', () => {
     expect(skillContent).toContain(
       'Use the script instead of manually constructing curl payloads yourself.',
     );
-    expect(fs.existsSync(path.join(skillDir, 'dispatch-subagent.sh'))).toBe(true);
+    expect(fs.existsSync(path.join(skillDir, MANAGED_DISPATCH_SCRIPT_RELATIVE_PATH))).toBe(true);
   });
 
   it('regenerates SOUL.md with delegation block', async () => {
@@ -169,7 +172,7 @@ describe('syncDelegationForAgent', () => {
       agentHome,
       'skills',
       MANAGED_DISPATCH_SKILL,
-      MANAGED_DISPATCH_SCRIPT_NAME,
+      MANAGED_DISPATCH_SCRIPT_RELATIVE_PATH,
     );
     const scriptContent = await fsp.readFile(scriptPath, 'utf-8');
     expect(scriptContent).toContain('${HERMES_HOME:-}');
@@ -192,7 +195,7 @@ describe('syncDelegationForAgent', () => {
       agentHome,
       'skills',
       MANAGED_DISPATCH_SKILL,
-      MANAGED_DISPATCH_SCRIPT_NAME,
+      MANAGED_DISPATCH_SCRIPT_RELATIVE_PATH,
     );
     await expect(
       execFileAsync(scriptPath, ['target-a'], {
