@@ -189,29 +189,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       >
         <div
           className={cn(
-            'flex h-14 items-center border-b border-border px-4',
-            desktopCollapsed ? 'justify-center px-2' : 'gap-2',
+            'flex h-14 items-center border-b border-border px-2',
+            desktopCollapsed ? 'justify-center' : 'justify-between gap-2 px-3',
           )}
         >
-          <Bot className="size-5 shrink-0 text-primary" />
-          <span
-            className={cn('text-sm font-semibold tracking-tight', desktopCollapsed && 'sr-only')}
+          <div
+            className={cn('flex min-w-0 items-center gap-2', desktopCollapsed && 'justify-center')}
           >
-            {t.appShell.brand}
-          </span>
-        </div>
-        <div
-          className={cn(
-            'flex items-center border-b border-border p-2',
-            desktopCollapsed ? 'justify-center' : 'justify-end',
-          )}
-        >
+            <Bot className="size-5 shrink-0 text-primary" />
+            <span
+              className={cn(
+                'truncate text-sm font-semibold tracking-tight',
+                desktopCollapsed && 'sr-only',
+              )}
+            >
+              {t.appShell.brand}
+            </span>
+          </div>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-9"
+                className="size-9 shrink-0"
                 aria-label={desktopSidebarLabel}
                 onClick={() => setDesktopCollapsed((value) => !value)}
               >
