@@ -136,6 +136,8 @@ describe('chat messages UI', () => {
 
     const messagesScroll = await screen.findByTestId('chat-messages-scroll');
     const composer = screen.getByTestId('chat-input-composer');
+    const sessionsHeading = screen.getByRole('heading', { name: 'Sessions' });
+    const sessionsCard = sessionsHeading.closest('[class*=rounded-lg]');
 
     await waitFor(() => {
       expect(messagesScroll.style.height).toBe('588px');
@@ -143,5 +145,6 @@ describe('chat messages UI', () => {
 
     expect(messagesScroll).toHaveClass('overflow-y-auto');
     expect(composer).toHaveClass('shrink-0');
+    expect(sessionsCard).toHaveClass('min-h-0', 'overflow-hidden');
   });
 });

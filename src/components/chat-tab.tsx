@@ -269,7 +269,7 @@ export function ChatTab({ name }: { name: string }) {
       data-testid="chat-tab-layout"
       className="grid h-full min-h-0 gap-4 md:grid-cols-[320px_1fr]"
     >
-      <Card className="hidden flex-col overflow-hidden md:flex">{sessionsPanel}</Card>
+      <Card className="hidden min-h-0 flex-col overflow-hidden md:flex">{sessionsPanel}</Card>
 
       <Card className="flex min-h-0 flex-col overflow-hidden">
         <CardHeader className="shrink-0">
