@@ -2,50 +2,23 @@
 
 ### Requirement: Cron jobs REST API reads and writes per-agent jobs.json
 
-The `/api/cron` routes MUST read from and write to `{agent.home}/cron/jobs.json` using the Hermes-compatible JSON format (`{ jobs: [...], updated_at: ... }`). All writes MUST be atomic (write to `.tmp` then rename).
+The `/api/cron` routes MUST read from and write to `{agent.home}/cron/jobs.json` using the Hermes-compatible JSON format (`{ jobs: [...], updated_at: ... }`). All writes MUST be atomic (write to `.tmp` then rename). Existing jobs exposed through this API MUST preserve enough configuration and runtime metadata for the Cron tab to inspect and edit a job without reading raw files directly.
 
-#### Scenario: GET returns jobs array for an agent
+#### Scenario: GET returns existing-job fields needed by the editor
 
-Given agent `alpha` has `{alpha.home}/cron/jobs.json` with two job entries
+Given agent `alpha` has `{alpha.home}/cron/jobs.json` containing a job with configuration fields `name`, `schedule`, `prompt`, `skills`, `deliver`, `repeat`, `model`, and `provider`
 When `GET /api/cron?agent=alpha` is called
-Then the response status is 200 and body contains a `jobs` array with two items
+Then the response status is 200
+And the matching job entry includes those persisted configuration fields
+And the matching job entry includes runtime metadata such as `id`, `state`, `enabled`, `created_at`, `next_run_at`, `last_run_at`, `last_status`, and `last_error` when present in `jobs.json`
 
-#### Scenario: GET returns empty array when jobs.json is absent
-
-Given agent `beta` has no `cron/jobs.json` file
-When `GET /api/cron?agent=beta` is called
-Then the response status is 200 and body is `{ "jobs": [] }`
-
-#### Scenario: POST creates a new job
-
-Given a valid request body `{ agent: "alpha", schedule: "0 9 * * *", prompt: "run daily task", name: "daily" }`
-When `POST /api/cron` is called
-Then the response status is 201 and body contains `{ ok: true, id: "<uuid>" }`
-And `{alpha.home}/cron/jobs.json` contains a new job with the given name and schedule
-
-#### Scenario: POST rejects missing schedule
-
-Given a request body missing the `schedule` field
-When `POST /api/cron` is called
-Then the response status is 400 with a JSON error body
-
-#### Scenario: PUT updates an existing job's name
+#### Scenario: PUT updates an existing job's editable configuration
 
 Given a job with id `abc123` exists in agent `alpha`'s jobs.json
-When `PUT /api/cron` is called with `{ agent: "alpha", id: "abc123", name: "renamed" }`
-Then the job's name is updated in jobs.json and the response is `{ ok: true }`
-
-#### Scenario: DELETE removes a job by id
-
-Given a job with id `abc123` exists
-When `DELETE /api/cron?agent=alpha&id=abc123` is called
-Then the job is removed from jobs.json and the response is `{ ok: true }`
-
-#### Scenario: DELETE returns 404 for unknown id
-
-Given no job with id `missing` exists
-When `DELETE /api/cron?agent=alpha&id=missing` is called
-Then the response status is 404
+When `PUT /api/cron` is called with `{ agent: "alpha", id: "abc123", name: "renamed", schedule: "0 9 * * *", prompt: "updated task", skills: ["skill-a"], deliver: "telegram", repeat: { "times": 3 }, model: "claude-sonnet-4", provider: "anthropic" }`
+Then the response is `{ ok: true }`
+And the matching job in `{alpha.home}/cron/jobs.json` reflects the submitted editable fields
+And unrelated jobs remain unchanged
 
 ### Requirement: Cron job action endpoint handles pause, resume, and run-now
 
@@ -73,20 +46,9 @@ Then the job's `next_run_at` is set to the current time (triggering pickup on ne
 
 `GET /api/cron/output?agent=<name>&id=<id>` MUST list markdown output files for the given job, sorted newest-first. With an additional `?file=<filename>` query parameter it MUST return the file content as a string.
 
-#### Scenario: Output file list is returned for a job
+#### Scenario: Output viewer remains available for an edited job
 
-Given job `abc123` has two output files under `{alpha.home}/cron/output/abc123/`
-When `GET /api/cron/output?agent=alpha&id=abc123` is called
-Then the response contains a `files` array with two filenames sorted newest-first
-
-#### Scenario: Output file content is returned when file is specified
-
-Given an output file `2026-03-28_20-00-00.md` exists for job `abc123`
-When `GET /api/cron/output?agent=alpha&id=abc123&file=2026-03-28_20-00-00.md` is called
-Then the response contains `{ content: "<file text>" }`
-
-#### Scenario: Empty files list when no outputs exist
-
-Given job `abc123` has no output files yet
-When `GET /api/cron/output?agent=alpha&id=abc123` is called
-Then the response is `{ files: [] }`
+Given job `abc123` has at least one output file under `{alpha.home}/cron/output/abc123/`
+When an operator opens the existing job from the Cron tab and requests its output
+Then the webapp can still call `GET /api/cron/output?agent=alpha&id=abc123`
+And the response contains a `files` array for that same job
