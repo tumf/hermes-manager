@@ -1,6 +1,18 @@
 'use client';
 
-import { Clock, File, Loader2, MoreVertical, Pause, Play, Plus, Trash2, X } from 'lucide-react';
+import {
+  Clock,
+  File,
+  Loader2,
+  MoreVertical,
+  Pause,
+  Pencil,
+  Play,
+  Plus,
+  Save,
+  Trash2,
+  X,
+} from 'lucide-react';
 import type React from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -39,9 +51,15 @@ interface CronJob {
   };
   state: 'scheduled' | 'paused' | 'completed';
   enabled: boolean;
+  created_at?: string;
   next_run_at?: string | null;
   last_run_at?: string | null;
   last_status?: string | null;
+  last_error?: string | null;
+  deliver?: string;
+  repeat?: { times?: number | null; completed?: number };
+  model?: string | null;
+  provider?: string | null;
 }
 
 interface CronTabProps {
@@ -52,6 +70,7 @@ export function CronTab({ name }: CronTabProps) {
   const [jobs, setJobs] = useState<CronJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [openJobId, setOpenJobId] = useState<string | null>(null);
 
   const fetchJobs = useCallback(async () => {
     setLoading(true);
@@ -67,6 +86,8 @@ export function CronTab({ name }: CronTabProps) {
       setLoading(false);
     }
   }, [name]);
+
+  const openJob = openJobId ? (jobs.find((j) => j.id === openJobId) ?? null) : null;
 
   useEffect(() => {
     void fetchJobs();
@@ -123,6 +144,15 @@ export function CronTab({ name }: CronTabProps) {
         />
       )}
 
+      {openJob && (
+        <CronJobEditor
+          agentName={name}
+          job={openJob}
+          onClose={() => setOpenJobId(null)}
+          onSaved={fetchJobs}
+        />
+      )}
+
       <Card>
         <CardContent className="pt-6">
           {jobs.length === 0 ? (
@@ -148,14 +178,28 @@ export function CronTab({ name }: CronTabProps) {
                 <tbody>
                   {jobs.map((job) => (
                     <tr key={job.id} className="border-b hover:bg-muted/50">
-                      <td className="px-3 py-2 font-mono text-xs">{job.name}</td>
+                      <td className="px-3 py-2 font-mono text-xs">
+                        <button
+                          type="button"
+                          onClick={() => setOpenJobId(job.id)}
+                          className="text-left underline-offset-2 hover:underline"
+                          aria-label={`Open job ${job.name}`}
+                        >
+                          {job.name}
+                        </button>
+                      </td>
                       <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
                         {job.schedule.display || job.schedule.expr}
                       </td>
                       <td className="px-3 py-2">{getStateBadge(job)}</td>
                       <td className="px-3 py-2 text-xs">{formatDateTime(job.next_run_at)}</td>
                       <td className="px-3 py-2 text-right">
-                        <CronJobActions agentName={name} job={job} onRefresh={fetchJobs} />
+                        <CronJobActions
+                          agentName={name}
+                          job={job}
+                          onRefresh={fetchJobs}
+                          onOpen={() => setOpenJobId(job.id)}
+                        />
                       </td>
                     </tr>
                   ))}
@@ -315,10 +359,12 @@ function CronJobActions({
   agentName,
   job,
   onRefresh,
+  onOpen,
 }: {
   agentName: string;
   job: CronJob;
   onRefresh: () => Promise<void>;
+  onOpen: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [showOutputViewer, setShowOutputViewer] = useState(false);
@@ -412,6 +458,10 @@ function CronJobActions({
           <DropdownMenuItem onClick={() => void executeAction('run')}>
             <Play className="mr-2 size-3.5" />
             Run Now
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onOpen}>
+            <Pencil className="mr-2 size-3.5" />
+            View / Edit
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setShowOutputViewer(true)}>
             <File className="mr-2 size-3.5" />
@@ -550,6 +600,283 @@ function CronOutputViewer({
             </div>
           </div>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function CronJobEditor({
+  agentName,
+  job,
+  onClose,
+  onSaved,
+}: {
+  agentName: string;
+  job: CronJob;
+  onClose: () => void;
+  onSaved: () => Promise<void>;
+}) {
+  const [name, setName] = useState(job.name);
+  const [schedule, setSchedule] = useState(job.schedule.expr);
+  const [prompt, setPrompt] = useState(job.prompt);
+  const [skills, setSkills] = useState((job.skills || []).join(', '));
+  const [deliver, setDeliver] = useState(job.deliver ?? '');
+  const [repeatTimes, setRepeatTimes] = useState<string>(
+    job.repeat?.times == null ? '' : String(job.repeat.times),
+  );
+  const [model, setModel] = useState(job.model ?? '');
+  const [provider, setProvider] = useState(job.provider ?? '');
+  const [saving, setSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const formatDateTime = (isoString?: string | null) => {
+    if (!isoString) return '—';
+    try {
+      return new Date(isoString).toLocaleString();
+    } catch {
+      return '—';
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    setErrorMessage(null);
+
+    if (!schedule.trim()) {
+      setErrorMessage('Schedule is required');
+      return;
+    }
+    if (!prompt.trim()) {
+      setErrorMessage('Prompt is required');
+      return;
+    }
+
+    const parsedSkills = skills
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    let parsedRepeatTimes: number | null = null;
+    if (repeatTimes.trim() !== '') {
+      const n = Number(repeatTimes);
+      if (!Number.isInteger(n) || n <= 0) {
+        setErrorMessage('Repeat times must be a positive integer');
+        return;
+      }
+      parsedRepeatTimes = n;
+    }
+
+    setSaving(true);
+    try {
+      const res = await fetch('/api/cron', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent: agentName,
+          id: job.id,
+          name: name.trim(),
+          schedule: schedule.trim(),
+          prompt: prompt.trim(),
+          skills: parsedSkills,
+          deliver,
+          repeat: { times: parsedRepeatTimes },
+          model: model.trim(),
+          provider: provider.trim(),
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const message =
+          typeof (data as { error?: unknown }).error === 'string'
+            ? (data as { error: string }).error
+            : 'Failed to save job';
+        setErrorMessage(message);
+        toast.error(message);
+        return;
+      }
+
+      toast.success('Job saved');
+      await onSaved();
+      onClose();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to save job';
+      setErrorMessage(message);
+      toast.error(message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card className="border-2">
+      <CardHeader className="flex-row items-center justify-between gap-3">
+        <CardTitle className="text-sm">Edit Job: {job.name}</CardTitle>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-8 text-muted-foreground hover:text-foreground"
+          onClick={onClose}
+        >
+          <X className="size-4" />
+        </Button>
+      </CardHeader>
+      <CardContent>
+        <div className="mb-4 rounded-md border bg-muted/30 p-3">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Runtime metadata
+          </p>
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+            <dt className="text-muted-foreground">id</dt>
+            <dd className="font-mono">{job.id}</dd>
+            <dt className="text-muted-foreground">state</dt>
+            <dd className="font-mono">{job.state}</dd>
+            <dt className="text-muted-foreground">enabled</dt>
+            <dd className="font-mono">{String(job.enabled)}</dd>
+            <dt className="text-muted-foreground">created_at</dt>
+            <dd className="font-mono">{formatDateTime(job.created_at)}</dd>
+            <dt className="text-muted-foreground">next_run_at</dt>
+            <dd className="font-mono">{formatDateTime(job.next_run_at)}</dd>
+            <dt className="text-muted-foreground">last_run_at</dt>
+            <dd className="font-mono">{formatDateTime(job.last_run_at)}</dd>
+            <dt className="text-muted-foreground">last_status</dt>
+            <dd className="font-mono">{job.last_status ?? '—'}</dd>
+            <dt className="text-muted-foreground">last_error</dt>
+            <dd className="break-all font-mono">{job.last_error ?? '—'}</dd>
+          </dl>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="cron-edit-name" className="mb-1 block text-xs font-semibold">
+              Name
+            </label>
+            <input
+              id="cron-edit-name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="cron-edit-schedule" className="mb-1 block text-xs font-semibold">
+              Schedule <span className="text-red-500">*</span>
+            </label>
+            <input
+              id="cron-edit-schedule"
+              type="text"
+              value={schedule}
+              onChange={(e) => setSchedule(e.target.value)}
+              className="h-9 w-full rounded-md border border-input bg-background px-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="cron-edit-prompt" className="mb-1 block text-xs font-semibold">
+              Prompt <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              id="cron-edit-prompt"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              className="min-h-20 w-full resize-y rounded-md border border-input bg-background p-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="cron-edit-skills" className="mb-1 block text-xs font-semibold">
+              Skills (comma separated)
+            </label>
+            <input
+              id="cron-edit-skills"
+              type="text"
+              value={skills}
+              onChange={(e) => setSkills(e.target.value)}
+              placeholder="e.g., skill-a, skill-b"
+              className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="cron-edit-deliver" className="mb-1 block text-xs font-semibold">
+              Deliver
+            </label>
+            <input
+              id="cron-edit-deliver"
+              type="text"
+              value={deliver}
+              onChange={(e) => setDeliver(e.target.value)}
+              placeholder="e.g., telegram:123456789"
+              className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="cron-edit-repeat-times" className="mb-1 block text-xs font-semibold">
+              Repeat times (blank = unlimited)
+            </label>
+            <input
+              id="cron-edit-repeat-times"
+              type="number"
+              min={1}
+              value={repeatTimes}
+              onChange={(e) => setRepeatTimes(e.target.value)}
+              className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="cron-edit-model" className="mb-1 block text-xs font-semibold">
+                Model
+              </label>
+              <input
+                id="cron-edit-model"
+                type="text"
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                placeholder="e.g., claude-sonnet-4"
+                className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div>
+              <label htmlFor="cron-edit-provider" className="mb-1 block text-xs font-semibold">
+                Provider
+              </label>
+              <input
+                id="cron-edit-provider"
+                type="text"
+                value={provider}
+                onChange={(e) => setProvider(e.target.value)}
+                placeholder="e.g., anthropic"
+                className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+          </div>
+
+          {errorMessage && (
+            <p role="alert" className="text-xs text-red-600">
+              {errorMessage}
+            </p>
+          )}
+
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={saving}>
+              Cancel
+            </Button>
+            <Button type="submit" size="sm" disabled={saving} className="gap-1.5">
+              {saving ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Save className="size-3.5" />
+              )}
+              {saving ? 'Saving...' : 'Save'}
+            </Button>
+          </div>
+        </form>
       </CardContent>
     </Card>
   );
