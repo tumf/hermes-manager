@@ -12,6 +12,7 @@ Another core differentiator of this app is “partial prompt” operations, whic
 ## Features
 
 - A control plane for centralized operation of multiple agents on one host
+- Fleet inventory visibility with tag filters and asynchronous service-status hydration
 - A subagent operations platform that provides managed delegation / dispatch between agents
 - Delegation target control, loop prevention, and maximum hop control through per-agent delegation policies
 - Flexible operator-defined role models such as domain agents and specialist agents
@@ -20,6 +21,8 @@ Another core differentiator of this app is “partial prompt” operations, whic
 - Automatic regeneration of assembled `SOUL.md` while maintaining Hermes runtime compatibility
 - An operational model that separates per-agent differences from fleet-wide shared conventions
 - Local service control integrated with launchd / systemd
+- Cron job creation, editing, triggering, and output inspection
+- Operator-focused UI improvements including a collapsible sidebar and stabilized chat layouts
 
 ### Managed Subagent Delegation
 
@@ -54,8 +57,9 @@ In Hermes Manager, you can perform the following operations from the browser UI.
 - Provisioning, duplicating, and deleting agents
 - Start, stop, and restart via launchd (macOS) / systemd (Linux)
 - Editing `SOUL.md`, `SOUL.src.md`, `memories/MEMORY.md`, `memories/USER.md`, `config.yaml`, and `.env`
+- Managing agent metadata and fleet filtering through metadata tags
 - Managing layered global / agent environment variables with visibility metadata
-- Reusing templates / partials and equipping skills from a local skill catalog
+- Reusing templates / partials and copying skills from a local skill catalog into agent homes
 - Inspecting local service control, logs, cron jobs, and chat sessions
 
 ## Safety / Trust Boundary

@@ -1,6 +1,6 @@
 # Hermes Manager 要件定義
 
-最終更新: 2026-04-14
+最終更新: 2026-04-21
 
 ## 1. 背景/目的
 
@@ -52,8 +52,8 @@
 - FR-6 Skills API: skills tree 取得（~/.agents/skills、階層構造、SKILL.md 検出）、コピー管理（相対パス保持で `{HERMES_HOME}/skills` にディレクトリをコピー/削除、既存コピー検出）
 - FR-7 Logs API: 読み取り（tail）、SSE で追尾
 - FR-8 Cron API: jobs.json CRUD、pause/resume/run action、output ファイル閲覧（GET/POST/PUT/DELETE、原子書き込み）。`GET /api/cron` は Cron タブの既存ジョブ詳細/編集ビューが必要とする保存済み設定（`name`/`schedule`/`prompt`/`skills`/`deliver`/`repeat`/`model`/`provider`）と runtime metadata（`id`/`state`/`enabled`/`created_at`/`next_run_at`/`last_run_at`/`last_status`/`last_error`）をそのまま返す。`PUT /api/cron` で同じ編集対象フィールドを `agent` + `id` 付きで部分更新できること
-- FR-9 UI: Agents 一覧（起動/停止/状態表示/追加/削除/コピー。process-level 情報として Memory を表示し、Hermes バージョンは表示しない。一覧本体の描画は service status の取得に依存せず、`POST /api/launchd/statuses` による非同期 batch hydrate で status を反映し、取得中は loading 表示、取得失敗は Unknown fallback を出す。metadata tags を使ったクライアント側タグ絞り込み UI を提供し、役割 / 環境単位でインベントリを絞れるようにする。絞り込みは OR 条件、0 件時は復旧導線を表示する）、詳細タブ UI（Metadata/Memory/Config/Env/Skills/Delegation/Cron/Logs/Chat。ヘッダー情報エリアに Hermes バージョンを表示し、未取得時は `--` を表示）。MCP サーバ設定は Config タブの `config.yaml` 編集で扱う。Chat / Logs / Cron / Skills / Env / Config は agent 運用と診断を支援する範囲で提供し、単一 agent 向け総合 dashboard の feature parity は要件としない。Chat タブはセッション一覧の上に検索ボックスを配置し、`state.db` の FTS5 インデックスを使用した per-agent メッセージ全文検索を提供する（`GET /api/agents/{id}/sessions/search?q=...`）。検索結果からセッションを開き、該当メッセージのコンテキストを確認できる。Globals UI
-- FR-10 Templates API: テンプレート CRUD（GET/POST/PUT/DELETE）、fileType + name で UNIQUE 制約。エージェント作成時のテンプレート選択、default テンプレートへのフォールバック、既存ファイルからの Save as Template
+- FR-9 UI: Agents 一覧（起動/停止/状態表示/追加/削除/コピー。process-level 情報として Memory を表示し、Hermes バージョンは表示しない。一覧本体の描画は service status の取得に依存せず、`POST /api/launchd/statuses` による非同期 batch hydrate で status を反映し、取得中は loading 表示、取得失敗は Unknown fallback を出す。metadata tags を使ったクライアント側タグ絞り込み UI を提供し、役割 / 環境単位でインベントリを絞れるようにする。絞り込みは OR 条件、0 件時は復旧導線を表示する）、詳細タブ UI（Metadata/Memory/Config/Env/Skills/Delegation/Cron/Logs/Chat。ヘッダー情報エリアに Hermes バージョンを表示し、未取得時は `--` を表示）。MCP サーバ設定は Config タブの `config.yaml` 編集で扱う。Chat / Logs / Cron / Skills / Env / Config は agent 運用と診断を支援する範囲で提供し、単一 agent 向け総合 dashboard の feature parity は要件としない。Chat タブはセッション一覧の上に検索ボックスを配置し、`state.db` の FTS5 インデックスを使用した per-agent メッセージ全文検索を提供する（`GET /api/agents/{id}/sessions/search?q=...`）。検索結果からセッションを開き、該当メッセージのコンテキストを確認できる。App shell はデスクトップで collapsible sticky sidebar を提供する。Globals UI
+- FR-10 Templates API: テンプレート CRUD（GET/POST/PUT/DELETE）、template name + file path の組み合わせで一意。対象ファイルは `SOUL.md` / `memories/MEMORY.md` / `memories/USER.md` / `config.yaml`。エージェント作成時のテンプレート選択、default テンプレートへのフォールバック、既存ファイルからの Save as Template を提供する
 - FR-11 Partials API: 共有 partial CRUD（`/api/partials`）、`runtime/partials/{name}.md` 保存、`usedBy` 逆引き、利用中削除の 409 拒否、partial 更新時の参照 agent `SOUL.md` 再生成
 - FR-12 Memory UI partial mode: agent ごとの partial mode 有効化（`SOUL.md`→`SOUL.src.md`）、partial 挿入、assembled `SOUL.md` の read-only 確認
 - FR-14 Dispatch API: per-agent managed dispatch policy CRUD（`GET/PUT /api/agents/{id}/delegation`）。canonical storage は `dispatch.json`、`dispatch.json` 不在時は legacy `delegation.json` を読み取りフォールバック。allowedAgents/maxHop を保存し、cycle 検出で reject。policy 保存時に managed dispatch skill を自動 equip/unequip し、`SOUL.md` に machine-generated subagent YAML block を再生成。生成 guidance は dispatch-first wording を使用し、built-in `delegate_task` を別機構として扱い、listed managed subagent が明確に適合する場合は dispatch を優先し、child が完了しない場合の parent 再 ownership セマンティクスを明記。`POST /api/agents/{id}/dispatch` で source agent policy を検証後 target agent api_server に proxy dispatch
@@ -100,7 +100,7 @@
 
 - / Agents 一覧（Add Agent ダイアログに app-managed file のテンプレート選択を含む）
 - /globals グローバル変数
-- /templates テンプレート管理（fileType 別グループ、追加/編集/削除）
+- /templates テンプレート管理（テンプレート名と対象ファイルごとの追加/編集/削除）
 - /partials 共有 partial 管理（一覧・作成・編集・削除・usedBy 表示）
 - /agents/[id] Metadata / Memory / Config / Env / Skills / Cron / Chat / Logs タブ（Memory タブは partial mode 有効化、SOUL.src.md 編集、assembled SOUL.md 確認、Save as Template ボタン付き。MCP サーバ設定は Config タブの `config.yaml` 編集で扱う）
 - 全ページ共通: Language Switcher による多言語 UI 切替（10 言語対応）

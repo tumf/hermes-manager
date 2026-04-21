@@ -171,7 +171,14 @@ Prerequisite: ensure the working tree is clean (`git status` shows no uncommitte
 1. Ensure all checks pass: `npm run test`, `npm run typecheck`, `npm run lint`, `npm run format:check`.
 2. Run the appropriate bump command (e.g. `npm run bump-patch`).
 3. Push the commit and tag: `git push && git push --tags`.
-4. Create a GitHub Release from the new tag with user-facing change notes.
+4. Create a GitHub Release from the new tag with user-facing change notes and operator upgrade notes.
+
+For minor releases, prefer release notes that group changes by operator workflow, for example:
+
+- fleet inventory / visibility
+- provisioning / templates / partials
+- agent coordination / delegation
+- day-2 operations such as cron, logs, and chat
 
 ## 8. Support and Security
 
